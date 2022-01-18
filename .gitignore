@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# sourced data files
+/data
+
+# pesky OSX
+.DS_Store
