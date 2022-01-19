@@ -1,3 +1,6 @@
+# download TIGRIS places, crop to oceans for coastal polygons that
+# jut into the water bodies, and save
+
 library(tidyverse)
 library(sf)
 library(here)
