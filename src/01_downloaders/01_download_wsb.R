@@ -16,15 +16,3 @@ urls <- paste0(base_url, states, "_systems.geojson")
 
 map2(urls, states,
      ~download.file(.x, here("data/boundary", .y, glue("{.y}.geojson"))))
-
-
-# download FRS centroids --------------------------------------------------
-
-
-
-
-
-# download SDWIS admin data -----------------------------------------------
-
-
-
