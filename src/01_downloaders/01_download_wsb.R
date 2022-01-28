@@ -1,14 +1,20 @@
-# download water system data
+# Download water system data
+
+# Setup  -----------------------------------------------------------------------
 
 library(tidyverse)
 library(here)
 library(fs)
 library(glue)
 
-# allow for longer timeout to map download files
+
+# Allow for longer timeout to map download files
 options(timeout = 10000)
 
-# download geojson water system boundaries from IoW -----------------------
+# Download ---------------------------------------------------------------------
+
+# Data Source: Internet of Water 
+## 10 geojson water system boundaries from Internet of Water repository
 base_url <- paste0("https://github.com/NIEPS-Water-Program/",
                    "water-affordability/raw/main/data/")
 states <- c("ca", "ct", "ks", "nc", "nj", "nm", "or", "pa", "tx", "wa")
