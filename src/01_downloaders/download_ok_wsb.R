@@ -1,20 +1,16 @@
-# Download water system data
-
-# Setup  -----------------------------------------------------------------------
+# Download OK water system data
 
 library(tidyverse)
 library(here)
-library(fs)
-library(glue)
-
 
 # Allow for longer timeout to map download file
 options(timeout = 10000)
 
-# Download ---------------------------------------------------------------------
-# Data Source: Oklahoma ArcGIS
-## 1 geojson water system boundary from ArcGIS API
-ok_url <- "https://opendata.arcgis.com/datasets/d015bc14d3b84b8985ff3a4fd55c0844_0.geojson"
+# Data Source: Oklahoma ArcGIS geojson water system boundary
+ok_url <- paste0("https://opendata.arcgis.com/datasets/",
+                 "d015bc14d3b84b8985ff3a4fd55c0844_0.geojson")
 
-map2(ok_url, "ok",
-     ~download.file(.x, here("data/boundary", .y, glue("{.y}.geojson"))))
+# create dir to store file and download
+fs::dir_create(here("data/boundary/ok"))
+download.file(ok_url, here("data/boundary/ok/ok.geojson"))
+cat("Downloaded OK data.\n")
