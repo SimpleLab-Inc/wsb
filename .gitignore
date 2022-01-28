@@ -38,7 +38,7 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# sourced data files and staging
+# local paths to ignore: raw data and staging
 /data
 /staging
 
