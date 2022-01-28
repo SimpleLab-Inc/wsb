@@ -38,8 +38,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
-# sourced data files
+# local paths to ignore: raw data and staging
 /data
+/staging
 
 # pesky OSX
 .DS_Store
