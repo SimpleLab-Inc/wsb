@@ -52,7 +52,7 @@ places <- places %>%
   st_make_valid()
 
 # sanity check that oceans are removed
-mapview::mapview(places)
+# mapview::mapview(places)
 
 # write places
 places %>% 
