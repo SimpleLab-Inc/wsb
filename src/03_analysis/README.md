@@ -16,7 +16,7 @@ The sandbox houses EDA, sanity checks, feature engineering experiments, and othe
 ## Table of contents
 
 * `run.R` is an evolving pipeline script that iterates over scripts in the sandbox that will gradually move to production. 
-* `00_setup.R` builds the sandbox directory structure  
+* `setup.R` builds the sandbox directory structure  
 * `01_sanity_checks.R` investigates common errors identified in the planning and proposes appraoches to mitigate these errors  
 * `02_eda.R` explores `staging` to report on a variety of topics including: ...  
 * `03_model_explore.R` experiments with a variety of statistical and machine learning models to predict boundaries, and reports on uncertainty and error 
