@@ -1,11 +1,17 @@
 # Transform EPA facility registry service data ---------------------------------
+
+library(fs)
 library(sf)
 library(tidyverse)
-library(here)
+
+# path to save raw data and standard projection
+data_path    <- Sys.getenv("WSB_DATA_PATH")
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+epsg         <- Sys.getenv("WSB_EPSG")
 
 # Read un-zipped geodatabase (~6GB so querying on water to reduce file size)
 # First look at available layers
-frs_layers <- st_layers(dsn = here("data/frs/FRS_INTERESTS.gdb"))
+frs_layers <- st_layers(dsn = path(data_path, "frs/FRS_INTERESTS.gdb"))
 
 #  SQL query to target facilities with water focus
 get_water_frs <- 
@@ -15,19 +21,10 @@ get_water_frs <-
    'DRINKING WATER PROGRAM', 'DRINKING WATER SYSTEM')"
 
 # Read layer for FRS_INTERESTS with conditional query on `INTEREST_TYPE`
-frs_water <- here("data/frs/FRS_INTERESTS.gdb") %>% 
+frs_water <- path(data_path, "frs/FRS_INTERESTS.gdb") %>% 
   st_read(query = get_water_frs, 
           layer = "FACILITY_INTERESTS", 
           stringsAsFactors = FALSE)
-
-# Albers Equal Area Conic projected CRS for equal area calculations
-# https://epsg.io/102003
-# TODO: whenever we have AK and HI, we need to shift geometry into
-# this CRS so area calculations are minimally distorted. 
-# See `tigris::shift_geometry(d, preserve_area = TRUE)`
-# https://walker-data.com/census-r/census-geographic-data-and-applications-in-r.html#shifting-and-rescaling-geometry-for-national-us-mapping
-epsg <- "ESRI:102003"
-cat("Defined standard projected CRS:", epsg, "\n")
 
 # Transform to standard epsg
 frs_water <- frs_water %>% st_transform(crs = st_crs(epsg))
@@ -35,6 +32,7 @@ cat("Read labeled FRS layer and transformed to CRS:", epsg, ":\n ")
 
 # Visualize points
 plot(st_geometry(frs_water), pch = 1, col = 'blue')
+
 
 # Clean up attribute data ------------------------------------------------------
 
@@ -45,8 +43,10 @@ frs_water <- frs_water %>%
          facility_id = word(pgm_sys_id, 2),
          facility_id = ifelse(pwsid == facility_id, NA, facility_id))
 
-# Write to geojson and rds -----------------------------------------------------
-fs::file_delete(here("staging/frs.geojson"))
-st_write(frs_water, here("staging/frs.geojson"))
-write_rds(frs_water, here("staging/frs.rds"))
-cat("Wrote FRS data to geojson and rds. \n")
+
+# Write to geojson --------------------------------------------------------
+path_out <- path(staging_path, "frs.geojson")
+if(file_exists(path_out)) file_delete(path_out)
+
+st_write(frs_water, path_out)
+cat("Wrote FRS data to geojson. \n")

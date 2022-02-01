@@ -35,8 +35,9 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-# R Environment Variables
+# Environment Variables
 .Renviron
+.env
 
 # local paths to ignore: raw data and staging
 /data
