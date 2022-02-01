@@ -98,7 +98,7 @@ def write_aria_download_txt(download_txt_name, path, base_filename, table_filter
     return urls_txt_path
 
 
-def download_with_aria(output_dir, filename, table_filter=None):
+def download_with_aria(output_dir, filename, table_filter=None, count_end=200):
     
     """
     Create text file based on filename and base url to direct downloader. 
@@ -121,7 +121,7 @@ def download_with_aria(output_dir, filename, table_filter=None):
     # Make text file of chunked aria urls and filenames
     aria_download_filename = f'aria_download_{filename}.txt'
     
-    urls_txt_path = write_aria_download_txt(aria_download_filename, dir_path, filename, table_filter)
+    urls_txt_path = write_aria_download_txt(aria_download_filename, dir_path, filename, table_filter, count_end=200)
 
     # Download with aria
     os.system(f'aria2c --input-file={urls_txt_path} --dir={dir_path} --auto-file-renaming=false')
@@ -140,7 +140,7 @@ def stitch_files(filename, output_dir):
     """
 
     extension = 'csv'
-    csv_file_path = output_dir
+    csv_file_path = os.path.join(output_dir, filename)
     os.chdir(csv_file_path)
     
     all_filenames = [i for i in glob.glob('*.{}'.format(extension))]
@@ -149,4 +149,4 @@ def stitch_files(filename, output_dir):
     combined_csv = pd.concat([pd.read_csv(f) for f in all_filenames ])
     
     #export to csv
-    combined_csv.to_csv( f"{filename}.csv", index=False, encoding='utf-8-sig')
+    combined_csv.to_csv(f"../{filename}.csv", index=False, encoding='utf-8-sig')

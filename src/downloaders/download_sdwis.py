@@ -12,16 +12,15 @@ import os
 from downloaders.download_helpers import create_dir, get_row_count
 from downloaders.download_helpers import download_with_aria, stitch_files
 
-
 #%%
 # Create file directory
-path = "data/"
+path = "../data/"
 directory = 'sdwis'
 
 # Set output directory
 create_dir(path, directory)
 
-output_dir = "data/sdwis/"
+output_dir = "../data/sdwis/"
 
 #%% Download smaller files to sdwis directory
 
@@ -55,12 +54,13 @@ for filename in filenames:
 #%% Download WATER_SYSTEM
 filename = 'WATER_SYSTEM'
 
-download_with_aria(output_dir,filename)
+download_with_aria(output_dir,filename, count_end=200)
 
 # Stitch and count rows
 if not os.path.exists(os.path.join(output_dir, f'{filename}.csv')):
     stitch_files(filename, output_dir)
     directory = os.path.join(output_dir, f'{filename}/')
+    os.chdir("../../../src/")
     row_count = get_row_count(output_dir, f'{filename}.csv')
     print(f'Row count of {filename}.csv: {row_count}')
 
@@ -68,15 +68,15 @@ if not os.path.exists(os.path.join(output_dir, f'{filename}.csv')):
 #%% Download WATER_SYSTEM_FACILITY
 filename = 'WATER_SYSTEM_FACILITY'
 
-download_with_aria(output_dir, filename)
+download_with_aria(output_dir, filename, count_end=200)
  
-print(f'Row count of {filename}.csv: {row_count}')
 
 # Stitch and count rows
 
 if not os.path.exists(os.path.join(output_dir, f'{filename}.csv')):
     stitch_files(filename, output_dir)   
     directory = os.path.join(output_dir, f'{filename}/')
+    os.chdir("../../../src/")
     row_count = get_row_count(output_dir, f'{filename}.csv')
     print(f'Row count of {filename}.csv: {row_count}')
 
