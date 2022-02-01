@@ -1,3 +1,5 @@
+# needs to be open in the slp2 project to work with `here()`
+
 library(tidyverse)
 library(data.table)
 
