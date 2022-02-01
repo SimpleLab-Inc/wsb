@@ -21,6 +21,29 @@ The overall **pipeline** is shown below:
 ![](etc/diagram.png) 
 
 
+## Getting started
+
+Clone this repo.  
+
+Install `R version 4.1.0`. Download packages as necessary. We rely only on version-stable CRAN packages. 
+
+Set environmental variables in two files: `.env` (python) and `.Renviron` (R).  
+
+In `R`, run `usethis::edit_r_environ(scope = "project")`. Don't forget to leave a blank line at the end before saving.  
+
+```
+WSB_DATA_PATH = "path to save raw data from downloaders"
+WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
+WSB_EPSG = "ESRI:102003"
+```
+
+`WSB_DATA_PATH` is where we save raw data from the downloaders, which may grow sizable and be better placed off disk.  
+
+`WSB_STAGING_PATH` is where we stage post-transformed for EDA and modeling.  
+
+`WSB_EPSG` is the coordinate reference system (CRS) used by transformers. We currently use [Albers Equal Area Conic projected CRS](https://epsg.io/102003) for equal area calculations. For AK and HI, we need to shift geometry into this CRS so area calculations are minimally distorted, see `tigris::shift_geometry(d, preserve_area = TRUE)` at [this webpage](https://walker-data.com/census-r/census-geographic-data-and-applications-in-r.html#shifting-and-rescaling-geometry-for-national-us-mapping). 
+
+
 ## Contributing 
 
 To contribute to the project, please branch from `develop` or a subbrach of `develop` and submit a pull request. To be considered as a maintainer, please contact Jess Goddard <jess at gosimplelab dot com>. 
