@@ -98,14 +98,14 @@ def write_aria_download_txt(download_txt_name, path, base_filename, table_filter
     return urls_txt_path
 
 
-def download_with_aria(output_dir, filename, table_filter=None, count_end=200):
+def download_with_aria(data_path, filename, table_filter=None, count_end=200):
     
     """
     Create text file based on filename and base url to direct downloader. 
     Download url files using aria download text file for base_filename in path. 
     
     Inputs:
-       -output_dir:        directory file path relative to root path where downloads happen
+       -data_path:        directory file path relative to root path where downloads happen
        -file:              name of file
        -table_filter:      optional filter to SDWIS tables, e.g. filter by state code
        
@@ -116,7 +116,7 @@ def download_with_aria(output_dir, filename, table_filter=None, count_end=200):
     """
     
     # Create subdirectory
-    dir_path = create_dir(output_dir,filename)
+    dir_path = create_dir(data_path,filename)
 
     # Make text file of chunked aria urls and filenames
     aria_download_filename = f'aria_download_{filename}.txt'
@@ -127,20 +127,20 @@ def download_with_aria(output_dir, filename, table_filter=None, count_end=200):
     os.system(f'aria2c --input-file={urls_txt_path} --dir={dir_path} --auto-file-renaming=false')
 
 
-def stitch_files(filename, output_dir):
+def stitch_files(filename, data_path):
     
     """
     Create single csv file based on a folder of downloaded csvs. 
     
     Inputs:
-       -output_dir:        directory file path relative to root path where downloads happen
+       -data_path:        directory file path relative to root path where downloads happen
        -filename:          name of file
        
     Outputs: a single csv file in the root project directory for use in transformers. 
     """
 
     extension = 'csv'
-    csv_file_path = os.path.join(output_dir, filename)
+    csv_file_path = os.path.join(data_path, filename)
     os.chdir(csv_file_path)
     
     all_filenames = [i for i in glob.glob('*.{}'.format(extension))]
