@@ -54,6 +54,12 @@ geo_area["state_served_fin"] = np.where(geo_area["state_served"].isna(), \
 
 geo_area = geo_area.drop(columns = ["state_served_temp", "state_served"]) \
                 .rename(columns = {"state_served_fin": "state_served"})
+                
+
+# %% Raise duplication issue on key fields
+
+if (geo_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()):
+    raise Exception("pwsid is not unique.")
      
  # %% Save csv in staging
 
