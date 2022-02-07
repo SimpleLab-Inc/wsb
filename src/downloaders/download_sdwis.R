@@ -14,6 +14,9 @@ options(timeout = 10000, readr.show_progress = FALSE)
 sdwis_categories <- c("SERVICE_AREA", "GEOGRAPHIC_AREA",
                       "WATER_SYSTEM", "WATER_SYSTEM_FACILITY")
 
+# create dir to store file and download
+dir_create(path(data_path, "sdwis/"))
+
 # save downloaded files to these paths
 paths_out <- glue("{data_path}/sdwis/{tolower(sdwis_categories)}.csv")
 
