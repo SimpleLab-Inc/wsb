@@ -42,7 +42,8 @@ for(i in seq_along(paths_out)){
     
     # read url and suppress benign messages and warnings.
     # store all cols as character to ensure they all bind later on!
-    d[[j]] <- read_csv(url, col_types = "c") %>% 
+    d[[j]] <- read_csv(url) %>% 
+      mutate(across(everything(), ~as.character(.x))) %>% 
       suppressWarnings() %>% 
       suppressMessages()
     
