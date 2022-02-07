@@ -14,8 +14,8 @@ options(timeout = 10000, readr.show_progress = FALSE)
 sdwis_categories <- c("SERVICE_AREA", "GEOGRAPHIC_AREA",
                       "WATER_SYSTEM", "WATER_SYSTEM_FACILITY")
 
-# create dir to store file and download
-dir_create(path(data_path, "sdwis/"))
+# create dir to store downloaded sdwis files
+dir_create(path(data_path, "sdwis"))
 
 # save downloaded files to these paths
 paths_out <- glue("{data_path}/sdwis/{tolower(sdwis_categories)}.csv")
@@ -36,8 +36,11 @@ for(i in seq_along(paths_out)){
   # download files until the download returns an empty set
   for(j in seq_along(row_start)){
 
-    cat("    Downloading chunk [", j, "/", length(row_start), 
-        "], rows:", row_start[j], ":", row_end[j], "...")
+    cat("    Downloading chunk [", 
+        formatC(j, digits = 4, flag = "0"), 
+        "/", length(row_start), "], rows", 
+        formatC(row_start[j], width = 9, flag = " ", format = "d"), ":", 
+        formatC(row_end[j],   width = 9, flag = " ", format = "d"), "...")
     
     # url to download for the jth chunk
     url <- paste0("https://data.epa.gov/efservice/", sdwis_categories[i],
