@@ -30,7 +30,7 @@ def clean_up_columns(df):
     df.columns = df.columns.str.lower()
         
     # remove column extras
-    df.columns = df.columns.str.replace('/^(.*?)./', "", regex = True)
+    df = df.dropna(axis = 1, how = "all")
     
     return df
 
