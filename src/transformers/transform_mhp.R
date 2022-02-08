@@ -50,6 +50,7 @@ mhp_sp <- mhp_sp %>%
     zipcode    = zip,
     zip4,
     telephone,
+    type,
     status,
     county,
     county_fips = countyfips,
