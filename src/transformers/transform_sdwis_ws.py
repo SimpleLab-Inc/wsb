@@ -43,11 +43,12 @@ water_system = water_system.dropna(how='all', axis=1)
 
 
 # %% Sanitize booleans
+bool_cols = ["npm_candidate", "is_wholesaler_ind", \
+             "is_school_or_daycare_ind", "source_water_protection_code"]
 
-water_system = water_system.replace({'N': False, 'Y': True, np.NaN: np.NaN})
-
-# Handle source water protection code separately due to nans
-water_system["source_water_protection_code"] = water_system["source_water_protection_code"].astype("boolean")
+for i in bool_cols:
+    water_system[i] = water_system[i].map({'N': 0, 'Y': 1, '': np.NaN, np.NaN : np.NaN})
+    water_system[i] = water_system[i].astype('boolean')
 
 # %% Standardize dates
 

@@ -47,6 +47,12 @@ water_system_facility = water_system_facility.dropna(how='all', axis=1)
 
 water_system_facility = water_system_facility.replace({'N': False, 'Y': True, np.NaN: np.NaN})
 
+# %% Sanitize booleans
+bool_cols = ["is_source_ind", "is_source_treated_ind"]
+
+for i in bool_cols:
+    water_system_facility[i] = water_system_facility[i].map({'N': 0, 'Y': 1, '': np.NaN, np.NaN : np.NaN})
+    water_system_facility[i] = water_system_facility[i].astype('boolean')
 
 # %% Standardize dates
 
