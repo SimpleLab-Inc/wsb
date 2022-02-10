@@ -45,3 +45,8 @@ vignettes/*.pdf
 
 # pesky OSX
 .DS_Store
+
+# VSCode
+.venv
+.vscode
+__pycache__
