@@ -27,15 +27,35 @@ Clone this repo.
 
 Install `R version 4.1.0`. Download packages as necessary. We rely only on version-stable CRAN packages. 
 
-Set environmental variables in two files: `.env` (python) and `.Renviron` (R).  
+Set environmental variables in two files: `.env` (python) and `.Renviron` (R):
 
-In `R`, run `usethis::edit_r_environ(scope = "project")`. Don't forget to leave a blank line at the end before saving.  
+From command line in your repositories folder you can:
+
+```
+cd wsb
+touch .Renviron
+
+cd src
+touch .env
+```
+
+Note: 
+`.Renviron` needs to be set up in the root directory, `wsb/` to work with projects.
+`.env` needs to be set up in `wsb/src`.
+
+To add variables, open both environment files, copy and paste into each:
+
 
 ```
 WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
 WSB_EPSG = "ESRI:102003"
+
 ```
+Don't forget to leave a blank line at the end of `.Renviron` before saving.
+
+To associate `.Renviron` with the `R` project, open `R`, run `usethis::edit_r_environ(scope = "project")`. 
+  
 
 `WSB_DATA_PATH` is where we save raw data from the downloaders, which may grow sizable and be better placed off disk.  
 
