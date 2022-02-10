@@ -44,6 +44,47 @@ WSB_EPSG = "ESRI:102003"
 `WSB_EPSG` is the coordinate reference system (CRS) used by transformers. We currently use [Albers Equal Area Conic projected CRS](https://epsg.io/102003) for equal area calculations. For AK and HI, we need to shift geometry into this CRS so area calculations are minimally distorted, see `tigris::shift_geometry(d, preserve_area = TRUE)` at [this webpage](https://walker-data.com/census-r/census-geographic-data-and-applications-in-r.html#shifting-and-rescaling-geometry-for-national-us-mapping). 
 
 
+## Python venv and requirements
+
+Create a virtual environment, activate it, and install package dependencies:  
+
+On Windows:  
+
+```
+python -m venv .venv
+.venv/scripts/activate.bat
+pip install -r requirements.txt
+```
+
+On OSX/Linux:  
+
+With conda:
+```
+conda install -n sl
+conda activate sl
+```
+
+with venv
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Install `aria` for downloading files:  
+
+```
+brew install aria2
+```
+
+Self-solve system-specific issues.  
+
+
+## R requirements
+
+Download RStudio, then open `wsb.RProject` in RStudio. This will bootstrap `renv`. Next, in the R console, run `renv::restore()` to install R package dependencies and self-solve system-specific issues.  
+
+
 ## Contributing 
 
 To contribute to the project, please branch from `develop` or a subbrach of `develop` and submit a pull request. To be considered as a maintainer, please contact Jess Goddard <jess at gosimplelab dot com>. 
