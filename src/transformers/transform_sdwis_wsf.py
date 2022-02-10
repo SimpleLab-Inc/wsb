@@ -44,10 +44,6 @@ water_system_facility = water_system_facility.dropna(how='all', axis=1)
 
 
 # %% Sanitize booleans
-
-water_system_facility = water_system_facility.replace({'N': False, 'Y': True, np.NaN: np.NaN})
-
-# %% Sanitize booleans
 bool_cols = ["is_source_ind", "is_source_treated_ind"]
 
 for i in bool_cols:
