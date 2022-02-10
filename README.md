@@ -82,7 +82,16 @@ Self-solve system-specific issues.
 
 ## R requirements
 
+We use a ["snapshot and restore"](https://environments.rstudio.com/snapshot.html) approach to dependency management for Python and R environments. This may be superceeded by Docker at a later time.  
+
 Download RStudio, then open `wsb.RProject` in RStudio. This will bootstrap `renv`. Next, in the R console, run `renv::restore()` to install R package dependencies and self-solve system-specific issues.  
+
+When a developer updates or installs new packages to the R project, the lockfile must be updated. Steps include:
+
+1. A user installs, or updates, one or more packages in their local project library;  
+2. That user calls `renv::snapshot()` to update the `renv.lock` lockfile;  
+3. That user then shares the updated version of `renv.lock` with their collaborators by pushing to Github;  
+4. Other collaborators then call `renv::restore()` to install the packages specified in the newly-updated lockfile.  
 
 
 ## Contributing 
