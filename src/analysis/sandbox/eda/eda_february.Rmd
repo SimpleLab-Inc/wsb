@@ -1,0 +1,42 @@
+---
+title: "EDA {rest of title TBD}"
+output: 
+  html_document:
+    highlight: zenburn
+    code_folding: hide
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    number_sections: true
+    # css: etc/style/style.css
+# bibliography: etc/references.bib  
+# link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Jess Goddard & Rich Pauloo*
+
+*Last updated `r Sys.time()`*
+
+
+Key "object" outcome: dataframe with fields that we can start training and testing on  
+
+Key results in the EDA:  
+
+- "coverage" of labeled data, flip side is "missing-ness"  
+- Investigate small systems and identify if additional data collection efforts are needed. If small systems are indeed underrepresented, anticipate and discuss the "generalization" problem of machine learning: in this case, the model will not generalize well to unseen smaller systems without labeled data, thus, data collection efforts should target this level. This itself will be a valuable outcome because it will show us what the distribution of coverage looks like across systems. 
+- heuristic approach (typology of systems): how do we map EPIC typology to fields in ECHO/FRS/etc?  
+  -	ownership type: Federal, local, municipal, private, N, S ??  
+- focus on active CWSs:  
+
+```
+path(staging_path, "water_system.csv") %>% 
+  read_csv() %>% 
+  filter(pws_type_code == "CWS" & pws_activity_code == "A")
+```
+- map tigris places to water_systems (code above) via spatial intersection and fuzzy matching  
+- now we have a dataframe that we can start training/testing on in March.  
+
