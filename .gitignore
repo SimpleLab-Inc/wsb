@@ -46,6 +46,7 @@ vignettes/*.pdf
 # pesky OSX
 .DS_Store
 
+
 # virtual environment
 .venv
 
