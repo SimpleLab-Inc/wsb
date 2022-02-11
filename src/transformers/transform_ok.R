@@ -41,9 +41,9 @@ ok_sp <- ok_sp %>%
 # ok_sp$centroid %>% plot(col = 'red', pch = 3, add = TRUE)
 
 # Save transformed OK data to staging -------------------------------------
-path_out <- path(staging_path, "ok_wsb.geojson")
+path_out <- path(staging_path, "ok_wsb.rds")
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(ok_sp, path_out)
+saveRDS(ok_sp, path_out)
 
 cat("Wrote clean OK boundaries to staging.\n")
