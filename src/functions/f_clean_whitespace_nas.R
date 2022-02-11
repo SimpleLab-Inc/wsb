@@ -2,7 +2,7 @@
 f_clean_whitespace_nas <- function(df){
   
   # if df is spatial, detach geometry before cleaning cols
-  if(sum(class(mhp_sp) == "sf") == 1) {
+  if(sum(class(df) == "sf") == 1) {
     geom = df$geometry
     df   = st_drop_geometry(df)
   }
