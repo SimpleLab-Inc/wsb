@@ -23,7 +23,7 @@ ok_sp <- st_read(dsn = path(data_path, "boundary/ok/ok.geojson")) %>%
   st_make_valid()
 
 cat("Read OK boundary layer, cleaned names, transformed to CRS:", epsg, "\n ")
-cat("Fixed invalid geometries.")
+cat("Fixed invalid geometries.\n")
 
 
 # Compute centroids, convex hulls, and radius assuming circular -----------
@@ -34,7 +34,7 @@ ok_sp <- ok_sp %>%
     area_hull   = st_area(convex_hull),
     radius      = sqrt(area_hull/pi)
   )
-# 
+ 
 # # sanity checks
 # ok_sp$convex_hull %>% plot(col = 'lightblue')
 # ok_sp$geometry %>% plot(col = "green", add = TRUE)
@@ -44,6 +44,6 @@ ok_sp <- ok_sp %>%
 path_out <- path(staging_path, "ok_wsb.rds")
 if(file_exists(path_out)) file_delete(path_out)
 
-saveRDS(ok_sp, path_out)
+write_rds(ok_sp, path_out)
 
 cat("Wrote clean OK boundaries to staging.\n")
