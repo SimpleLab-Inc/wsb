@@ -40,3 +40,27 @@ path(staging_path, "water_system.csv") %>%
 - map tigris places to water_systems (code above) via spatial intersection and fuzzy matching  
 - now we have a dataframe that we can start training/testing on in March.  
 
+
+# Introduction
+
+Summarize nature of the problem and key questions
+
+Key questions:
+
+1. question 1  
+2. question 2  
+3. question 3  
+4. question 4  
+
+
+# Question 1
+
+# Question 2
+
+# Question 3
+
+# Question 4
+
+# Recommendations 
+
+# Next steps
