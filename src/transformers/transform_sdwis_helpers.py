@@ -7,12 +7,13 @@ Created on Thu Feb  3 15:19:40 2022
 """
 
 # Libraries
+from typing import List
 import pandas as pd
 import numpy as np
 
 
 # Clean up columns
-def clean_up_columns(df):
+def clean_up_columns(df: pd.DataFrame):
     """ 
     Remove table names from column headers and set to lower case.
     
@@ -36,7 +37,7 @@ def clean_up_columns(df):
 
 
 # Standardize date columns
-def date_type(df, date_columns):
+def date_type(df: pd.DataFrame, date_columns: List[str]):
     """ 
     Clean up date columns using pandas datetime
     
@@ -49,10 +50,10 @@ def date_type(df, date_columns):
     """
     # set date columns to date
     for x in date_columns:
-        df[x] = df[x].apply(pd.to_datetime, format = "%d-%b-%y")
-        df[x] = df[x].dt.normalize()    
-        
-    return df
+        df[x] = (
+            pd.to_datetime(df[x], format="%d-%b-%y")
+            .dt.normalize())
+
 
 # Trims all white space
 def trim_whitespace(df: pd.DataFrame):
