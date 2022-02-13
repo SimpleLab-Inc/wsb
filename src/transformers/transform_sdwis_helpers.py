@@ -50,9 +50,10 @@ def date_type(df: pd.DataFrame, date_columns: List[str]):
     """
     # set date columns to date
     for x in date_columns:
-        df[x] = df[x].apply(pd.to_datetime, format = "%d-%b-%y")
-        df[x] = df[x].dt.normalize()    
-        
+        df[x] = (
+            pd.to_datetime(df[x], format="%d-%b-%y")
+            .dt.normalize())
+
 
 # Trims all white space
 def trim_whitespace(df: pd.DataFrame):
