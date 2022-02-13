@@ -97,14 +97,14 @@ tokens.sample(20)
 #%%
 # Tokenize!
 replace = (
-    "(CITY|TOWN|VILLAGE)( OF)?|WSD|HOA|WATERING POINT|LLC|PWD|MHP" +
-    "|(PUBLIC |RURAL )?WATER (DISTRICT|COMPANY|SYSTEM|WORKS|DEPARTMENT|DEPT)|SUBDIVISION"
-    "|MUNICIPAL UTILITIES"
+    "(CITY|TOWN|VILLAGE)( OF)?|WSD|HOA|WATERING POINT|LLC|PWD|PWS|MHP|SUBDIVISION" +
+    "|MUNICIPAL UTILITIES|WATERWORKS|MUTUAL|WSC|PSD|MUD" +
+    "|(PUBLIC |RURAL )?WATER( DISTRICT| COMPANY| SYSTEM| WORKS| DEPARTMENT| DEPT| UTILITY)?"
 )
 
 tokens["name_tkn"] = (tokens["name"]
     .str.upper() # Standardize to upper-case
-    .str.replace(fr"\b({replace})\b", "", regex=True)
+    .str.replace(fr"\b({replace})\b", "", regex=True) # Remove water and utility words
     .str.replace(r"[^\w ]", " ", regex=True) # Replace non-word characters
     .str.replace(r"\s\s+", " ", regex=True) # Normalize spaces
     .str.strip())
@@ -114,8 +114,7 @@ tokens["name_tkn"] = (tokens["name"]
 tokens_tigris = tokens[tokens["source"] == "TIGRIS"]
 tokens_sdwis = tokens[tokens["source"] == "SDWIS"]
 
-# 10836 matches
-# How is it that matching got worse? Oh it's those \b's
+# 12815 matches
 tokens_tigris.merge(
     tokens_sdwis,
     on=["state", "name_tkn"],
