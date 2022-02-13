@@ -18,8 +18,14 @@ dir_create(path(data_path, "ne/ocean"))
 
 # download all TIGRIS places, simplify polygons, save
 places <- state.abb %>% 
-  tigris::places() %>% 
-  rmapshaper::ms_simplify(keep_shapes = TRUE) 
+  tigris::places()
+
+places <- places %>% 
+  rmapshaper::ms_simplify(
+    keep_shapes = TRUE,
+    # https://github.com/ateucher/rmapshaper/issues/83
+    # and https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
+    sys = TRUE)
 
 write_rds(places, path(data_path, "tigris/tigris_places.rds"))
 cat("Downloaded and wrote TIGRIS places.\n")
