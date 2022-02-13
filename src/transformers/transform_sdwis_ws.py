@@ -55,8 +55,7 @@ for i in bool_cols:
 date_cols = ['outstanding_perform_begin_date','pws_deactivation_date', \
              'source_protection_begin_date']
 
-# This is slow
-date_type(water_system, water_system[date_cols])
+date_type(water_system, date_cols)
 
 # %% Simplify zip-code column to 5 digit
 

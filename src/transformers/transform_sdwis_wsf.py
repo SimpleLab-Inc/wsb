@@ -55,7 +55,7 @@ for i in bool_cols:
 date_cols = ['facility_deactivation_date','pws_deactivation_date']
 
 # This is slow
-date_type(water_system_facility, water_system_facility[date_cols])
+date_type(water_system_facility, date_cols)
 
 # %% Raise duplication issue on key fields
 
