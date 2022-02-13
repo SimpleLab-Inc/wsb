@@ -4,6 +4,7 @@ library(fs)
 library(sf)
 library(tigris)
 library(rmapshaper)
+library(readr)
 
 # path to save raw data
 data_path <- Sys.getenv("WSB_DATA_PATH")
