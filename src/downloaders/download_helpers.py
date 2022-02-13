@@ -87,7 +87,7 @@ def write_aria_download_txt(download_txt_name, path, base_filename, table_filter
             row_end = row_start + step_size - 1
             rows = f'{str(row_start)}:{str(row_end)}'
             
-            url = os.path.join(base_url, rows, 'csv')
+            url = f"{base_url}/{rows}/csv"
             f.write(url + '\n')
             
             filename = f'{base_filename}_{count_cur}.csv'
