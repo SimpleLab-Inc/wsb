@@ -13,6 +13,6 @@ mhp_url <- paste0("https://opendata.arcgis.com/datasets/",
                   "4cdbccc5c538452aa91ceee277c460f9_0.geojson")
 
 # create dir to store file and download
-dir_create(path(data_path, "boundary/mhp"))
-download.file(mhp_url, path(data_path, "/boundary/mhp/mhp.geojson"))
+dir_create(path(data_path, "mhp"))
+download.file(mhp_url, path(data_path, "/mhp/mhp.geojson"))
 cat("Downloaded mobile home park point data.\n")
