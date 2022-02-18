@@ -69,4 +69,4 @@ if (water_system.duplicated(subset = ['pwsid'], keep = False).rename("Unique").a
 
 # %% Save csv in staging
 
-water_system.to_csv(os.path.join(staging_path, "water_system.csv"), index = False)
+water_system.to_csv(os.path.join(staging_path, "sdwis_water_system.csv"), index = False)

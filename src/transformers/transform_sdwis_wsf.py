@@ -64,4 +64,4 @@ if (water_system_facility.duplicated(subset = ['pwsid','facility_id'], keep = Fa
     
 # %% Save csv in staging
 
-water_system_facility.to_csv(os.path.join(staging_path, "water_system_facility.csv"), index = False)
+water_system_facility.to_csv(os.path.join(staging_path, "sdwis_water_system_facility.csv"), index = False)
