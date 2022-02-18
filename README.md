@@ -76,6 +76,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Install `aria` for downloading files. Preferred method is to use the [chocolatey package manager](https://chocolatey.org/):  
+
+```
+choco install aria2
+```
+
 On OSX/Linux:  
 
 With conda:

@@ -13,7 +13,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg         <- Sys.getenv("WSB_EPSG")
 
 # Read un-zipped geodatabase, clean names, transform to standard epsg
-mhp_sp <- st_read(dsn = path(data_path, "boundary/mhp/mhp.geojson")) %>% 
+mhp_sp <- st_read(dsn = path(data_path, "mhp/mhp.geojson")) %>% 
   janitor::clean_names() %>% 
   st_transform(crs = epsg)
 
