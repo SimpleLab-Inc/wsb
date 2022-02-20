@@ -27,7 +27,9 @@ places_clean <- places %>%
   st_make_valid() %>%
   st_intersection(st_make_valid(ocean)) %>% 
   st_transform(epsg) %>% 
-  st_make_valid()
+  st_make_valid() %>% 
+  janitor::clean_names() %>% 
+  mutate(statefp = as.numeric(statefp))
 
 # sanity check that oceans are removed
 # mapview::mapview(places_clean)

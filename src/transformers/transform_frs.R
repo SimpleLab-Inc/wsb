@@ -38,7 +38,7 @@ plot(st_geometry(frs_water), pch = 1, col = 'blue')
 
 # Set column names to lower case, split PWSID and Facility ID from pgm_sys_id
 frs_water <- frs_water %>%
-  janitor::clean_names(frs_water) %>% 
+  janitor::clean_names() %>% 
   mutate(pwsid = word(pgm_sys_id, 1),
          facility_id = word(pgm_sys_id, 2),
          facility_id = ifelse(pwsid == facility_id, NA, facility_id))
