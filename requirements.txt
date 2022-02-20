@@ -30,3 +30,6 @@ tornado==6.1
 traitlets==5.1.1
 wcwidth==0.2.5
 wurlitzer==3.0.2
+sqlalchemy
+psycopg2
+geoalchemy2
