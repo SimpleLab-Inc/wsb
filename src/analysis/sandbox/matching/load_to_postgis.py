@@ -121,15 +121,11 @@ echo = echo.explode("sdwa_ids").rename(columns={"sdwa_ids": "pwsid"})
 # Filter to the pws's of interest
 echo = echo.loc[echo["pwsid"].isin(sdwis)]
 
-#%%
-
 # Convert to geopandas
 echo = gpd.GeoDataFrame(
     echo,
     geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]))
 
-#%%
-echo.head()
 
 #%%
 ##############################################

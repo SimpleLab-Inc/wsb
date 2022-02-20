@@ -10,11 +10,32 @@ load_dotenv()
 pd.options.display.max_columns = None
 
 data_path = os.environ["WSB_STAGING_PATH"]
+EPSG = os.environ["WSB_EPSG"]
 
 # Bring in the FIPS -> State Abbr crosswalk
 crosswalk = (pd.read_csv("../crosswalks/state_fips_to_abbr.csv")
     .set_index("code"))
 
+"""
+Data Sources:
+1. SDWIS - Official list of PWS's to classify. Narrow to Active CWS's.
+2. FRS - Has centroids for ~15k facilities.
+3. ECHO? - Similar to FRS. Better matching. The points might be a superset of FRS.
+4. TIGRIS - Generic city boundaries. Attempt to match on city name.
+5. Mobile Home Parks - 
+6. Various exact geometries from states
+"""
+
+# TODO - Chat with team
+# - [ ] Some of this logic could be moved to the transformers
+# - Share PostGIS database
+# - Discuss standards:
+#       - Why ESRI:102003 instead of EPSG:4326? Apparently geojson only allows 4326
+#       - Let's unify the data formats. GeoJSON? Shared PostGIS DB? Shapefiles?
+#       - Why's OK an RDS instead of a geojson?
+# - What's "transform_wsb"? How's it differ from the separat MHP and OK transforms?
+# - Only 16k matches to FRS. Should we look to Echo instead? Is that admin addresses?
+# - Echo has much better matches, and seems to be a superset of FRS.
 
 #%%
 # Get clean versions of all the data sources.
@@ -139,6 +160,8 @@ ref_point_desc - Name that identifies the place for which geographic coordinates
 frs = gpd.read_file(
     data_path + "/frs.geojson")
 
+frs = frs.set_crs(EPSG, allow_override=True)
+
 # keep_columns = [
 #     "PGM_SYS_ID", "LATITUDE83", "LONGITUDE83", "ACCURACY_VALUE", 
 #     "COLLECT_MTH_DESC", "REF_POINT_DESC", "geometry"]
@@ -149,8 +172,8 @@ frs = gpd.read_file(
 frs.columns = [c.lower() for c in frs.columns]
 
 # Assumption: PGM_SYS_ID is concatenated IFF INTEREST_TYPE == "WATER TREATMENT PLANT"
-# if (~(frs["interest_type"] == "WATER TREATMENT PLANT") == (frs["pgm_sys_id"].str.contains(" "))).any():
-#     raise Exception("Failed assumption: pgm_sys_id is concatenated IFF interest_type == 'WATER TREATMENT PLANT'")
+if (~(frs["interest_type"] == "WATER TREATMENT PLANT") == (frs["pgm_sys_id"].str.contains(" "))).any():
+    raise Exception("Failed assumption: pgm_sys_id is concatenated IFF interest_type == 'WATER TREATMENT PLANT'")
 
 # Add pwsid and facility_id columns by parsing apart the pgm_sys_id
 frs = frs.join(frs["pgm_sys_id"]
@@ -194,7 +217,6 @@ len(frs[frs["matched"]]["pwsid"].unique())
 # 45k entries, but many are duplicated on facility_id
 frs = frs[frs["matched"]].drop(columns=["matched"])
 
-
 #%%
 
 ##############################################
@@ -202,13 +224,15 @@ frs = frs[frs["matched"]].drop(columns=["matched"])
 ##############################################
 tigris = gpd.read_file(data_path + "/tigris_places_clean.geojson")
 
+tigris = tigris.set_crs(EPSG, allow_override=True)
+
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
 # tigris = tigris[keep_columns]
 
 # Make columns lower-case
 tigris.columns = [c.lower() for c in tigris.columns]
 
-# Standardize to all-caps
+# Standardize data type
 tigris["statefp"] = tigris["statefp"].astype("int")
 
 # Augment with state abbrev
@@ -216,3 +240,86 @@ tigris = tigris.join(crosswalk, on="statefp", how="inner")
 
 # GEOID seems to be a safe unique identifier
 tigris.head()
+
+#%%
+
+##############################################
+# 6?) How about echo?
+##############################################
+
+echo = pd.read_csv(
+    data_path + "/../downloads/echo/ECHO_EXPORTER.csv",
+    usecols=["SDWA_IDS", "FAC_LAT", "FAC_LONG", "FAC_NAME"],
+    dtype="string")
+
+# Standardize to lower case
+echo.columns = [c.lower() for c in echo.columns]
+
+# Filter to only those with sdwa_ids and lat/long
+echo = echo.loc[echo["sdwa_ids"].notna() & echo["fac_lat"].notna()].copy()
+
+# The sdwa_ids column contains multiple space-delimited PWSIDs. Turn them into Python lists.
+echo["sdwa_ids"] = echo["sdwa_ids"].str.split()
+
+# Now duplicate rows where we have multiple ID's
+echo = echo.explode("sdwa_ids").rename(columns={"sdwa_ids": "pwsid"})
+
+# 53,500 matches SDWIS to ECHO, 2209 no match
+echo = echo[echo["pwsid"].isin(sdwis["pwsid"])]
+
+echo.head()
+
+##########################################
+# - [ ] Check: Is ECHO a superset of FRS?
+##########################################
+
+
+#%%
+
+# Convert FRS to 4326
+frs = frs.to_crs(epsg="4326")
+
+# Convert echo to GeoPandas
+echo = gpd.GeoDataFrame(
+    echo,
+    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]))
+
+# Join on PWSID.
+# 45,584 matches between FRS and Echo
+# Problem: GeoPandas only allows one geometry column, and we need to take the distances.
+# Solution: https://stackoverflow.com/questions/58276632/is-it-bad-practice-to-have-more-than-1-geometry-column-in-a-geodataframe
+# Drop geometries. Join them. Make it a GeoDataFrame for one of the geometries. Ensure similar CRS.
+# Write a function to calculate distance for the other geometry. Apply.
+join = echo.merge(frs, on="pwsid", how="inner")
+
+#%%
+
+##########################################
+# What next?
+##########################################
+
+"""
+I want to create a stacked merge report.
+
+1) Map to a unified data model:
+    - source system name
+    - source system key
+    - pwsid
+    - name
+    - city served?
+    - lat?
+    - long?
+    - geometry?
+
+2)  pwsid will serve as the merge ID. We probably don't need a separate merge ID,
+    unless it turns out that some pwsid's are wrong.
+
+3) Matching:
+    - SDWIS is the anchor.
+    - FRS / ECHO match easily on PWSID. Easy to assign MK.
+    - TIGRIS will need spatial matching, fuzzy name matching, and manual review.
+    - MHP will need spatial matching, fuzzy name matching, and manual review.
+    - Boundaries:
+        - OK has good PWSID matching. But are the boundaries right? They look pretty weird.
+
+"""
