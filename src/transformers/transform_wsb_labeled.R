@@ -20,38 +20,39 @@ cat("Read", length(f), "labeled spatial datasets and transformed to CRS",
 # validate equal CRS
 map_chr(d, ~st_crs(.x)$input) %>% unique()
 
-# compute centroids, convex hulls, and radius assuming circluar area
-d <- map(
-  d, 
-  ~mutate(
-    .x, 
-    centroid    = st_geometry(st_centroid(geometry)),
-    convex_hull = st_geometry(st_convex_hull(geometry)),
-    area_hull   = st_area(convex_hull),
-    radius      = sqrt(area_hull/pi)
-  )
-)
-cat("Computed centroids, convex hulls, and radii. \n")
-
-# sanity checks
-d[[3]]$convex_hull %>% plot(col = 'lightblue')
-d[[3]]$geometry %>% plot(col = "green", add = TRUE)
-d[[3]]$centroid %>% plot(col = 'red', pch = 3, add = TRUE)
-
 # combine into one dataframe, plus ad hoc cleaning
 d <- d %>% 
   bind_rows() %>% 
-  mutate(state = str_sub(pwsid, 1, 2),
-         # one pesky pwsid in NM with a weird pwsid that begins with "CR"
-         state = ifelse(state == "CR", "NM", state))
-cat("Combined into one layer and added state names. \n")
+  mutate(
+    st_areashape   = st_area(geometry),
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_x     = unlist(map(centroid, 1)),
+    centroid_y     = unlist(map(centroid, 2)),
+    convex_hull    = st_geometry(st_convex_hull(geometry)),
+    area_hull      = st_area(convex_hull),
+    radius         = sqrt(area_hull/pi),
+    state          = str_sub(pwsid, 1, 2),
+    # one pesky pwsid in NM with a weird pwsid that begins with "CR"
+    state          = ifelse(state == "CR", "NM", state),
+    source         = if_else(is.na(source), "NIEPS Water Program", source),
+    # fill in gis name with system names for OK
+    # note that underlying data uses "service_area" for oregon's "gis_name"
+    gis_name       = if_else(!is.na(gis_name), gis_name, toupper(name)),
+    ) %>%
+  # remove extra geometries and largely empty or unimportant columns (for now!)
+  select(-convex_hull, -centroid, -name, -objectid, -year, -scale, -st_lengthshape,
+         -sdwis_link, -GISJOIN, -GEOID, -STATEFP, -city_name, -category)
+cat("Computed centroids, convex hulls, and radii. \n")
+cat("Combined into one layer, added state names, centroid lat/longsm areas, and data sources. \n")
 
 # note that OR data is very low - only 10 
 table(d$state) %>% sort() %>% rev()
+or <- d %>% filter(state == "OR")
+plot(or$geometry, col = 'green')
 
-# delete layer if it exsits, then write to geojson 
+# delete layer if it exists, then write to geojson 
 path_out <- path(staging_path, "wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(d, path_out)
-cat("Wrote clean, labeled data to geojson and rds. \n")
+cat("Wrote clean, labeled data to geojson \n")
