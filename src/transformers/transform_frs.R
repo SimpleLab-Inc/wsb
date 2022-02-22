@@ -39,10 +39,12 @@ plot(st_geometry(frs_water), pch = 1, col = 'blue')
 
 # General cleaning --------------------------------------------------------
 
-# Set column names to lower case, split PWSID and Facility ID from pgm_sys_id
+# Set column names to lower case, clean names, clean whitespace, 
+# split PWSID and Facility ID from pgm_sys_id, add reported state name
 frs_water <- frs_water %>%
   rename(geometry = Shape) %>% 
   janitor::clean_names() %>% 
+  f_clean_whitespace_nas() %>% 
   mutate(pwsid = word(pgm_sys_id, 1),
          state = substr(pwsid, 1, 2),
          facility_id = word(pgm_sys_id, 2),
