@@ -25,12 +25,10 @@ f_drop_imposters <- function(d, path_log){
   # create state name to abbreviation key with built-in R objects
   key = tibble(name = state.name, state_intersection = state.abb)
   
-  # pull usa state geometries, project to input data CRS, add abbreviations
-  usa = spData::us_states %>% 
+  # pull usa state geometries, project to input data CRS
+  usa = USAboundaries::us_states(resolution = "high") %>% 
     st_transform(st_crs(d)$epsg) %>% 
-    janitor::clean_names() %>% 
-    left_join(key) %>% 
-    select(state_intersection, geometry) %>% 
+    select(state_intersection = state_abbr, geometry) %>% 
     suppressMessages()
   
   # spatial join input data to usa state polygons.
@@ -41,25 +39,35 @@ f_drop_imposters <- function(d, path_log){
   
   # valid geometries: reported state == intersected state
   d_valid = d_joined %>% 
-    filter(state_reported == state_intersection) %>% 
+    filter(
+      state_reported == state_intersection |
+      # also return when an input geometry doesn't intersect the USA geom
+      is.na(state_intersection)
+    ) %>% 
     select(-state_reported, -state_intersection)
   
-  # invalid geometries: reported state != intersected state
-  d_invalid = d_joined %>% 
-    filter(state_reported != state_intersection) %>% 
+  # imposters: reported state != intersected state
+  d_imposter = d_joined %>% 
+    filter(
+      state_reported != state_intersection | 
+      # also return when a state isn't reported
+      is.na(state_reported)
+    ) %>% 
+    select(state_reported, state_intersection, everything()) %>% 
     st_drop_geometry()
   
   # print stats on valid/invalid geometries
-  nrow_d  = nrow(d_joined) %>% formatC(big.mark = ",")
-  nrow_dv = nrow(d_valid)  %>% formatC(big.mark = ",")
-  p_valid = round(((nrow(d_valid)/nrow(d_joined))*100), 2)
+  nrow_d   = nrow(d_joined)   %>% formatC(big.mark = ",")
+  nrow_dv  = nrow(d_valid)    %>% formatC(big.mark = ",")
+  nrow_imp = nrow(d_imposter) %>% formatC(big.mark = ",")
+  p_valid  = round(((nrow(d_valid)/nrow(d_joined))*100), 2)
 
   cat(nrow_dv, "/", nrow_d, "rows are valid", "(", 
       p_valid, "% of input data).\n\n")
   
   # sink invalid pwsids (even with dupes, e.g. FRS) to a log file
-  write_csv(d_invalid, path_log)
-  cat("Wrote invalid geometries for review to", path_log, "\n")
+  write_csv(d_imposter, path_log)
+  cat("Wrote", nrow_imp, "imposters for review to", path_log, "\n")
   
   # return valid geometries as an object
   return(d_valid)
