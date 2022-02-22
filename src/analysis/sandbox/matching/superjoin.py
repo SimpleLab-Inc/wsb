@@ -10,7 +10,7 @@ load_dotenv()
 
 pd.options.display.max_columns = None
 
-data_path = os.environ["WSB_STAGING_PATH"]
+DATA_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
 # Bring in the FIPS -> State Abbr crosswalk
@@ -38,10 +38,7 @@ Data Sources:
 # - Only 16k matches to FRS. Should we look to Echo instead? Is that admin addresses?
 # - Echo has much better matches, and seems to be a superset of FRS.
 
-#%%
-# Get clean versions of all the data sources.
-
-##############################################
+#%% ##########################################
 # 1) SDWIS
 ##############################################
 
@@ -77,7 +74,7 @@ keep_columns = ["pwsid", "pws_name", "pws_activity_code", "pws_type_code", "prim
     "population_served_count", "service_connections_count"]
 
 sdwis_unfiltered = pd.read_csv(
-    data_path + "/sdwis_water_system.csv",
+    DATA_PATH + "/sdwis_water_system.csv",
     usecols=keep_columns,
     dtype="string")
 
@@ -97,7 +94,7 @@ sdwis = (
 # ~1k PWSID's appear in water_system but not geographic_area
 # We're trying to get city_served and county_served, but these columns aren't always populated
 sdwis_ga = pd.read_csv(
-    data_path + "/sdwis_geographic_area.csv",
+    DATA_PATH + "/sdwis_geographic_area.csv",
     usecols=["pwsid", "city_served", "county_served"],
     dtype="string")
 
@@ -116,7 +113,7 @@ sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
 # service_area - PWSID + service_area_type_code is unique
 # ~1k PWSID's appear in water_system but not service_area
 sdwis_sa = pd.read_csv(
-    data_path + "/sdwis_service_area.csv",
+    DATA_PATH + "/sdwis_service_area.csv",
     usecols=["pwsid", "service_area_type_code"])
 
 # Filter to the pws's we're interested in
@@ -134,23 +131,22 @@ if not sdwis["pwsid"].is_unique:
 
 sdwis.head()
 
-
+"""
 #%%
 # Supplement with water_system_facilities?
 # This would roughly denormalize by 10x...probably don't want to do that yet.
 
 # water_system_facilities - PWSID + facility_id is unique
 # There are ~300 PWSID's in water_system but not water_system_facilities
-sdwis_wsf = pd.read_csv(data_path + "/sdwis_water_system_facility.csv")
+sdwis_wsf = pd.read_csv(DATA_PATH + "/sdwis_water_system_facility.csv")
 
 # Filter to only pws's that we're interested in
 sdwis_wsf = sdwis_wsf.loc[sdwis_wsf["pwsid"].isin(sdwis["pwsid"])]
 
 sdwis_wsf.head()
+"""
 
-
-#%%
-##############################################
+#%% ##########################################
 # 2) FRS (EPA "Facility Registry Service")
 # FRS data model: https://www.epa.gov/frs/frs-physical-data-model
 ##############################################
@@ -172,7 +168,7 @@ ref_point_desc - Name that identifies the place for which geographic coordinates
 """
 
 frs = gpd.read_file(
-    data_path + "/frs.geojson")
+    DATA_PATH + "/frs.geojson")
 
 frs = frs.set_crs(EPSG, allow_override=True)
 
@@ -222,12 +218,10 @@ len(frs[frs["matched"]]["pwsid"].unique())
 # 45k entries, but many are duplicated on facility_id
 frs = frs[frs["matched"]].drop(columns=["matched"])
 
-#%%
-
-##############################################
+#%% ##########################################
 # 3) TIGRIS
 ##############################################
-tigris = gpd.read_file(data_path + "/tigris_places_clean.geojson")
+tigris = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
 tigris = tigris.set_crs(EPSG, allow_override=True)
 
@@ -243,14 +237,12 @@ tigris = tigris.join(crosswalk, on="statefp", how="inner")
 # GEOID seems to be a safe unique identifier
 tigris.head()
 
-#%%
-
-##############################################
+#%% ##########################################
 # 6) ECHO
 ##############################################
 
-echo = pd.read_csv(
-    data_path + "/echo.csv",
+echo_df = pd.read_csv(
+    DATA_PATH + "/echo.csv",
     usecols=[
         "pwsid", "fac_lat", "fac_long", "fac_name",
         "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
@@ -259,14 +251,14 @@ echo = pd.read_csv(
 
 # Filter to only those in our SDWIS list and with lat/long
 # 53,500 SDWIS match to ECHO, 2209 don't match
-echo = echo.loc[
-    echo["pwsid"].isin(sdwis["pwsid"]) &
-    echo["fac_lat"].notna()].copy()
+echo_df = echo_df.loc[
+    echo_df["pwsid"].isin(sdwis["pwsid"]) &
+    echo_df["fac_lat"].notna()].copy()
 
 # Convert to geopandas
-echo = gpd.GeoDataFrame(
-    echo,
-    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]),
+echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
+    echo_df,
+    geometry=gpd.points_from_xy(echo_df["fac_long"], echo_df["fac_lat"]),
     crs="EPSG:4326")
 
 echo = echo.to_crs(EPSG)
@@ -294,9 +286,9 @@ print(echo[~echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_cou
 
 #%%
 
-##########################################
-# What next?
-##########################################
+#%% #############################
+# Trying a stacked approach
+#################################
 
 """
 I want to create a stacked merge report.
@@ -330,9 +322,6 @@ I want to create a stacked merge report.
 """
 
 """
-#%% #############################
-# Trying a stacked approach
-#################################
 
 #%%
 
@@ -413,7 +402,6 @@ tigris_supermodel
 # Nvm, I'll lay off that for a bit. Let's just try to do simple geo matching.
 ##############################
 
-
 # Match rules:
 # 1) echo point inside TIGRIS geometry
 # 2) Matching state AND tokenized facility name
@@ -443,6 +431,8 @@ join = tigris.sjoin(echo, how="inner")
 
 # Supplement with sdwis city_served
 join = join.merge(sdwis[["pwsid", "city_served"]], on="pwsid")
+
+print(f"Spatial matches: {len(join)}")
 
 join.head()
 
@@ -496,18 +486,62 @@ print("Max: " + str(join_sub.groupby("geoid").size().max()))
 # This seems like a decent stopping point.
 # TODO - Treat these as 3 match rules. Revisit the stacked match report, where multiple matches = higher strength
 
-#%%
-# TODO - Create the table that Jess outlined.
+#%% ##########################
+# Generate the final table
+##############################
 
-sdwis[[
-    "pwsid", "pws_name", "primacy_agency_code", "city_served", "county_served", 
-    "population_served_count", "service_connections_count"
+"""
+Requested table:
+
+Column                   | Data Source
+-------------------------|----------------
+pwsid                    | SDWIS
+pws_name                 | SDWIS
+wsb                      | WSB (hold for now)
+tigris_match             | TIGRIS - Rather than just a bool, let's include the geoid and how it matched
+echo_match               | ECHO - Rather than just a bool, let's include the lat/long and method
+mhp_match                | MHP - hold for now
+state_code               | SDWIS
+county_served            | SDWIS
+city_served              | SDWIS
+population_served        | SDWIS
+connections              | SDWIS
+primacy_agency_code      | SDWIS
+service_area_type_code   | SDWIS
+"""
+
+output = sdwis[[
+    "pwsid", "pws_name", "primacy_agency_code", "state_code", "city_served",
+    "county_served", "population_served_count", "service_connections_count",
+    "service_area_type_code"
 ]]
 
-#%%
+# Supplement with tigris match info
+output = (output
+    .merge(join_sub[["pwsid", "geoid", "match_type"]], on="pwsid", how="left")
+    .rename(columns={
+        "geoid": "tigris_match_geoid",
+        "match_type": "tigris_match_type"
+    }))
 
-# Match rules:
-# 1) echo point inside TIGRIS geometry
-# 2) Matching state AND tokenized facility name
-# 3) Matching state and tokenized city served
-# 4) Combos of the above
+# Supplement with echo match info
+output = (output
+    .merge(echo[["pwsid", "fac_lat", "fac_long", "fac_collection_method"]], on="pwsid", how="left")
+    .rename(columns={
+        "fac_lat": "echo_latitude",
+        "fac_long": "echo_longitude",
+        "fac_collection_method": "echo_geocode_method"
+    }))
+
+# Verify: We should still have exactly the number of pwsid's as we started with
+if not (len(output) == len(sdwis)):
+    raise Exception("Output was filtered or denormalized")
+
+#%%
+# This should probably go to some other folder
+output.to_csv(DATA_PATH + "/matched_output.csv")
+
+# How to study this report?
+# Wouldn't it be cool if we had tiny little "sparkmaps" on each match to show how close they are?
+# Or maybe that's not doable cause maps are hard to read up close.
+# How could we map it so that we can visually see the corresponding tigris and echo pairs?
