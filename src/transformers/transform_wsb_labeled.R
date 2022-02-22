@@ -20,6 +20,11 @@ cat("Read", length(f), "labeled spatial datasets and transformed to CRS",
 # validate equal CRS
 map_chr(d, ~st_crs(.x)$input) %>% unique()
 
+# columns to keep in the final dataframe
+cols_keep <- c("pwsid", "gis_name", "population", "connections", 
+               "state", "county", "source", "st_areashape", "owner",
+               "centroid_x", "centroid_y", "area_hull", "radius", "geometry")
+
 # combine into one dataframe, plus ad hoc cleaning
 d <- d %>% 
   bind_rows() %>% 
@@ -34,16 +39,16 @@ d <- d %>%
     state          = str_sub(pwsid, 1, 2),
     # one pesky pwsid in NM with a weird pwsid that begins with "CR"
     state          = ifelse(state == "CR", "NM", state),
-    source         = if_else(is.na(source), "NIEPS Water Program", source),
+    source         = ifelse(is.na(source), "NIEPS Water Program", source),
     # fill in gis name with system names for OK
     # note that underlying data uses "service_area" for oregon's "gis_name"
-    gis_name       = if_else(!is.na(gis_name), gis_name, toupper(name)),
+    gis_name       = ifelse(!is.na(gis_name), gis_name, toupper(name)),
     ) %>%
   # remove extra geometries and largely empty or unimportant columns (for now!)
-  select(-convex_hull, -centroid, -name, -objectid, -year, -scale, -st_lengthshape,
-         -sdwis_link, -GISJOIN, -GEOID, -STATEFP, -city_name, -category)
-cat("Computed centroids, convex hulls, and radii. \n")
-cat("Combined into one layer, added state names, centroid lat/longsm areas, and data sources. \n")
+  select(all_of(cols_keep))
+cat("Computed area, centroids, and radii from convex hulls.\n")
+cat("Combined into one layer and added: state names,",
+    "centroid lat/lng, and data sources.\n")
 
 # note that OR data is very low - only 10 
 table(d$state) %>% sort() %>% rev()
