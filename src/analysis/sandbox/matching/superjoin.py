@@ -1,6 +1,7 @@
 #%%
 
 import os
+from typing import Dict
 import pandas as pd
 import geopandas as gpd
 from dotenv import load_dotenv
@@ -71,7 +72,8 @@ ga.county_served - Maybe this will be helpful?
 
 # 1) SDWIS water_systems - PWSID is unique
 keep_columns = ["pwsid", "pws_name", "address_line1", "address_line2", "city_name",
-    "zip_code", "primacy_agency_code", "pws_activity_code", "pws_type_code"]
+    "zip_code", "primacy_agency_code", "pws_activity_code", "pws_type_code",
+    "population_served_count", "service_connections_count"]
 
 sdwis_unfiltered = pd.read_csv(
     data_path + "/sdwis_water_system.csv",
@@ -232,12 +234,15 @@ tigris.head()
 #%%
 
 ##############################################
-# 6?) How about echo?
+# 6) ECHO
 ##############################################
 
 echo = pd.read_csv(
     data_path + "/echo.csv",
-    usecols=["pwsid", "fac_lat", "fac_long", "fac_name"],
+    usecols=[
+        "pwsid", "fac_lat", "fac_long", "fac_name",
+        "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
+        'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters'],
     dtype="string")
 
 # Filter to only those in our SDWIS list and with lat/long
@@ -246,25 +251,34 @@ echo = echo.loc[
     echo["pwsid"].isin(sdwis["pwsid"]) &
     echo["fac_lat"].notna()].copy()
 
-echo.head()
-
-#%%
-
-# Convert FRS to 4326
-frs = frs.to_crs(epsg="4326")
-
-# Convert echo to GeoPandas
+# Convert to geopandas
 echo = gpd.GeoDataFrame(
     echo,
-    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]))
+    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]),
+    crs="EPSG:4326")
 
-# Join on PWSID.
-# 45,584 matches between FRS and Echo
-# Problem: GeoPandas only allows one geometry column, and we need to take the distances.
-# Solution: https://stackoverflow.com/questions/58276632/is-it-bad-practice-to-have-more-than-1-geometry-column-in-a-geodataframe
-# Drop geometries. Join them. Make it a GeoDataFrame for one of the geometries. Ensure similar CRS.
-# Write a function to calculate distance for the other geometry. Apply.
-join = echo.merge(frs, on="pwsid", how="inner")
+echo = echo.to_crs(EPSG)
+
+echo.head()
+
+
+#%%
+# Are there any patterns when echo is in FRS vs when it's not in FRS?
+
+print("In FRS:")
+print(echo[echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_counts())
+
+print("\nNot in FRS:")
+print(echo[~echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_counts())
+
+# Yeah, interesting...
+# When it matches FRS:
+#  - fac_collection_method - Primarily "ADDRESS MATCHING-HOUSE NUMBER", "INTERPOLATION-PHOTO", "INTERPOLATION-MAP", etc.
+#  - fac_reference_point - Detailed info about the specific reference point where the centroid was picked at the facility
+# When it doesn't match FRS:
+#  - fac_collection_method - Primarily "County Centroid", "Zip Code Centroid", "State Centroid". Yuck.
+#  - fac_reference_point - Mostly null.
+
 
 #%%
 
@@ -303,7 +317,177 @@ I want to create a stacked merge report.
 
 """
 
+"""
+#%% #############################
+# Trying a stacked approach
+#################################
 
 #%%
 
-# OK! Let's do that then.
+model = {
+    "source_system": "str",
+    "source_system_id": "str",
+    "master_key": "str",
+    "name": "string",
+    "fac_street": "string",
+    "fac_city": "string",
+    "fac_state": "string",
+    "fac_zip": "string",
+    "fac_county": "string",
+    "city_served": "string",
+    "primacy_agency_code": "string",
+    "geometry_shape": object,
+    "geometry_lat": "string",
+    "geometry_long": "string",
+    "geometry_point_quality": "string"
+}
+
+supermodel = pd.DataFrame(columns=list(model.keys())).astype(model)
+
+#%%
+sdwis_supermodel = (sdwis
+    .assign(
+        source_system = "sdwis",
+        source_system_id = sdwis["pwsid"],
+        master_key = sdwis["pwsid"]
+    )
+    .rename(columns={
+        "pws_name": "name"
+    })
+    [["source_system", "source_system_id", "master_key", "pwsid",
+    "primacy_agency_code", "name", "city_served"]])
+
+sdwis_supermodel
+
+#%%
+
+echo_supermodel = (echo
+    .assign(
+        source_system = "echo",
+        source_system_id = echo["pwsid"],
+        master_key = echo["pwsid"]
+    )
+    .rename(columns={
+        "fac_name": "name",
+        "fac_lat": "geometry_lat",
+        "fac_long": "geometry_long",
+        "fac_collection_point": "geometry_point_quality"
+    })
+    [["source_system", "source_system_id", "master_key", "pwsid", "name",
+    "geometry_lat", "geometry_long", "geometry_point_quality"]])
+
+echo_supermodel
+
+#%%
+
+tigris_supermodel = (tigris
+    .assign(
+        source_system = "tigris",
+        source_system_id = tigris["geoid"],
+        master_key = pd.NA
+    )
+    .rename(columns={
+        "state": "primacy_agency_code",
+        "geometry": "geometry_shape"
+    })
+    [["source_system", "source_system_id", "master_key", "name",
+    "geometry_shape"]])
+
+tigris_supermodel
+
+"""
+
+#%% ##########################
+# Nvm, I'll lay off that for a bit. Let's just try to do simple geo matching.
+##############################
+
+# We'll use this for name matching
+def tokenize_name(series) -> pd.Series:
+    replace = (
+        "(CITY|TOWN|VILLAGE)( OF)?|WSD|HOA|WATERING POINT|LLC|PWD|PWS|SUBDIVISION" +
+        "|MUNICIPAL UTILITIES|WATERWORKS|MUTUAL|WSC|PSD|MUD" +
+        "|(PUBLIC |RURAL )?WATER( DISTRICT| COMPANY| SYSTEM| WORKS| DEPARTMENT| DEPT| UTILITY)?"
+    )
+
+    return (series
+        .str.upper() # Standardize to upper-case
+        .str.replace(fr"\b({replace})\b", "", regex=True) # Remove water and utility words
+        .str.replace(r"[^\w ]", " ", regex=True) # Replace non-word characters
+        .str.replace(r"\s\s+", " ", regex=True) # Normalize spaces
+        .str.strip())
+
+#%%
+# Woot! We have spatial matches. 23k
+join = tigris.sjoin(echo, how="inner")
+
+
+# Supplement with sdwis city_served
+join = join.merge(sdwis[["pwsid", "city_served"]], on="pwsid")
+
+join.head()
+
+#%%
+
+# How many distinct geoids had matches? 10,446
+print("Distinct geoids: " + str(len(join["geoid"].unique())))
+# How many matches per geoid? 2.2 avg, 1 min, 617 max (whoa! It's Houston)
+print("Mean: " + str(join.groupby("geoid").size().mean()))
+print("Min: " + str(join.groupby("geoid").size().min()))
+print("Max: " + str(join.groupby("geoid").size().max()))
+
+
+#%%
+# Tokenize names (strip out common words and acronyms)
+join["tigris_name"] = tokenize_name(join["name"])
+join["echo_name"] = tokenize_name(join["fac_name"])
+
+join.head()
+
+#%%
+# Narrowed to 4643 when you match names too
+matches = join[join["tigris_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "name_token")
+
+# 7232 matches on city_served. That's surprisingly good!
+matches = pd.concat([
+    matches,
+    join[join["city_served"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "city_served")])
+
+# Combine and dedupe matches, with: city_served > name_token. 8852 remaining
+matches = matches.sort_values(["geoid", "pwsid", "match_type"]).drop_duplicates(subset=["geoid", "pwsid"], keep="first")
+
+print(f"Distinct matches on spatial & (facility name or city served): {len(matches)}")
+
+#%%
+# Filter the spatial join based on the name matches we just found
+join_sub = join.merge(matches, on=["geoid", "pwsid"], how="inner")
+
+#%%
+# How many distinct geoids had matches? 6,778
+len(join_sub["geoid"].unique())
+
+#%%
+# How many matches per geoid? 1.3 avg, 1 min, 83 max (Raleigh this time. City served might worsen matches!)
+# This is getting closer to 1:1
+print("Mean: " + str(join_sub.groupby("geoid").size().mean()))
+print("Median: " + str(join_sub.groupby("geoid").size().median()))
+print("Min: " + str(join_sub.groupby("geoid").size().min()))
+print("Max: " + str(join_sub.groupby("geoid").size().max()))
+
+# This seems like a decent stopping point.
+# TODO - Treat these as 3 match rules. Revisit the stacked match report, where multiple matches = higher strength
+
+#%%
+# TODO - Create the table that Jess outlined.
+
+sdwis[[
+    "pwsid", "pws_name", "primacy_agency_code", "city_served", "county_served", 
+    "population_served_count", "service_connections_count"
+]]
+
+#%%
+
+# Match rules:
+# 1) echo point inside TIGRIS geometry
+# 2) Matching state AND tokenized facility name
+# 3) Matching state and tokenized city served
+# 4) Combos of the above
