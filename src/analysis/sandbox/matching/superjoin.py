@@ -413,6 +413,14 @@ tigris_supermodel
 # Nvm, I'll lay off that for a bit. Let's just try to do simple geo matching.
 ##############################
 
+
+# Match rules:
+# 1) echo point inside TIGRIS geometry
+# 2) Matching state AND tokenized facility name
+# 3) Matching state and tokenized city served
+# 4) Combos of the above
+
+
 # We'll use this for name matching
 def tokenize_name(series) -> pd.Series:
     replace = (
@@ -457,12 +465,12 @@ join.head()
 
 #%%
 # Narrowed to 4643 when you match names too
-matches = join[join["tigris_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "name_token")
+matches = join[join["tigris_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+name_token")
 
 # 7232 matches on city_served. That's surprisingly good!
 matches = pd.concat([
     matches,
-    join[join["city_served"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "city_served")])
+    join[join["city_served"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+city_served")])
 
 # Combine and dedupe matches, with: city_served > name_token. 8852 remaining
 matches = matches.sort_values(["geoid", "pwsid", "match_type"]).drop_duplicates(subset=["geoid", "pwsid"], keep="first")
