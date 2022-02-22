@@ -12,15 +12,15 @@ f_drop_imposters <- function(d, path_log){
   }
   
   # error if the supplied object does not have a PWSID field name
-  if(!"pwsid" %in% colnames(d)){
-    stop("Column `pwsid` missing from input object.", call. = FALSE)
+  if(!"state" %in% colnames(d)){
+    stop("Column `state` missing from input object.", call. = FALSE)
   }
   
   # if the log path doesn't exist, create it
   if(!dir_exists(here::here("log"))) dir_create(here::here("log"))
   
-  # extract reported state name from pwsid
-  d = mutate(d, state_reported = substr(pwsid, 1, 2))
+  # reported state name 
+  d = rename(d, state_reported = state)
   
   # create state name to abbreviation key with built-in R objects
   key = tibble(name = state.name, state_intersection = state.abb)

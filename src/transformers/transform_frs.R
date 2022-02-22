@@ -44,6 +44,7 @@ frs_water <- frs_water %>%
   rename(geometry = Shape) %>% 
   janitor::clean_names() %>% 
   mutate(pwsid = word(pgm_sys_id, 1),
+         state = substr(pwsid, 1, 2),
          facility_id = word(pgm_sys_id, 2),
          facility_id = ifelse(pwsid == facility_id, NA, facility_id)) 
 
