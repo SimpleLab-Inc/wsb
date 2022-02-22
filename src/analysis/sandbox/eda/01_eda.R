@@ -13,17 +13,17 @@ epsg         <- Sys.getenv("WSB_EPSG")
 # rowwise st_differnce() 
 
 # do all FRS pwsids share the same geometry?
-# frs <- path(staging_path, "frs.geojson") %>% st_read()
-frs <- rename(frs, geometry = Shape)
+frs <- path(staging_path, "frs.geojson") %>% st_read()
+# frs <- rename(frs, geometry = Shape)
 
-frs <- frs_water
+# frs <- frs_water
 
 
 # all FRS 
 ids <- frs %>% st_drop_geometry() %>% count(pwsid) %>% filter(n > 1) %>% pull(pwsid)
 
 
-# show there are ~1.7% (~500 distinct lat/lng out of 32329 unqiue pwsid groups length(unique(frs$pwsid)) )
+# show there are ~1.7% (~500 distinct lat/lng out of 32329 unqiue pwsid groups length(unique(frs$pwsid)) ) with > 1 distinct lat or lng
 ids_distinct <- frs %>% 
   st_drop_geometry() %>% 
   filter(pwsid %in% ids) %>% 
@@ -38,7 +38,10 @@ ids_distinct <- frs %>%
   filter(nd_lat > 1 | nd_lon > 1) %>% 
   pull(pwsid)
 
-# actually calcualte the differences
+# but by how much do they differ by more than 1 los angeles (in 1 dimension)?
+# show that ~71% of pwsids (395/556) with > 1 distinct lat/lng have a 
+# spatial spread (difference of range) that exceeds what we
+# expect for a moderate sized city (LA = 9x area of SF)
 frs %>% 
   st_transform(3310) %>% 
   mutate(lat = st_coordinates(geometry)[, 1], 
@@ -51,8 +54,8 @@ frs %>%
   mutate(range_lat = diff(range(lat)), 
          range_lon = diff(range(lon))) %>% 
   ungroup() %>% 
-  # 1 LA (9x SF) in surface area
-  filter(range_lat > 35000 | range_lon > 35000) %>% View()
+  # 1 LA (9x SF) in surface area (1302.76 km^2 = 503 mi^2)
+  filter(range_lat > 36000 | range_lon > 36000) %>% 
   pull(pwsid) 
 
 frs %>% filter(pwsid == "CA1502034") %>% mapview::mapview()
@@ -60,9 +63,7 @@ frs %>% filter(pwsid == "AK2262351") %>% mapview::mapview()
 frs %>% filter(pwsid == "TX1012759") %>% mapview::mapview()
 
 
-# shows that ~10% of pwsids (395/3000ish) with > 1 distinct lat/lng (and 1% of all unique pwsid groups) have a 
-# spatial spread (difference of range) that exceeds what we
-# expect for a moderate sized city (9x area of SF)
+
 
 # plot connection count against polygon area and convex hull area
 
