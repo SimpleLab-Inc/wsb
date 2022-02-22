@@ -25,19 +25,13 @@ conn = sa.create_engine("postgresql://postgres:postgres@localhost:5434/sl_gis")
 
 TGT_EPSG = 4326
 
-#%% ##########################################
-# 1) SDWIS
-##############################################
-
-# SDWIS doesn't have any geometry, but we use it to filter on the PWSID's of interest.
+# 1) SDWIS - We're not loading it up, but we use it to filter on the PWSID's of interest.
 sdwis = pd.read_csv(
     data_path + "/sdwis_water_system.csv",
     usecols=["pwsid", "pws_activity_code", "pws_type_code"],
     dtype="str")
 
-
-# Filter to only active community water systems
-# Starts as 400k, drops to ~50k after this filter
+# Filter to only active community water systems (~55k)
 sdwis = (
     sdwis.loc[
         (sdwis["pws_activity_code"].isin(["A", "N", "P"])) &
@@ -47,7 +41,6 @@ sdwis = (
 #%% ##########################################
 # 2) FRS
 ##############################################
-
 
 frs = gpd.read_file(
     data_path + "/frs.geojson")
@@ -90,8 +83,10 @@ mhp = gpd.read_file(data_path + "/mhp_clean.geojson")
 
 echo = pd.read_csv(
     data_path + "/echo.csv",
-    usecols=["pwsid", "fac_lat", "fac_long", "fac_name"],
-    dtype="string")
+    usecols=[
+        "pwsid", "fac_lat", "fac_long", "fac_name",
+        'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters'],
+    dtype="str")
 
 # Filter to only those in our SDWIS list and with lat/long
 echo = echo.loc[
@@ -101,7 +96,8 @@ echo = echo.loc[
 # Convert to geopandas
 echo = gpd.GeoDataFrame(
     echo,
-    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]))
+    geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]),
+    crs="EPSG:4326")
 
 
 #%% ##########################################
@@ -141,8 +137,8 @@ print("done.")
 #%%
 # ECHO
 print("Loading echo...")
-conn.execute("DROP TABLE IF EXISTS echo_export;")
-echo.to_postgis("echo_export", conn, if_exists="append")
+conn.execute("DROP TABLE IF EXISTS echo;")
+echo.to_postgis("echo", conn, if_exists="append")
 print("done.")
 
 #%%
