@@ -1,4 +1,4 @@
-# transform labeled water system data to standard model
+# transform labeled water system data to standard model -------------------
 
 library(fs)
 library(sf)
@@ -30,7 +30,7 @@ d <- d %>%
   bind_rows() %>% 
   mutate(
     st_areashape   = st_area(geometry),
-    centroid       = st_geometry(st_centroid(geometry))),
+    centroid       = st_geometry(st_centroid(geometry)),
     centroid_x     = st_coordinates(centroid)[, 1],
     centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
