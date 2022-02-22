@@ -30,9 +30,9 @@ d <- d %>%
   bind_rows() %>% 
   mutate(
     st_areashape   = st_area(geometry),
-    centroid       = st_geometry(st_centroid(geometry)),
-    centroid_x     = unlist(map(centroid, 1)),
-    centroid_y     = unlist(map(centroid, 2)),
+    centroid       = st_geometry(st_centroid(geometry))),
+    centroid_x     = st_coordinates(centroid)[, 1],
+    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi),
@@ -43,7 +43,7 @@ d <- d %>%
     # fill in gis name with system names for OK
     # note that underlying data uses "service_area" for oregon's "gis_name"
     gis_name       = ifelse(!is.na(gis_name), gis_name, toupper(name)),
-    ) %>%
+  ) %>%
   # remove extra geometries and largely empty or unimportant columns (for now!)
   select(all_of(cols_keep))
 cat("Computed area, centroids, and radii from convex hulls.\n")
