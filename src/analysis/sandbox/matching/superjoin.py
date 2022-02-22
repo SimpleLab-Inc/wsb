@@ -70,9 +70,10 @@ ga.city_served - this column is not populated in ws unfortunately
 ga.county_served - Maybe this will be helpful?
 """
 
+#########
 # 1) SDWIS water_systems - PWSID is unique
-keep_columns = ["pwsid", "pws_name", "address_line1", "address_line2", "city_name",
-    "zip_code", "primacy_agency_code", "pws_activity_code", "pws_type_code",
+keep_columns = ["pwsid", "pws_name", "pws_activity_code", "pws_type_code", "primacy_agency_code", 
+    "address_line1", "address_line2", "city_name", "zip_code", "state_code",
     "population_served_count", "service_connections_count"]
 
 sdwis_unfiltered = pd.read_csv(
@@ -89,7 +90,8 @@ sdwis = (
         (sdwis_unfiltered["pws_type_code"] == "CWS")])
 
 
-# Supplement with geographic_area #########
+#########
+# Supplement with geographic_area
 
 # geographic_area - PWSID is unique, very nearly 1:1 with water_system
 # ~1k PWSID's appear in water_system but not geographic_area
@@ -105,10 +107,10 @@ if not sdwis_ga["pwsid"].is_unique:
 
 sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
 
-#%%
+#########
+# Supplement with service_area
 
-# Supplement with service_area? #########
-# We don't want to do this just yet cause it will denormalize
+# This is N:1 with sdwis, which is annoying
 # (each pws has on average 1.2 service_area_type_codes)
 
 # service_area - PWSID + service_area_type_code is unique
@@ -120,7 +122,17 @@ sdwis_sa = pd.read_csv(
 # Filter to the pws's we're interested in
 sdwis_sa = sdwis_sa.loc[sdwis_sa["pwsid"].isin(sdwis["pwsid"])]
 
-sdwis_sa.head()
+# Supplement sdwis. I'll group it into a python list to avoid denormalized
+# Could also do a comma-delimited string. We'll see what seems more useful in practice.
+sdwis_sa = sdwis_sa.groupby("pwsid")["service_area_type_code"].apply(list)
+
+sdwis = sdwis.merge(sdwis_sa, on="pwsid", how="left")
+
+# Verification
+if not sdwis["pwsid"].is_unique:
+    raise Exception("Expected sdwis pwsid to be unique")
+
+sdwis.head()
 
 
 #%%
