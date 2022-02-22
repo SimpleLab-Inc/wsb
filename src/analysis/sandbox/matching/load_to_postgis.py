@@ -25,7 +25,9 @@ conn = sa.create_engine("postgresql://postgres:postgres@localhost:5434/sl_gis")
 
 TGT_EPSG = 4326
 
-#%%
+#%% ##########################################
+# 1) SDWIS
+##############################################
 
 # SDWIS doesn't have any geometry, but we use it to filter on the PWSID's of interest.
 sdwis = pd.read_csv(
@@ -42,37 +44,25 @@ sdwis = (
         (sdwis["pws_type_code"] == "CWS")]
     )["pwsid"]
 
-#%%
+#%% ##########################################
+# 2) FRS
+##############################################
+
 
 frs = gpd.read_file(
     data_path + "/frs.geojson")
 
 frs = frs.set_crs(SRC_EPSG, allow_override=True)
 
-# Standardize columns to lowercase
-frs.columns = [c.lower() for c in frs.columns]
-
-# Add pwsid and facility_id columns by parsing apart the pgm_sys_id
-frs = frs.join(frs["pgm_sys_id"]
-    .str.extract(r"(\w+)(?: (\w+))?")
-    .rename(columns={
-        0: "pwsid",
-        1: "facility_id" #type:ignore
-    }))
-
 # Filter to only those in SDWIS
 frs = frs[frs["pwsid"].isin(sdwis)]
 
-#%%
-##############################################
+#%% ##########################################
 # 3) TIGRIS
 ##############################################
 tigris = gpd.read_file(data_path + "/tigris_places_clean.geojson")
 
 tigris = tigris.set_crs(SRC_EPSG, allow_override=True)
-
-# Make columns lower-case
-tigris.columns = [c.lower() for c in tigris.columns]
 
 # Standardize data type
 tigris["statefp"] = tigris["statefp"].astype("int")
@@ -80,46 +70,33 @@ tigris["statefp"] = tigris["statefp"].astype("int")
 # Augment with state abbrev
 tigris = tigris.join(crosswalk, on="statefp", how="inner")
 
-#%%
-##############################################
+#%% ##########################################
 # 4) Labeled boundaries - What are these?
 ##############################################
-wsb = gpd.read_file(data_path + "/wsb_labeled.geojson")
-wsb = wsb.set_crs(SRC_EPSG, allow_override=True)
+# wsb = gpd.read_file(data_path + "/wsb_labeled.geojson")
+# wsb = wsb.set_crs(SRC_EPSG, allow_override=True)
 
 # Does this have both points and areas?
 
-#%%
-##############################################
+#%% ##########################################
 # 5) Mobile Home Parks
 ##############################################
 mhp = gpd.read_file(data_path + "/mhp_clean.geojson")
 
 
-#%%
-##############################################
+#%% ##########################################
 # 6) Echo
 ##############################################
 
 echo = pd.read_csv(
-    data_path + "/../downloads/echo/ECHO_EXPORTER.csv",
-    usecols=["SDWA_IDS", "FAC_LAT", "FAC_LONG", "FAC_NAME"],
+    data_path + "/echo.csv",
+    usecols=["pwsid", "fac_lat", "fac_long", "fac_name"],
     dtype="string")
 
-# Standardize to lower case
-echo.columns = [c.lower() for c in echo.columns]
-
-# Filter to only those with sdwa_ids and lat/long
-echo = echo.loc[echo["sdwa_ids"].notna() & echo["fac_lat"].notna()].copy()
-
-# The sdwa_ids column contains multiple space-delimited PWSIDs. Turn them into Python lists.
-echo["sdwa_ids"] = echo["sdwa_ids"].str.split()
-
-# Now duplicate rows where we have multiple ID's and rename to pwsid
-echo = echo.explode("sdwa_ids").rename(columns={"sdwa_ids": "pwsid"})
-
-# Filter to the pws's of interest
-echo = echo.loc[echo["pwsid"].isin(sdwis)]
+# Filter to only those in our SDWIS list and with lat/long
+echo = echo.loc[
+    echo["pwsid"].isin(sdwis) &
+    echo["fac_lat"].notna()].copy()
 
 # Convert to geopandas
 echo = gpd.GeoDataFrame(
@@ -127,8 +104,7 @@ echo = gpd.GeoDataFrame(
     geometry=gpd.points_from_xy(echo["fac_long"], echo["fac_lat"]))
 
 
-#%%
-##############################################
+#%% ##########################################
 # 10a) Oklahoma
 ##############################################
 

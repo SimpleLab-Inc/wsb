@@ -168,20 +168,11 @@ frs = frs.set_crs(EPSG, allow_override=True)
 #
 #frs = frs[keep_columns]
 
-# Standardize columns to lowercase
-frs.columns = [c.lower() for c in frs.columns]
+#%%
 
 # Assumption: PGM_SYS_ID is concatenated IFF INTEREST_TYPE == "WATER TREATMENT PLANT"
 if (~(frs["interest_type"] == "WATER TREATMENT PLANT") == (frs["pgm_sys_id"].str.contains(" "))).any():
     raise Exception("Failed assumption: pgm_sys_id is concatenated IFF interest_type == 'WATER TREATMENT PLANT'")
-
-# Add pwsid and facility_id columns by parsing apart the pgm_sys_id
-frs = frs.join(frs["pgm_sys_id"]
-    .str.extract(r"(\w+)(?: (\w+))?")
-    .rename(columns={
-        0: "pwsid",
-        1: "facility_id" #type:ignore
-    }))
 
 print(f"Unique pwsid's: {len(frs['pwsid'].unique())}")
 
@@ -229,9 +220,6 @@ tigris = tigris.set_crs(EPSG, allow_override=True)
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
 # tigris = tigris[keep_columns]
 
-# Make columns lower-case
-tigris.columns = [c.lower() for c in tigris.columns]
-
 # Standardize data type
 tigris["statefp"] = tigris["statefp"].astype("int")
 
@@ -248,31 +236,17 @@ tigris.head()
 ##############################################
 
 echo = pd.read_csv(
-    data_path + "/../downloads/echo/ECHO_EXPORTER.csv",
-    usecols=["SDWA_IDS", "FAC_LAT", "FAC_LONG", "FAC_NAME"],
+    data_path + "/echo.csv",
+    usecols=["pwsid", "fac_lat", "fac_long", "fac_name"],
     dtype="string")
 
-# Standardize to lower case
-echo.columns = [c.lower() for c in echo.columns]
-
-# Filter to only those with sdwa_ids and lat/long
-echo = echo.loc[echo["sdwa_ids"].notna() & echo["fac_lat"].notna()].copy()
-
-# The sdwa_ids column contains multiple space-delimited PWSIDs. Turn them into Python lists.
-echo["sdwa_ids"] = echo["sdwa_ids"].str.split()
-
-# Now duplicate rows where we have multiple ID's
-echo = echo.explode("sdwa_ids").rename(columns={"sdwa_ids": "pwsid"})
-
-# 53,500 matches SDWIS to ECHO, 2209 no match
-echo = echo[echo["pwsid"].isin(sdwis["pwsid"])]
+# Filter to only those in our SDWIS list and with lat/long
+# 53,500 SDWIS match to ECHO, 2209 don't match
+echo = echo.loc[
+    echo["pwsid"].isin(sdwis["pwsid"]) &
+    echo["fac_lat"].notna()].copy()
 
 echo.head()
-
-##########################################
-# - [ ] Check: Is ECHO a superset of FRS?
-##########################################
-
 
 #%%
 
@@ -309,17 +283,27 @@ I want to create a stacked merge report.
     - city served?
     - lat?
     - long?
-    - geometry?
+    - geometry? - Either multiple columns for different geometry quality, or smart survivorship
+        - shape
+        - point
+        - zip centroid
+        - geometry_quality - (Opt?) Notes about the quality; e.g. whether it came from a zip, from multiple points that were averaged, etc
 
 2)  pwsid will serve as the merge ID. We probably don't need a separate merge ID,
     unless it turns out that some pwsid's are wrong.
 
 3) Matching:
     - SDWIS is the anchor.
-    - FRS / ECHO match easily on PWSID. Easy to assign MK.
+    - FRS / ECHO match easily on PWSID. Easy to assign MK. 
+        - Or I could just join directly to SDWIS. pwsid is unique in ECHO, not in FRS
     - TIGRIS will need spatial matching, fuzzy name matching, and manual review.
     - MHP will need spatial matching, fuzzy name matching, and manual review.
     - Boundaries:
         - OK has good PWSID matching. But are the boundaries right? They look pretty weird.
 
 """
+
+
+#%%
+
+# OK! Let's do that then.
