@@ -41,6 +41,16 @@ path(staging_path, "water_system.csv") %>%
 - now we have a dataframe that we can start training/testing on in March.  
 
 
+- Main idea: location missingness  
+- Centroids as the "anchors" for predictions, provided as lat/lng in FRS/ECHO  
+- Centroid data accuracy assessment by state (centroid of state, county, zip)  
+  - "Imposters"  
+  - Characterize, generate suggestions for how to improve  
+- TIGRIS proxy appropriateness (joined spatially, then by name matching)  
+  - Jacard similarity (basically, do they overlap, and by how much)  
+
+
+
 # Introduction
 
 Summarize nature of the problem and key questions
