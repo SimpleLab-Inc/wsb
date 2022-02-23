@@ -44,7 +44,7 @@ path(staging_path, "water_system.csv") %>%
 - Main idea: location missingness  
 - Centroids as the "anchors" for predictions, provided as lat/lng in FRS/ECHO  
 - Centroid data accuracy assessment by state (centroid of state, county, zip)  
-  - "Imposters"  
+  - "Imposters" in FRS, ECHO, MHP
   - Characterize, generate suggestions for how to improve  
 - TIGRIS proxy appropriateness (joined spatially, then by name matching)  
   - Jacard similarity (basically, do they overlap, and by how much)  
