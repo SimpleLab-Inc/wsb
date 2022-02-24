@@ -10,7 +10,7 @@ library(rmapshaper)
 # path to save raw data, staging data, and standard projection
 data_path    <- Sys.getenv("WSB_DATA_PATH")
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg         <- Sys.getenv("WSB_EPSG")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # download large files without timeout error
 options(timeout = 100000)

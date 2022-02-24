@@ -7,15 +7,17 @@ library(tidyverse)
 # path to save raw data, staging data, and standard projection
 data_path    <- Sys.getenv("WSB_DATA_PATH")
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg         <- Sys.getenv("WSB_EPSG")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
+epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # read labeled data, transform to standard epsg
 f <- dir_ls(path(data_path, "boundary"), recurse = TRUE, glob = "*geojson")
 cat("Detected", length(f), "labeled spatial datasets.")
 
-d <- map(f, ~st_read(.x) %>% st_transform(epsg))
+# read labeled goemetries and transform to area weighted CRS
+d <- map(f, ~st_read(.x) %>% st_transform(epsg_aw))
 cat("Read", length(f), "labeled spatial datasets and transformed to CRS",
-    epsg, ":\n ", paste(basename(f), collapse = "\n  "), "\n")
+    epsg_aw, ":\n ", paste(basename(f), collapse = "\n  "), "\n")
 
 # validate equal CRS
 map_chr(d, ~st_crs(.x)$input) %>% unique()
@@ -29,6 +31,7 @@ cols_keep <- c("pwsid", "gis_name", "population", "connections",
 d <- d %>% 
   bind_rows() %>% 
   mutate(
+    # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_x     = st_coordinates(centroid)[, 1],
@@ -45,7 +48,9 @@ d <- d %>%
     gis_name       = ifelse(!is.na(gis_name), gis_name, toupper(name)),
   ) %>%
   # remove extra geometries and largely empty or unimportant columns (for now!)
-  select(all_of(cols_keep))
+  select(all_of(cols_keep)) %>% 
+  # transform back to standard epsg for geojson write
+  st_transform(epsg)
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer and added: state names,",
     "centroid lat/lng, and data sources.\n")
