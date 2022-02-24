@@ -132,7 +132,6 @@ if not sdwis["pwsid"].is_unique:
 sdwis.head()
 
 """
-#%%
 # Supplement with water_system_facilities?
 # This would roughly denormalize by 10x...probably don't want to do that yet.
 
