@@ -39,6 +39,8 @@ cat("Detected", nrow(zip_rm), "nonsense zipcodes:\n"); print(zip_rm)
 # remove nonsense zipcodes
 ucmr <- anti_join(ucmr, zip_rm)
 
+cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucrm data.\n")
+
 
 # merge zip codes to spatial zip code polygon -----------------------------
 
