@@ -169,7 +169,7 @@ ref_point_desc - Name that identifies the place for which geographic coordinates
 frs = gpd.read_file(
     DATA_PATH + "/frs.geojson")
 
-frs = frs.set_crs(EPSG, allow_override=True)
+# frs = frs.set_crs(EPSG, allow_override=True)
 
 # keep_columns = [
 #     "PGM_SYS_ID", "LATITUDE83", "LONGITUDE83", "ACCURACY_VALUE", 
@@ -222,7 +222,7 @@ frs = frs[frs["matched"]].drop(columns=["matched"])
 ##############################################
 tigris = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
-tigris = tigris.set_crs(EPSG, allow_override=True)
+# tigris = tigris.set_crs(EPSG, allow_override=True)
 
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
 # tigris = tigris[keep_columns]
@@ -260,7 +260,7 @@ echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
     geometry=gpd.points_from_xy(echo_df["fac_long"], echo_df["fac_lat"]),
     crs="EPSG:4326")
 
-echo = echo.to_crs(EPSG)
+# echo = echo.to_crs(EPSG)
 
 echo.head()
 
