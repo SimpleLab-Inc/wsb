@@ -24,16 +24,23 @@ echo_sp <- echo %>%
   filter(!is.na(fac_long) & !is.na(fac_lat)) %>%
   st_as_sf(., coords = c("fac_long","fac_lat"), crs = epsg)
 
-# Clean invalid geometries. First, create path for invalid geom log file.
+# clean invalid geometries. First, create path for invalid geom log file.
 path_log <- here::here("log", paste0(Sys.Date(), "-imposter-echo.csv"))
 
-# Drop invalid geometries and sink a log file for review at the path above.
-echo_sp <- f_drop_imposters(echo_sp, path_log)
+# drop invalid geometries and sink a log file for review at the path above.
+echo_sp_imp <- f_drop_imposters(echo_sp, path_log)
+
+# collect imposters and remove from full dataset
+imposters <- echo_sp %>%
+  filter(!(registry_id %in% echo_sp_imp$registry_id))
 
 # Rejoin to full dataset
 # this will create null geometries where there isn't one
 echo <- echo %>%
-  left_join(echo_sp %>% select(registry_id, pwsid, geometry), 
+  # remove imposters
+  filter(!(registry_id %in% imposters$registry_id)) %>%
+  # join spatially valid geometries to filtered echo dataset
+  left_join(echo_sp_imp %>% select(registry_id, pwsid, geometry), 
             on = c("registry_id", "pwsid"))
 
 # Write clean echo data to geojson
