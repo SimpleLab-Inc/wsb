@@ -66,12 +66,13 @@ library(here)
 library(fs)
 library(sf)
 library(mapview)
+library(rcartocolor)
 
 mapviewOptions(fgb = FALSE)
 
 # data input location for EDA is the post-transformer staging path
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-etc_path <- here("etc")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # previously run to generate a small data file for plotting, then save
 # wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
@@ -83,7 +84,7 @@ etc_path <- here("etc")
 wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds"))
 ```
 
-Labeled spatial data (i.e.,m spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs covering `r length(unique(wsb_labeled_simp$state))` states: `paste(unique(wsb_labeled_simp$state), collapse = ", ")`. Note that due to constraints on visualizaing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices.
+Labeled spatial data (i.e.,m spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs that cover `r length(unique(wsb_labeled_simp$state))` states: `paste(unique(wsb_labeled_simp$state), collapse = ", ")`. Due to constraints on visualizing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices, but analyses all use the high-resolution version.  
 
 ```{r, echo=FALSE}
 wsb_labeled_simp %>% 
@@ -94,8 +95,47 @@ wsb_labeled_simp %>%
 Labeled data is always preferred to unlabeled data. The assimilation of labeled data from all states would replace the modeling stage of this study, which aims to estimate water service boundaries for unlabeled data in their absence. Thus, data collection efforts should be prioritized for missing states (below).  
 
 ```{r}
-state.abb[!state.abb %in% unique(wsb_labeled_simp$state)]
+# summarise missing and present states in a dataframe
+states_missing <- state.abb[!state.abb %in% unique(wsb_labeled_simp$state)]
+states_present <- unique(wsb_labeled_simp$state)
+
+states_df <- tibble(
+  state_abbr = c(states_missing, states_present),
+  status = c(rep("missing", length(states_missing)), 
+             rep("present", length(states_present)))
+)
+
+# pull usa state geometries, project to input data CRS
+usa <- USAboundaries::us_states(resolution = "low") %>% 
+  st_transform(epsg) %>% 
+  left_join(states_df) %>% 
+  tigris::shift_geometry() %>% 
+  # remove peurto rico
+  filter(!is.na(status))
+
+# map of missing states
+ggplot() +
+  geom_sf(data = usa, aes(fill = status), alpha = 0.5) +
+  scale_fill_carto_d(palette = "Pastel") +
+  labs(fill = "Labeled data status") +
+  theme_void() + 
+  theme(legend.position = "top") +
+  guides(fill = guide_legend(title.position = "top", title.hjust = 0.5))
+
+# data table with buttons to export table
+states_df %>% 
+  filter(!is.na(state_abbr)) %>% 
+  arrange(status, state_abbr) %>% 
+  DT::datatable(
+    rownames = FALSE, 
+    extensions = 'Buttons', 
+    options = list(
+      dom = 'Bfrtip', 
+      buttons = c('copy', 'csv', 'excel')
+    )
+  )
 ```
+
 
 
 
