@@ -30,12 +30,11 @@ path_log <- here::here("log", paste0(Sys.Date(), "-imposter-echo.csv"))
 # drop invalid geometries and sink a log file for review at the path above.
 echo_sp_imp <- f_drop_imposters(echo_sp, path_log)
 
-# collect imposters and remove from full dataset
+# collect imposters 
 imposters <- echo_sp %>%
   filter(!(registry_id %in% echo_sp_imp$registry_id))
 
-# Rejoin to full dataset
-# this will create null geometries where there isn't one
+# drop imposters from full dataset and join valid geoms
 echo <- echo %>%
   # remove imposters
   filter(!(registry_id %in% imposters$registry_id)) %>%
@@ -43,7 +42,7 @@ echo <- echo %>%
   left_join(echo_sp_imp %>% select(registry_id, pwsid, geometry), 
             on = c("registry_id", "pwsid"))
 
-# Write clean echo data to geojson
+# write clean echo data to geojson
 path_out <- path(staging_path, "echo.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
