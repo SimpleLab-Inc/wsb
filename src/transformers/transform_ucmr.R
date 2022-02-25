@@ -4,6 +4,8 @@ library(fs)
 library(sf)
 library(tidyverse)
 library(tigris)
+
+# tell tigris to cache Census shapefile downloads for faster subsequent runs
 options(tigris_use_cache = TRUE)
 
 # helper function
@@ -15,36 +17,40 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
-
-# read ucmr3 and ucmr4 data
-ucmr3 <- read.csv(path(data_path, "ucmr/UCMR3_ZipCodes.txt"), sep="\t", 
-                  header = T, colClasses=c("ZIPCODE"="character")) 
-ucmr4 <- read.csv(path(data_path, "ucmr/UCMR4_ZipCodes.txt"), sep="\t", 
-                  header = T, colClasses=c("ZIPCODE"="character")) 
-
-
-# Merge and do distinct
-# Keep duplicate pwsids b/c they may serve more than one zipcode
-ucmr <- ucmr3 %>% 
-  bind_rows(ucmr4) %>%
-  distinct() %>%
-  janitor::clean_names() %>%
-  mutate(zipcode = substr(zipcode, 1,5),
-         zipcode = gsub("[^0-9.-]", "", zipcode)) %>%
+# read ucmr3 and ucmr4 data, combine, clean names, add 
+ucmr <- dir_ls(path(data_path, "ucmr"), regexp = "ZipCodes.txt") %>% 
+  read_tsv(col_types = "c") %>% 
+  distinct() %>% 
+  janitor::clean_names() %>% 
+  # a number of zipcodes end in "-" and should be cleaned
+  mutate(zipcode = str_replace_all(zipcode, "-", "")) %>% 
+  # clean whitespace and NAs, and drop NA zipcodes
   f_clean_whitespace_nas() %>%
   drop_na(zipcode) 
 
-# merge zip codes to spatial zip code polygon
-# zip code columns
-cols_keep <- c("zipcode", "geoid10", 
-               "aland10", "awater10", "geometry", "st_areashape",
-               "centroid_x", "centroid_y", "area_hull", "radius")
+# print nonsense zipcodes for review because they're few in number. 
+# zip codes should have exactly 5 digits and no alphabetical chars
+zip_rm <- filter(ucmr, 
+                 nchar(zipcode) != 5 | 
+                 str_detect(zipcode, "[:alpha:]"))
 
+cat("Detected", nrow(zip_rm), "nonsense zipcodes:\n"); print(zip_rm)
+
+# remove nonsense zipcodes
+ucmr <- anti_join(ucmr, zip_rm)
+
+
+# merge zip codes to spatial zip code polygon -----------------------------
+
+# zip code columns to keep
+cols_keep <- c("zipcode", "geoid10", "aland10", "awater10", "st_areashape",
+               "centroid_x", "centroid_y", "area_hull", "radius")
 
 # pull usa state geometries, project to input data CRS
 zipcode_areas <- tigris::zctas()
 zipcodes <- zipcode_areas %>% 
   janitor::clean_names() %>%
+  # use area weighted crs because we calculate polygon areas
   st_transform(st_crs(epsg_aw)) %>% 
   mutate(
     # area calculations occur in area weighted epsg
@@ -61,9 +67,11 @@ zipcodes <- zipcode_areas %>%
   # convert back to standard epsg
   st_transform(epsg) 
 
-# join zipcode geography to ucmr master list
+# join zipcode polygon geometries to ucmr master list 
 ucmr <- ucmr %>% 
-  left_join(zipcodes, on = "zipcode")
+  left_join(zipcodes, on = "zipcode") %>% 
+  # convert object back to spatial
+  st_as_sf(crs = epsg)
 
 # Write clean ucmr data to geojson
 path_out <- path(staging_path, "ucmr.geojson")
