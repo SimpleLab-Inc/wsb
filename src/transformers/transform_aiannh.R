@@ -5,29 +5,29 @@ library(fs)
 library(sf)
 library(tidyverse)
 library(tigris)
-options(tigris_use_cache = TRUE)
 
+# tell tigris to cache Census shapefile downloads for faster subsequent runs
+# download large files without timeout error
+options(tigris_use_cache = TRUE, timeout = 100000)
 
 # path to save raw data, staging data, and standard projection
 data_path    <- Sys.getenv("WSB_DATA_PATH")
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-# download large files without timeout error
-options(timeout = 100000)
-
 # read Natural Earth ocean geometry (downloaded with tigris places downloader)
-ocean <- st_read(path(data_path, "ne/ocean/ne-ocean-10m/ne_10m_ocean.shp")) %>% 
+ocean <- st_read(path(data_path, "ne/ocean/ne-ocean-10m/ne_10m_ocean.shp")) %>%
   select(geometry)
 
 # transform aiannh areas to ocean crs, make valid, intersect with oceans, 
 # reproject to projected crs, and write
 aiannh <- tigris::native_areas() %>%
   rmapshaper::ms_simplify(
-  keep_shapes = TRUE,
-  # https://github.com/ateucher/rmapshaper/issues/83
-  # and https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
-  sys = TRUE) %>%
+    keep_shapes = TRUE,
+    # https://github.com/ateucher/rmapshaper/issues/83
+    # and https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
+    sys = TRUE
+  ) %>%
   st_transform(st_crs(ocean)$epsg) %>% 
   st_make_valid() %>%
   st_intersection(st_make_valid(ocean)) %>% 
