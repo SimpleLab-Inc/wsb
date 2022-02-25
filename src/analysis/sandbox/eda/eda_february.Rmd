@@ -1,5 +1,5 @@
 ---
-title: "EDA {rest of title TBD}"
+title: "EDA: water system boundary missingness, quality, & coverage"
 output: 
   html_document:
     highlight: zenburn
@@ -14,7 +14,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
 ```
 
 *Jess Goddard & Rich Pauloo*
@@ -22,48 +22,87 @@ knitr::opts_chunk$set(echo = TRUE)
 *Last updated `r Sys.time()`*
 
 
-Key "object" outcome: dataframe with fields that we can start training and testing on  
-
-Key results in the EDA:  
-
-- "coverage" of labeled data, flip side is "missing-ness"  
-- Investigate small systems and identify if additional data collection efforts are needed. If small systems are indeed underrepresented, anticipate and discuss the "generalization" problem of machine learning: in this case, the model will not generalize well to unseen smaller systems without labeled data, thus, data collection efforts should target this level. This itself will be a valuable outcome because it will show us what the distribution of coverage looks like across systems. 
-- heuristic approach (typology of systems): how do we map EPIC typology to fields in ECHO/FRS/etc?  
-  -	ownership type: Federal, local, municipal, private, N, S ??  
-- focus on active CWSs:  
-
-```
-path(staging_path, "water_system.csv") %>% 
-  read_csv() %>% 
-  filter(pws_type_code == "CWS" & pws_activity_code == "A")
-```
-- map tigris places to water_systems (code above) via spatial intersection and fuzzy matching  
-- now we have a dataframe that we can start training/testing on in March.  
-
-
-- Main idea: location missingness  
-- Centroids as the "anchors" for predictions, provided as lat/lng in FRS/ECHO  
-- Centroid data accuracy assessment by state (centroid of state, county, zip)  
-  - "Imposters" in FRS, ECHO, MHP
-  - Characterize, generate suggestions for how to improve  
-- TIGRIS proxy appropriateness (joined spatially, then by name matching)  
-  - Jacard similarity (basically, do they overlap, and by how much)  
-
-
-
 # Introduction
 
-Summarize nature of the problem and key questions
+Presently, over 50,000 community water systems in the United States collectively serve tap water to approximately **<X>** people. These water systems cross-cut racial/ethnic, income, and political boundaries, yet despite their importance, up-to-date, easily accessible boundary data (i.e., spatial polygons that delineate water service boundaries) are not organized at the national level. State-level data may exist, but these data tend to be hard to find online, may require cleaning, and little is known on the completeness of these data. Hence, national-scale analyses cannot proceed without a national-level spatial database of community water systems. The overarching goal of this [project](https://github.com/SimpleLab-Inc/wsb) is to assemble the nation's first open-source, reproducible pipeline to assimilate existing water service boundary data; where existing spatial data does not exist, we use a combination of data assimilation and machine learning to assign and predict proxy boundaries. To service this goal, a variety of state and federal data sources must be cleaned, analyzed, joined, and ultimately, modeled. Moreover, this technical work effort takes place in the context of stakeholder communication and engagement, and additional data collection efforts. In this report, we investigate data quality issues in state and federal data to:  
 
-Key questions:
-
-1. question 1  
-2. question 2  
-3. question 3  
-4. question 4  
+1. assess data "missingness" (e.g., missing water system boundary polygons, and `NA` or `NULL` values which will impact data collection efforts, and the ability to model missing data)  
+2. examine data quality (e.g., do data actually represent what they report to represent?) to inform future data collection and cleaning efforts and gauge the appropriateness of modeling with existing data  
+3. review data coverage by various features of water systems (e.g., system size, system type, tribal designation, population served) to inform future data collection and cleaning efforts, and understand potential model limitations  
 
 
-# Question 1
+_Missingness_
+- [ ] Existing coverage of spatial labeled data
+- [ ] Coverage of centroids
+- [ ] Tabular data: assess missingness for key categories (i.e., population served, system size AKA connection count)
+
+_Data Quality_
+- [ ] Number of "imposter" centroids across datasets (echo, frs, mhp)
+- [ ] Centroids of low quality (e.g. `fac_collection_method` is state or county centroid). break down by state, system size (?) -> when we don't have labeled boundary or TIGRIS, collection method is really important, we need to characterize how big this group is and where they plot, and how to address them.
+- [ ] Appropriateness of TIGRIS boundaries as proxy. Compare join for labeled systems: e.g., city of Davis, and Davis TIGRIS places -> boolean T/F and jacard (less important)
+
+_Coverage relative to SDWIS master list of active, community water systems_
+- [ ] Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))
+- [ ] Summary of existing boundary coverage by system type (Municipal, etc) / ownership type
+- [ ] Summary of existing boundary coverage by tribal vs non-tribal (i.e. primacy_type_code is territory?)
+- [ ] Total US population served by existing boundary date (using SDWIS provided `population_served`)
+
+
+# Missingness
+
+We examine missingness of key datasets in terms of:
+
+- **The existing coverage of "labeled" service boundaries.** "Labeled" service boundaries refer to spatial polygons of existing data and stand in contrast to "unlabeled" data, which are water systems _without_ explicit spatial polygons and for which we must estimate a boundary.  
+- **Centroid coverage.** For unlabeled data, we must estimate a boundary, and the model we will develop will estimate the radius of a water system boundary from a centroid. Thus we need spatial centroids for unlabeled data. Sometimes thee centroids are provided, sometimes not. We assess their coverage nationwide.  
+- **Tabular data missingness.** Tabular data is non-spatial data associated with water systems (e.g., population served, system size) that can be used to predict water system radii. Missingness in these columns may limit the extensibility of modeling and is thus characterized.  
+
+
+### Existing coverage of spatial labeled data
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(fs)
+library(sf)
+library(mapview)
+
+mapviewOptions(fgb = FALSE)
+
+# data input location for EDA is the post-transformer staging path
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+etc_path <- here("etc")
+
+# previously run to generate a small data file for plotting, then save
+# wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
+#   rmapshaper::ms_simplify()
+# dir_create(here("etc"))
+# write_rds(wsb_labeled, here("etc/wsb_labeled_simplified.rds"))
+
+# load existing labeled data and simply it for viewing
+wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds"))
+```
+
+Labeled spatial data (i.e.,m spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs covering `r length(unique(wsb_labeled_simp$state))` states: `paste(unique(wsb_labeled_simp$state), collapse = ", ")`. Note that due to constraints on visualizaing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices.
+
+```{r, echo=FALSE}
+wsb_labeled_simp %>% 
+  select(pwsid, gis_name) %>% 
+  mapview(layer.name = "labeled wsb")
+```
+
+Labeled data is always preferred to unlabeled data. The assimilation of labeled data from all states would replace the modeling stage of this study, which aims to estimate water service boundaries for unlabeled data in their absence. Thus, data collection efforts should be prioritized for missing states (below).  
+
+```{r}
+state.abb[!state.abb %in% unique(wsb_labeled_simp$state)]
+```
+
+
+
+### Centroid coverage
+
+
+### Tabular data missingness: assess missingness for key categories (i.e., population served, system size AKA connection count)
 
 # Question 2
 
