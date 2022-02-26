@@ -5,7 +5,7 @@ output:
     highlight: zenburn
     code_folding: hide
     toc: true
-    toc_float: true
+    # toc_float: true
     toc_depth: 3
     number_sections: true
     # css: etc/style/style.css
@@ -57,7 +57,7 @@ We examine missingness of key datasets in terms of:
 - **Tabular data missingness.** Tabular data is non-spatial data associated with water systems (e.g., population served, system size) that can be used to predict water system radii. Missingness in these columns may limit the extensibility of modeling and is thus characterized.  
 
 
-### Existing coverage of spatial labeled data
+## Existing coverage of spatial labeled data
 
 
 ```{r}
@@ -67,6 +67,7 @@ library(fs)
 library(sf)
 library(mapview)
 library(rcartocolor)
+library(geofacet)
 
 mapviewOptions(fgb = FALSE)
 
@@ -115,12 +116,12 @@ usa <- USAboundaries::us_states(resolution = "low") %>%
 
 # map of missing states
 ggplot() +
-  geom_sf(data = usa, aes(fill = status), alpha = 0.5) +
+  geom_sf(data = usa, aes(fill = status), alpha = 0.5, color = "white") +
   scale_fill_carto_d(palette = "Pastel") +
-  labs(fill = "Labeled data status") +
+  labs(fill = "") +
   theme_void() + 
-  theme(legend.position = "top") +
-  guides(fill = guide_legend(title.position = "top", title.hjust = 0.5))
+  labs(title = "Labeled data coverage by state",
+       subtitle = paste("Last updated:", Sys.Date()))
 
 # data table with buttons to export table
 states_df %>% 
@@ -136,20 +137,84 @@ states_df %>%
   )
 ```
 
+> **RECCOMENDATION:** we should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
 
 
+## Centroid coverage
 
-### Centroid coverage
+Preliminary investigation of ECHO and FRS datasets showed that ECHO contained more centroid data, thus ECHO centroid coverage is assessed. As stated before, in this analysis we only focus on CWS. 
+
+```{r}
+# j stands for joined data, read and rm rownumber column
+j <- read_csv(path(staging_path, "matched_output.csv"), col_select = -1)
+```
+
+First, `r round((nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude))) / nrow(j))*100, 2)`% of pwsids (`r nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude)))` / `r nrow(j)` ) are missing either a longitude or latitude (i.e., the x or y coordinate is `NA`). 
+
+For the remaining systems that are "complete" in the sense that they have a spatial centroid, we now seek to understand how accurate that centriod is. Most centroids are derived from the county centroid, address matching on a house number, or a zip code centroid. County- and state-level centroids are of little use as these data offer low to little indication of the true pwsid location. Any method that appears less then 5% of the time is lumped into "other".
+
+```{r}
+# joined data that is "complete" in the sense that it has a lng/lat
+jc <- filter(j, !is.na(echo_latitude) & !is.na(echo_longitude))
+
+jc %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  count(echo_geocode_method) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, n), n)) + 
+  geom_col() + 
+  coord_flip() +
+  labs(x = "", y = "Count", title = "ECHO geocoding method")
+```
+
+Centroid geocoding method varies by state. Most states primarily derive centroid from county centroids(e.g., VT, NH, NY, SD, NJ, UT, CO, and so on - see blue bars in plot below), and others primarily derive centroids from interpolation photos (e.g., WA, ID, OR, AK - see pink bars in plot below). 
+
+```{r}
+# summary proportion of geocoding method by state
+jcs <- jc %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(state_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(p = n / sum(n)) %>% 
+  mutate(echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ungroup()
+  
+jcs %>% 
+  filter(!is.na(state_code)) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(breaks = c(0, 0.5, 1),
+                     labels = c(0, 0.5, 1),
+                     limits = c(0, 1)) +
+  geofacet::facet_geo(~state_code) +
+  labs(x = "", y = "Proportion", 
+       title = "ECHO geocoding method") +
+  guides(fill = "none") +
+  theme_minimal(base_size = 6) +
+  theme(panel.grid.minor = element_blank())
+```
+
+In the plots above, any method that appeared less then 5% of the time was lumped into "other", and in the table below, we show all methods, sorted by occurrence.  
+
+```{r}
+jc %>% 
+  count(echo_geocode_method) 
+  
+```
 
 
-### Tabular data missingness: assess missingness for key categories (i.e., population served, system size AKA connection count)
+## Tabular data missingness: assess missingness for key categories (i.e., population served, system size AKA connection count)
 
-# Question 2
-
-# Question 3
-
-# Question 4
-
-# Recommendations 
-
-# Next steps
+# Recommendations and next steps
