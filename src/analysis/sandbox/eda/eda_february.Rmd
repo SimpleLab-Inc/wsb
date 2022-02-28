@@ -50,24 +50,33 @@ This report provides an initial assessment of existing data sources to prepare f
 
 The work herein will be filed under an MIT License. Our motivation for doing this is the recognition that water data has historically been siloed within different state repositories, academic journals, or simply unavailable. We strive to break this boundary by encouraging an organized, open-source space where anyone can contribute and use the resultant data products.
 
+
+<br>  
+
 # Report outline
 
 The following outline reflects an exploratory data analysis of the existing data, which can be expanded and re-run as new data sources are ingested:
 
-_Missingness_
-- [ ] Existing coverage of spatial labeled data
-- [ ] Coverage and quality of centroids
-- [ ] Tabular data: assess missingness for key categories (i.e., population served, system size AKA connection count)
+_Missingness_  
 
-_Data Quality_
-- [ ] Number of "imposter" centroids across datasets (echo, frs, mhp)
-- [ ] Appropriateness of TIGER/Line shapefile as proxy. Compare join for labeled systems: e.g., city of Davis, and Davis TIGER/Line places -> boolean T/F and jacard (less important)
+- Existing coverage of spatial labeled data  
+- Coverage and quality of centroids  
+- Tabular data: assess missingness for key categories (i.e., population served, system size AKA connection count)  
 
-_Coverage relative to SDWIS master list of active, community water systems_
-- [ ] Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))
-- [ ] Summary of existing boundary coverage by system type (Municipal, etc) / ownership type
-- [ ] Summary of existing boundary coverage by tribal vs non-tribal (i.e. primacy_type_code is territory?)
-- [ ] Total US population served by existing boundary date (using SDWIS provided `population_served`)
+_Data Quality_  
+
+- Number of "imposter" centroids across datasets (echo, frs, mhp)  
+- Appropriateness of TIGER/Line shapefile as proxy. Compare join for labeled systems: e.g., city of Davis, and Davis TIGER/Line places -> boolean T/F and jacard (less important)  
+
+_Coverage relative to SDWIS master list of active, community water systems_  
+
+- Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))  
+- Summary of existing boundary coverage by system type (Municipal, etc) / ownership type  
+- Summary of existing boundary coverage by tribal vs non-tribal (i.e. primacy_type_code is territory?)  
+- Total US population served by existing boundary date (using SDWIS provided `population_served`)  
+
+
+<br>  
 
 # Data Sources
 
