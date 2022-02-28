@@ -71,7 +71,8 @@ ga.county_served - Maybe this will be helpful?
 # 1) SDWIS water_systems - PWSID is unique
 keep_columns = ["pwsid", "pws_name", "pws_activity_code", "pws_type_code", "primacy_agency_code", 
     "address_line1", "address_line2", "city_name", "zip_code", "state_code",
-    "population_served_count", "service_connections_count"]
+    "population_served_count", "service_connections_count", "owner_type_code",
+    "primacy_type"]
 
 sdwis_unfiltered = pd.read_csv(
     DATA_PATH + "/sdwis_water_system.csv",
@@ -241,7 +242,8 @@ echo_df = pd.read_csv(
     usecols=[
         "pwsid", "fac_lat", "fac_long", "fac_name",
         "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
-        'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters'],
+        'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters', 
+        'fac_indian_cntry_flg', 'fac_percent_minority', 'fac_pop_den', 'ejscreen_flag_us'],
     dtype="string")
 
 # Filter to only those in our SDWIS list and with lat/long
@@ -514,7 +516,7 @@ service_area_type_code   | SDWIS
 output = sdwis[[
     "pwsid", "pws_name", "primacy_agency_code", "state_code", "city_served",
     "county_served", "population_served_count", "service_connections_count",
-    "service_area_type_code"
+    "service_area_type_code", "owner_type_code"
 ]]
 
 # Supplement with tigris match info
@@ -527,7 +529,10 @@ output = (output
 
 # Supplement with echo match info
 output = (output
-    .merge(echo[["pwsid", "fac_lat", "fac_long", "fac_collection_method"]], on="pwsid", how="left")
+    .merge(echo[["pwsid", "fac_lat", "fac_long", "fac_collection_method",
+                 "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
+                 'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters', 
+                 'fac_indian_cntry_flg', 'fac_percent_minority', 'fac_pop_den', 'ejscreen_flag_us']], on="pwsid", how="left")
     .rename(columns={
         "fac_lat": "echo_latitude",
         "fac_long": "echo_longitude",
