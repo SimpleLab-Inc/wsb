@@ -160,14 +160,39 @@ jc <- filter(j, !is.na(echo_latitude) & !is.na(echo_longitude))
 jc %>% 
   # anything that appears less then 5% of the time is lumped into "other"
   mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
-  count(echo_geocode_method) %>% 
-  ggplot(aes(fct_reorder(echo_geocode_method, n), n)) + 
+  group_by(echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  mutate(
+    p = n/sum(n),
+    echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
   geom_col() + 
   coord_flip() +
-  labs(x = "", y = "Count", title = "ECHO geocoding method")
+  scale_fill_carto_d() +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = "", y = "Count", title = "ECHO geocoding method") +
+  guides(fill = "none")
 ```
 
-Centroid geocoding method varies by state. Most states primarily derive centroid from county centroids(e.g., VT, NH, NY, SD, NJ, UT, CO, and so on - see blue bars in plot below), and others primarily derive centroids from interpolation photos (e.g., WA, ID, OR, AK - see pink bars in plot below). 
+Centroid geocoding method varies by state. States primarily derive centroid from:
+
+- county centroids (e.g., VT, NH, NY, SD, NJ, UT, CO, and so on - blue bars in plot below)  
+- zipcode centroids (e.g., MT, MA, NV, CT, HI - green bars in plot below)
+- interpolation photos (e.g., WA, ID, OR, AK - pink bars in plot below)  
+- address (e.g., IA, IN, OH - orange bars in plot below)  
+
 
 ```{r}
 # summary proportion of geocoding method by state
@@ -206,12 +231,33 @@ jcs %>%
   theme(panel.grid.minor = element_blank())
 ```
 
-In the plots above, any method that appeared less then 5% of the time was lumped into "other", and in the table below, we show all methods, sorted by occurrence.  
+In the plots above, any method that appeared less then 5% of the time was lumped into "other", and in the table below, we show all methods, sorted by occurrence. In the table below, we preserve all categories for review.
 
 ```{r}
 jc %>% 
-  count(echo_geocode_method) 
-  
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(state_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(p = n / sum(n)) %>% 
+  ungroup() %>% 
+  arrange(state_code, desc(p)) %>% 
+  DT::datatable(
+    rownames = FALSE, 
+    extensions = 'Buttons', 
+    options = list(
+      dom = 'Bfrtip', 
+      buttons = c('copy', 'csv', 'excel')
+    )
+  )
+```
+
+> **RECCOMENDATION**: Results suggest different appraoches to centroid estimation across states and some are more accurate than others. We advise creation of a supplementary table with two columns (`echo_geocode_method` and `valid`) where each row is a unique centroid geocoding method. The `valid` column should be a boolean (`TRUE/FALSE`) that designates if we wish to "trust" and retain this information. A rule of thumb may be if we have reason to believe that the approach is less accurate than the zip code centroid. For methods where `valid == FALSE`, we should then re-estimate centroids as zip code centroids (assuming we have zip codes). 
+
+TODO: We need to recalculate these for the subset of data without a matching TIGRIS place.
+
+```{r}
+tigris <- 
 ```
 
 
