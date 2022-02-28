@@ -292,7 +292,7 @@ jc %>%
 
 ### Centroid coverage at PWSIDs with unlabeled spatial data
 
-Centroid accuracy is more important for _unlabeled systems that we do not have explicit boundary polygons for, or that we cannot assign to a TIGRIS proxy polygon_. This is because- where no spatial boundary exists- the centroid will be the basis for an estimated water service boundary. We will model a radius from this centroid to approximate a service area. Thus, we now recalculate missingness for the subset of data **without** an existing spatial boundary and without a matching TIGER/Line place using the same two plots and table in the previous section.
+Centroid accuracy is more important for _unlabeled systems that we do not have explicit boundary polygons for, or that we cannot assign to a TIGER proxy polygon_. This is because- where no spatial boundary exists- the centroid will be the basis for an estimated water service boundary. We will model a radius from this centroid to approximate a service area. Thus, we now recalculate missingness for the subset of data **without** an existing spatial boundary and without a matching TIGER/Line place using the same two plots and table in the previous section.
 
 In our current attempt to match community water systems to TIGER/Line place polygons, which can serve as an estimated water service boundary, we achieve a `r round((nrow(filter(jc, !is.na(tigris_match_geoid)))/nrow(jc))*100, 2)`% match rate. We are continuing to improve our matching approach and expect this number to grow. Currently we are only looking at name matches for systems whose ECHO lat/long centroid falls within a TIGER/Line polygon, but we will expand this to simply match on names in a future iteration.
 
@@ -591,8 +591,30 @@ j %>%
 
 <br>  
 
-
 # Data Quality
+
+The above section on missingness necessarily analyzes data quality, as the two topics are inseparable--data missingness is a data quality issue. This section delves more deeply into pure data quality issues where non-missing data may simply be wrong. We investigate:
+
+1. "impostors" which are PWSIDs with reported coordinates that actually plot in a different state. We cannot use these coordinates and must either omit them, or clean them.  
+2. appropriateness of the TIGER proxy boundaries by comparing labeled data to assigned proxies.  
+<br>  
+
+## Imposters 
+
+We call PWSIDs that report coordinates in a particular state but that actually plot in a different state "impostors" because they are not where they say they are. These errors likey result from faulty geocoding. Imposters pose a challenge to broader project aims because they will "decenter" predicted boundaries, spatially placing them in the wrong state. We assess imposters in ECHO, FRS, and mobile home parks.
+
+<br>  
+
+### Imposters (ECHO)
+
+<br>  
+
+### Imposters (ECHO)
+
+<br>  
+
+### Imposters (ECHO)
+
 
 
 # Coverage relative to SDWIS master list of active, community water systems
