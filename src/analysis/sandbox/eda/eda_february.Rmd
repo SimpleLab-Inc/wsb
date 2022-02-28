@@ -601,7 +601,28 @@ The above section on missingness necessarily analyzes data quality, as the two t
 
 ## Imposters 
 
-We call PWSIDs that report coordinates in a particular state but that actually plot in a different state "impostors" because they are not where they say they are. These errors likey result from faulty geocoding. Imposters pose a challenge to broader project aims because they will "decenter" predicted boundaries, spatially placing them in the wrong state. We assess imposters in ECHO, FRS, and mobile home parks.
+We call PWSIDs that report coordinates in a particular state but that actually plot in a different state "impostors" because they are not where they say they are. These errors likey result from faulty geocoding. Imposters pose a challenge to broader project aims because they will "decenter" predicted boundaries, spatially placing them in the wrong state. We assess imposters in ECHO, FRS, and mobile home parks (MHP).
+
+```{r}
+# a more robust version of this function is in src/functions/f_drop_imposters.R
+# and is used in transformers to clean data
+f_get_imposters <- function(x){
+  # pull usa state geometries, project to input data CRS
+  usa = USAboundaries::us_states(resolution = "high") %>% 
+    st_transform(st_crs(frs)$epsg) %>% 
+    select(state_intersection = state_abbr, geometry) %>% 
+    suppressMessages()
+    
+  # join frs to us boundaries and return imposter geometries
+  imposters <- st_join(x, usa) %>% 
+    # imposters: reported state != intersected state
+    filter(state_reported != state_intersection) %>% 
+    select(state_reported, state_intersection, everything())
+    
+  return(imposters)
+}
+```
+
 
 <br>  
 
@@ -609,13 +630,33 @@ We call PWSIDs that report coordinates in a particular state but that actually p
 
 <br>  
 
-### Imposters (ECHO)
+### Imposters (FRS)
+
+```{r}
+# read FRS data
+frs <- path(staging_path, "frs.geojson") %>% st_read()
+
+# light cleaning that needs to move to transformers
+frs <- frs %>% 
+  mutate(
+    state_code = ifelse(is.na(state_code), str_sub(pwsid, 1, 2), state_code)
+  )
+
+
+frs %>% filter(pwsid == "CA1502034") %>% mapview::mapview()
+frs %>% filter(pwsid == "AK2262351") %>% mapview::mapview()
+frs %>% filter(pwsid == "TX1012759") %>% mapview::mapview()
+
+```
+
 
 <br>  
 
-### Imposters (ECHO)
+### Imposters (MPH)
 
 
+
+> **RECOMMENDATION**: 
 
 # Coverage relative to SDWIS master list of active, community water systems
 
