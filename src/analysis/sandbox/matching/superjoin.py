@@ -169,8 +169,6 @@ ref_point_desc - Name that identifies the place for which geographic coordinates
 frs = gpd.read_file(
     DATA_PATH + "/frs.geojson")
 
-# frs = frs.set_crs(EPSG, allow_override=True)
-
 # keep_columns = [
 #     "PGM_SYS_ID", "LATITUDE83", "LONGITUDE83", "ACCURACY_VALUE", 
 #     "COLLECT_MTH_DESC", "REF_POINT_DESC", "geometry"]
@@ -222,8 +220,6 @@ frs = frs[frs["matched"]].drop(columns=["matched"])
 ##############################################
 tigris = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
-# tigris = tigris.set_crs(EPSG, allow_override=True)
-
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
 # tigris = tigris[keep_columns]
 
@@ -259,8 +255,6 @@ echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
     echo_df,
     geometry=gpd.points_from_xy(echo_df["fac_long"], echo_df["fac_lat"]),
     crs="EPSG:4326")
-
-# echo = echo.to_crs(EPSG)
 
 echo.head()
 
@@ -427,13 +421,13 @@ def tokenize_name(series) -> pd.Series:
 # Woot! We have spatial matches. 23k
 join = tigris.sjoin(echo, how="inner")
 
-
-# Supplement with sdwis city_served
-join = join.merge(sdwis[["pwsid", "city_served"]], on="pwsid")
-
 print(f"Spatial matches: {len(join)}")
 
+# Supplement with sdwis pws_name and city_served
+join = join.merge(sdwis[["pwsid", "pws_name", "city_served"]], on="pwsid")
+
 join.head()
+
 
 #%%
 
@@ -449,19 +443,27 @@ print("Max: " + str(join.groupby("geoid").size().max()))
 # Tokenize names (strip out common words and acronyms)
 join["tigris_name"] = tokenize_name(join["name"])
 join["echo_name"] = tokenize_name(join["fac_name"])
+join["sdwis_pws_name"] = tokenize_name(join["pws_name"])
 
 join.head()
 
 #%%
-# Narrowed to 4643 when you match names too
+# Narrowed to 4643 when you match tokenized echo_name == tigris_name
 matches = join[join["tigris_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+name_token")
 
-# 7232 matches on city_served. That's surprisingly good!
+# 7232 matches on city_served == tigris_name. That's surprisingly good!
 matches = pd.concat([
     matches,
     join[join["city_served"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+city_served")])
 
-# Combine and dedupe matches, with: city_served > name_token. 8852 remaining
+# 6107 matches on tokenized sdwis_pws_name == tigris_name
+matches = pd.concat([
+    matches,
+    join[join["sdwis_pws_name"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+sdwis_pws_name")])
+
+#%%
+
+# Combine and dedupe matches, with: city_served > name_token > sdwis_pws_name. 9755 remaining
 matches = matches.sort_values(["geoid", "pwsid", "match_type"]).drop_duplicates(subset=["geoid", "pwsid"], keep="first")
 
 print(f"Distinct matches on spatial & (facility name or city served): {len(matches)}")
@@ -471,7 +473,7 @@ print(f"Distinct matches on spatial & (facility name or city served): {len(match
 join_sub = join.merge(matches, on=["geoid", "pwsid"], how="inner")
 
 #%%
-# How many distinct geoids had matches? 6,778
+# How many distinct geoids had matches? 7676
 len(join_sub["geoid"].unique())
 
 #%%
@@ -544,3 +546,8 @@ output.to_csv(DATA_PATH + "/matched_output.csv")
 # Wouldn't it be cool if we had tiny little "sparkmaps" on each match to show how close they are?
 # Or maybe that's not doable cause maps are hard to read up close.
 # How could we map it so that we can visually see the corresponding tigris and echo pairs?
+
+#%%
+
+# TODO - Add a match on JUST state + name
+# TODO - Combine the unmatched tigris into the output report and sort by name so we can check for no-matches
