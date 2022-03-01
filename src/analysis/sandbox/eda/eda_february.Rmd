@@ -174,7 +174,7 @@ states_df %>%
   dt_make()
 ```
 
-> **RECCOMENDATION:** we should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
+> **RECOMENDATION:** We should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
 
 <br>  
 
@@ -392,7 +392,7 @@ jc %>%
 ```
 
 
-> **RECCOMENDATION**: Results suggest different approaches to centroid estimation across states and some approaches are more accurate than others. Moreover, centroid accuracy is most important for _unlabeled_ data, and for these data, county centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. We advise creation of a supplementary table with two columns (`echo_geocode_method` and `valid`) where each row is a unique centroid geocoding method. The `valid` column should be a boolean (`TRUE/FALSE`) that designates if we wish to "trust" and retain this information. A rule of thumb may be if we have reason to believe that the approach is less accurate than the zip code centroid. For methods where `valid == FALSE`, we should then re-estimate centroids as zip code centroids (if we can obtain zip codes). 
+> **RECOMENDATION**: Results suggest different approaches to centroid estimation across states and some approaches are more accurate than others. Moreover, centroid accuracy is most important for _unlabeled_ data, and for these data, county centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. We advise creation of a supplementary table with two columns (`echo_geocode_method` and `valid`) where each row is a unique centroid geocoding method. The `valid` column should be a boolean (`TRUE/FALSE`) that designates if we wish to "trust" and retain this information. A rule of thumb may be if we have reason to believe that the approach is less accurate than the zip code centroid. For methods where `valid == FALSE`, we should then re-estimate centroids as zip code centroids (if we can obtain zip codes). 
 
 
 <br>  
@@ -735,18 +735,17 @@ pwsid_bnd <- wsb_labeled_simp %>%
   select(pwsid) %>%
   st_drop_geometry()
 
-# create boolean for full sdwis dataset, now we have information about boundaries,
-# TIGER/Line shapefiles, and centroids
+# create boolean for full sdwis dataset: contains information on
+# boundaries, TIGER/Line shapefiles, and centroids
 jb <- j %>%
-  mutate(wsb = ifelse(pwsid %in% pwsid_bnd$pwsid, TRUE, FALSE),
+  mutate(wsb    = ifelse(pwsid %in% pwsid_bnd$pwsid, TRUE, FALSE),
          tigris = ifelse(!is.na(tigris_match_geoid), TRUE, FALSE),
-         echo = ifelse(!is.na(echo_latitude), TRUE, FALSE))
-
+         echo   = ifelse(!is.na(echo_latitude), TRUE, FALSE))
 ```
 
-We currently have coverage in the current set of service boundaries for `r round((nrow(filter(jb, tigris == TRUE | wsb == TRUE)) / nrow(jb))*100, 2)`% of community water systems. Interestingly, there is only `r round((nrow(filter(jb, tigris == TRUE & wsb == TRUE)) / nrow(jb))*100, 2)`% of systems that have _both_ water service boundaries _and_ TIGER/Line shapefile boundaries according to our current list. Of the public water systems that have an established or potential polygon from TIGER/Line shapefiles, they serve `r jb %>% filter(tigris == TRUE | wsb == TRUE) %>% summarise(pop_sum = sum(population_served_count, na.rm=TRUE))` people.
+We currently have coverage in the current set of service boundaries for `r round((nrow(filter(jb, tigris == TRUE | wsb == TRUE)) / nrow(jb))*100, 2)`% of community water systems. Interestingly, only `r round((nrow(filter(jb, tigris == TRUE & wsb == TRUE)) / nrow(jb))*100, 2)`% of systems have _both_ water service boundaries _and_ TIGER/Line shapefile boundaries according to our current list. Of the public water systems that have an established or potential polygon from TIGER/Line shapefiles, they serve `r jb %>% filter(tigris == TRUE | wsb == TRUE) %>% summarise(pop_sum = sum(population_served_count, na.rm=TRUE)) %>% unlist() %>% formatC(big.mark = ",", format = "d")` people, although this number is likely an underestimate given previous analysis in this report that suggests that population counts of zero are likely faulty and should be imputed. 
 
-The objective of this section is to look at the coverage across boundary types by key variables of concern, e.g. system size, ownership type, whether a system is serving a tribal area or not, and overall population coverage. We cover:
+The objective of this section is to look at the coverage across boundary types by key variables of concern (e.g., system size, ownership type, whether the system serves a tribal area or not, and overall population coverage). We cover:
 
 - Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))  
 - Summary of existing boundary coverage by system type (Municipal, etc) / ownership type  
@@ -754,37 +753,50 @@ The objective of this section is to look at the coverage across boundary types b
 - Total US population served by existing boundary date (using SDWIS provided `population_served`)  
 
 
-### System size
-```{r}
+<br>  
 
+### System size
+
+Nearly all water systems have ECHO data, whereas TIGER and labeled (wsb) data are more common for large and very large systems. Thus, very small, small, and medium systems have a higher proportion of unknown boundaries, and less TIGER/Line shapefile coverage, relative to their overall counts. However, do not let proportions fool you: classes are imbalanced because Small and Very Small systems predominate the data at around 92%.    
+
+```{r}
 # summary of existing geometry types by system size
 jb %>% 
   select(size_class, wsb, tigris, echo) %>%
   gather(-size_class, key = "geom_type", value = "indicator") %>%
-  ggplot(aes(size_class, fill = indicator)) + 
-  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
-  scale_color_manual(values = c("red", "blue")) +
-  facet_wrap(~geom_type, scales = "free", ncol = 2) +
-  labs(x = "System Size", y = "Count") +
+  group_by(size_class, geom_type) %>% 
+  summarise(prop = sum(indicator)/n()) %>% 
+  ggplot(aes(size_class, prop, fill = size_class)) + 
+  geom_col(color = "white", lwd = 0.2, show.legend = TRUE) +
+  coord_flip() +
+  scale_fill_carto_d() +
+  facet_wrap(~geom_type, ncol = 2) +
+  labs(title = "Geometry type availability by system size", 
+       x = "System Size", y = "Proportion available") +
   theme_minimal() +
-  ggtitle("Geometry type availability by system size") +
-  theme(panel.grid.minor = element_blank(), legend.position = "top")
+  theme(panel.grid.minor = element_blank(), legend.position = c(0.75, 0.2)) +
+  guides(fill = "none")
 
 # table indicating presence/absence of boundary by geometry type and owner type
 jb %>% 
   select(size_class, wsb, tigris, echo) %>%
   gather(-size_class, key = "geom_type", value = "indicator") %>%
-  group_by(size_class, geom_type, indicator) %>%
-  summarize(n = n())
-
-  
+  group_by(size_class, geom_type) %>%
+  summarise(
+    n = n(),
+    prop_true = round(sum(indicator)/n, 2)
+  ) %>% 
+  dt_make()
 ```
-Preliminary conclusions: large systems appear to have the biggest proportion of coverage for TIGER/Line shapefiles and labeled data relative to the total number of systems. It appears that very small, small, and medium systems  have a higher proportion of unknown boundaries, and less TIGER/Line shapefile coverage, relative to their overall counts.
+
+
+<br>  
 
 ### Ownership type
 
-```{r}
+Systems with boundaries and/or TIGER/Line shapefiles are largely local (L) or privately (P) owned systems, according to this classification. More work should be done to understand if all municipal types are under local ownership in SDWIS, and why more of them are do not match to TIGER/Line shapefiles.
 
+```{r}
 # summary of existing geometry types by owner type
 jb %>% 
   select(owner_type_code, wsb, tigris, echo) %>%
@@ -792,13 +804,14 @@ jb %>%
   group_by(owner_type_code, geom_type) %>%
   ggplot(aes(owner_type_code, fill = indicator)) + 
   geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
-  scale_color_manual(values = c("red", "blue")) +
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(label = scales::comma) +
   facet_wrap(~geom_type, scales = "free", ncol = 2) +
-  labs(x = "Geometry Type", y = "Count") +
+  labs(x = "Ownership Type", y = "Count", fill = "Present?",
+       title = "Geometry type availability by ownership type") +
   theme_minimal() +
-  theme(panel.grid.minor = element_blank()) +
-  ggtitle("Geometry type availability by ownership type") +
-  theme(panel.grid.minor = element_blank(), legend.position = "top")
+  theme(panel.grid.minor = element_blank(), legend.position = c(0.75, 0.2))
 
 # table indicating presence/absence of boundary by geometry type and owner type
 jb %>% 
@@ -806,31 +819,32 @@ jb %>%
   gather(-owner_type_code, key = "geom_type", value = "indicator") %>%
   group_by(owner_type_code, geom_type, indicator) %>%
   summarize(n = n()) %>%
-  distinct()
-
-  
+  distinct() %>% 
+  dt_make()
 ```
-Preliminary conclusions: Systems with boundaries and/or TIGRER/Line shapefiles are largely local or privately owned systems, according to this classification. More work should be done to understand if all municipal types are under local ownership in sdwis, and why more of them are not matching to TIGER/Line shapefiles.
+
+
+<br>  
 
 ### Territory vs State
 
-```{r}
 
+
+```{r}
 # summary of existing geometry types by FRS / ECHO flag
 jb %>% 
   filter(!is.na(fac_indian_cntry_flg)) %>%
   select(fac_indian_cntry_flg, wsb, tigris, echo) %>%
   gather(-fac_indian_cntry_flg, key = "geom_type", value = "indicator") %>%
-  group_by(fac_indian_cntry_flg, geom_type) %>%
+  # group_by(fac_indian_cntry_flg, geom_type) %>%
   ggplot(aes(fac_indian_cntry_flg, fill = indicator)) + 
   geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
   scale_color_manual(values = c("red", "blue")) +
   facet_wrap(~geom_type, scales = "free", ncol = 2) +
   labs(x = "Tribal/Native Territory (True/False)", y = "Count") +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank()) +
   ggtitle("Geometry type availability by systems within Native American tribal boundary", 
           subtitle = "Based on indicator from EPA") +
+  theme_minimal() +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
 
 # table indicating presence/absence of boundary by geometry type and tribal boundary flag
@@ -840,50 +854,61 @@ jb %>%
   group_by(in_tribal_boundary, geom_type, indicator) %>%
   summarize(n = n()) %>%
   distinct()
-
-  
 ```
+
+
+<br>  
 
 ### Population coverage by geometry type
 
-To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. 
+To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. States like CA, TX, NY and FL cleary control an outsized portion of the overall population served, so labeled data collection in these locations should be prioritized. TIGER shows reasonable coverage across most states. ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). 
 
 ```{r}
-
 # simplified overall population coverage by geometry type
-
 jb %>% 
   filter(!is.na(primacy_agency_code)) %>% 
   select(population_served_count, wsb, tigris, echo) %>%
   gather(-population_served_count, key = "geom_type", value = "indicator") %>%
-  ggplot(aes(population_served_count, geom_type,
-             fill = indicator)) + 
+  ggplot(aes(population_served_count, geom_type, fill = indicator)) + 
   geom_col(show.legend = TRUE) + 
-  coord_flip() +
+  # coord_flip() +
   scale_fill_carto_d() +
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Population served by geometry coverage type",
+       x = "Population count", y = "") +
   theme_minimal() +
-  theme(panel.grid.minor = element_blank()) +
-  ggtitle("Population served by geometry coverage type") +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
 
 # More complex, this same breakdown by state
-
 jb %>% 
   filter(!is.na(primacy_agency_code)) %>% 
   select(primacy_agency_code, population_served_count, wsb, tigris, echo) %>%
-  gather(-primacy_agency_code, -population_served_count, key = "geom_type", value = "indicator") %>%
+  gather(-primacy_agency_code, -population_served_count, 
+         key = "geom_type", value = "indicator") %>%
   ggplot(aes(population_served_count, geom_type,
              fill = indicator)) + 
   geom_col(show.legend = TRUE) + 
-  coord_flip() +
   scale_fill_carto_d() +
+  scale_x_continuous(limits = c(0, 4e7), 
+                     breaks = c(0, 2e7, 4e7), 
+                     labels = c("0", "20", "40")) +
   geofacet::facet_geo(~primacy_agency_code) +
+  labs("Population served by geometry coverage type", 
+       x = "Population served (Millions)") +
   theme_minimal() +
-  theme(panel.grid.minor = element_blank()) +
-  ggtitle("Population served by geometry coverage type") +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
-
-
 ```
 
+
+<br>  
+
 # Recommendations and next steps
+
+This report makes recommenations throughout in each section. Key takeaways are summarized here.  
+
+1. We should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
+2. ECHO centroid estimates cover nearly 300 million people, which surpasses TIGRIS (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "tigris" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) and labeled data (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "wsb" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) coverage. However, centroid accuracy issues affect ECHO data. County centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. In the relevant section above, we suggest re-estimating centroids as zip code centroids (assuming we can obtain high-fidelity zip code data for each PWSID).  
+3. Around 5% of data is missing population served count, which can be "mean imputed" from systems of similar size, as population served and service connection count (typically present) shows a strong linear relationship.  
+4. "Impostors" are PWSIDs that report being in one state, but that have location (i.e., lat/lng) data in another state. They are infrequent in ECHO and MPH data (< 0.1%) and slighly more frequent in FRS data (~1.7%). Impostors are currently dropped to prevent "decentering" error caused by incorrect impostor centroids, and will be reviewed.  
+
+Next steps should address the recommendations herein. Ultimately, these recommendations service the goal of estimating reasonable water service boundaries, a task which hinges on clean data and as much labeled data as can be gathered. 
