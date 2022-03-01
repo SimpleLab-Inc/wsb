@@ -599,64 +599,60 @@ The above section on missingness necessarily analyzes data quality, as the two t
 2. appropriateness of the TIGER proxy boundaries by comparing labeled data to assigned proxies.  
 <br>  
 
-## Imposters 
+## Impostors 
 
-We call PWSIDs that report coordinates in a particular state but that actually plot in a different state "impostors" because they are not where they say they are. These errors likey result from faulty geocoding. Imposters pose a challenge to broader project aims because they will "decenter" predicted boundaries, spatially placing them in the wrong state. We assess imposters in ECHO, FRS, and mobile home parks (MHP).
-
-```{r}
-# a more robust version of this function is in src/functions/f_drop_imposters.R
-# and is used in transformers to clean data
-f_get_imposters <- function(x){
-  # pull usa state geometries, project to input data CRS
-  usa = USAboundaries::us_states(resolution = "high") %>% 
-    st_transform(st_crs(frs)$epsg) %>% 
-    select(state_intersection = state_abbr, geometry) %>% 
-    suppressMessages()
-    
-  # join frs to us boundaries and return imposter geometries
-  imposters <- st_join(x, usa) %>% 
-    # imposters: reported state != intersected state
-    filter(state_reported != state_intersection) %>% 
-    select(state_reported, state_intersection, everything())
-    
-  return(imposters)
-}
-```
+"Impostors" are PWSIDs that report coordinates in one state but plot in another--they are not where they say they are, thus they are impostors. Impostors likely result from faulty geocoding and pose a challenge to broader project aims because they "decenter" predicted boundaries, spatially placing them in the wrong state. We assessed impostors in FRS, ECHO, and mobile home parks (MHP) during data transformation preprocessing and wrote a function to drop impostors and sink them into a log file for review. 
 
 
 <br>  
 
-### Imposters (ECHO)
+### Impostors (FRS)
 
-<br>  
-
-### Imposters (FRS)
+First, observe 2 examples of impostors in FRS data. Impostors need to be dropped and audited here because taking centroids of centoids using FRS data will be skewed by data 
 
 ```{r}
-# read FRS data
-frs <- path(staging_path, "frs.geojson") %>% st_read()
+# the following code is copied from `src/transformers/transform_frs.R`
+# Read un-zipped geodatabase (~6GB so querying on water to reduce file size)
+# First look at available layers
+frs_layers <- st_layers(dsn = path(data_path, "frs/FRS_INTERESTS.gdb"))
 
-# light cleaning that needs to move to transformers
-frs <- frs %>% 
+#  SQL query to target facilities with water focus
+get_water_frs <- 
+  "SELECT * FROM FACILITY_INTERESTS WHERE INTEREST_TYPE 
+   IN ('COMMUNITY WATER SYSTEM', 'NON-TRANSIENT NON-COMMUNITY WATER SYSTEM',
+   'TRANSIENT NON-COMMUNITY WATER SYSTEM', 'WATER TREATMENT PLANT', 
+   'DRINKING WATER PROGRAM', 'DRINKING WATER SYSTEM')"
+
+# Read layer for FRS_INTERESTS with conditional query on `INTEREST_TYPE`.
+# Then, transform to standard epsg.
+frs <- path(data_path, "frs/FRS_INTERESTS.gdb") %>% 
+  st_read(query = get_water_frs, 
+          layer = "FACILITY_INTERESTS", 
+          stringsAsFactors = FALSE) %>% 
+  st_transform(epsg) %>% 
+  rename(geometry = Shape) %>% 
+  janitor::clean_names() %>% 
   mutate(
+    pwsid = word(pgm_sys_id, 1),
+    state = substr(pwsid, 1, 2),
+    facility_id = word(pgm_sys_id, 2),
+    facility_id = ifelse(pwsid == facility_id, NA, facility_id),
+    # light cleaning that needs to move to transformer
     state_code = ifelse(is.na(state_code), str_sub(pwsid, 1, 2), state_code)
-  )
-
+  ) 
 
 frs %>% filter(pwsid == "CA1502034") %>% mapview::mapview()
 frs %>% filter(pwsid == "AK2262351") %>% mapview::mapview()
-frs %>% filter(pwsid == "TX1012759") %>% mapview::mapview()
-
 ```
 
+Similar impostors exist in FRS and MHP datasets and have already been addressed in the data pipeline. Overall, imposter count and proprotion were small, and most notable in FRS data:
 
-<br>  
+- FRS: 68,536 / 69,722 rows are valid ( 98.3 % of input data). 1,186 imposters.  
+- ECHO: 426,195 / 426,545 rows are valid ( 99.9 % of input data). 350 imposters.  
+- MHP: 45,636 / 45,642 rows are valid ( 99.99 % of input data). 6 imposters.  
 
-### Imposters (MPH)
 
-
-
-> **RECOMMENDATION**: 
+> **RECOMMENDATION**: Because they are so few in number, we advise drop imposters to prevent "decentering" error caused by incorrect impostor centroids, and will review/audit output log files to clean additional imposters should they be relevant to the prediction task at hand.  
 
 # Coverage relative to SDWIS master list of active, community water systems
 
