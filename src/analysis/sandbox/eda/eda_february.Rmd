@@ -655,6 +655,163 @@ Similar impostors exist in FRS and MHP datasets and have already been addressed 
 > **RECOMMENDATION**: Because they are so few in number, we advise drop imposters to prevent "decentering" error caused by incorrect impostor centroids, and will review/audit output log files to clean additional imposters should they be relevant to the prediction task at hand.  
 
 # Coverage relative to SDWIS master list of active, community water systems
+It is helpful to look at coverage disaggregated by different system categories. 
 
+```{r, echo=FALSE}
+# get list of pwsid with boundaries
+pwsid_bnd <- wsb_labeled_simp %>% 
+  select(pwsid) %>%
+  st_drop_geometry()
+
+# create boolean for full sdwis dataset, now we have information about boundaries,
+# TIGER/Line shapefiles, and centroids
+jb <- j %>%
+  mutate(wsb = ifelse(pwsid %in% pwsid_bnd$pwsid, TRUE, FALSE),
+         tigris = ifelse(!is.na(tigris_match_geoid), TRUE, FALSE),
+         echo = ifelse(!is.na(echo_latitude), TRUE, FALSE))
+
+```
+
+We currently have coverage in the current set of service boundaries for `r round((nrow(filter(jb, tigris == TRUE | wsb == TRUE)) / nrow(jb))*100, 2)`% of community water systems. Interestingly, there is only `r round((nrow(filter(jb, tigris == TRUE & wsb == TRUE)) / nrow(jb))*100, 2)`% of systems that have _both_ water service boundaries _and_ TIGER/Line shapefile boundaries according to our current list. Of the public water systems that have an established or potential polygon from TIGER/Line shapefiles, they serve `r jb %>% filter(tigris == TRUE | wsb == TRUE) %>% summarise(pop_sum = sum(population_served_count, na.rm=TRUE))` people.
+
+The objective of this section is to look at the coverage across boundary types by key variables of concern, e.g. system size, ownership type, whether a system is serving a tribal area or not, and overall population coverage. We cover:
+
+- Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))  
+- Summary of existing boundary coverage by system type (Municipal, etc) / ownership type  
+- Summary of existing boundary coverage by tribal vs non-tribal (i.e. primacy_type_code is territory?)  
+- Total US population served by existing boundary date (using SDWIS provided `population_served`)  
+
+
+### System size
+```{r}
+
+# summary of existing geometry types by system size
+jb %>% 
+  select(size_class, wsb, tigris, echo) %>%
+  gather(-size_class, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(size_class, fill = indicator)) + 
+  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
+  scale_color_manual(values = c("red", "blue")) +
+  facet_wrap(~geom_type, scales = "free", ncol = 2) +
+  labs(x = "System Size", y = "Count") +
+  theme_minimal() +
+  ggtitle("Geometry type availability by system size") +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# table indicating presence/absence of boundary by geometry type and owner type
+jb %>% 
+  select(size_class, wsb, tigris, echo) %>%
+  gather(-size_class, key = "geom_type", value = "indicator") %>%
+  group_by(size_class, geom_type, indicator) %>%
+  summarize(n = n())
+
+  
+```
+Preliminary conclusions: large systems appear to have the biggest proportion of coverage for TIGER/Line shapefiles and labeled data relative to the total number of systems. It appears that very small, small, and medium systems  have a higher proportion of unknown boundaries, and less TIGER/Line shapefile coverage, relative to their overall counts.
+
+### Ownership type
+
+```{r}
+
+# summary of existing geometry types by owner type
+jb %>% 
+  select(owner_type_code, wsb, tigris, echo) %>%
+  gather(-owner_type_code, key = "geom_type", value = "indicator") %>%
+  group_by(owner_type_code, geom_type) %>%
+  ggplot(aes(owner_type_code, fill = indicator)) + 
+  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
+  scale_color_manual(values = c("red", "blue")) +
+  facet_wrap(~geom_type, scales = "free", ncol = 2) +
+  labs(x = "Geometry Type", y = "Count") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  ggtitle("Geometry type availability by ownership type") +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# table indicating presence/absence of boundary by geometry type and owner type
+jb %>% 
+  select(owner_type_code, wsb, tigris, echo) %>%
+  gather(-owner_type_code, key = "geom_type", value = "indicator") %>%
+  group_by(owner_type_code, geom_type, indicator) %>%
+  summarize(n = n()) %>%
+  distinct()
+
+  
+```
+Preliminary conclusions: Systems with boundaries and/or TIGRER/Line shapefiles are largely local or privately owned systems, according to this classification. More work should be done to understand if all municipal types are under local ownership in sdwis, and why more of them are not matching to TIGER/Line shapefiles.
+
+### Territory vs State
+
+```{r}
+
+# summary of existing geometry types by FRS / ECHO flag
+jb %>% 
+  filter(!is.na(fac_indian_cntry_flg)) %>%
+  select(fac_indian_cntry_flg, wsb, tigris, echo) %>%
+  gather(-fac_indian_cntry_flg, key = "geom_type", value = "indicator") %>%
+  group_by(fac_indian_cntry_flg, geom_type) %>%
+  ggplot(aes(fac_indian_cntry_flg, fill = indicator)) + 
+  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
+  scale_color_manual(values = c("red", "blue")) +
+  facet_wrap(~geom_type, scales = "free", ncol = 2) +
+  labs(x = "Tribal/Native Territory (True/False)", y = "Count") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  ggtitle("Geometry type availability by systems within Native American tribal boundary", 
+          subtitle = "Based on indicator from EPA") +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# table indicating presence/absence of boundary by geometry type and tribal boundary flag
+jb %>% 
+  select(in_tribal_boundary = fac_indian_cntry_flg, wsb, tigris, echo) %>%
+  gather(-in_tribal_boundary, key = "geom_type", value = "indicator") %>%
+  group_by(in_tribal_boundary, geom_type, indicator) %>%
+  summarize(n = n()) %>%
+  distinct()
+
+  
+```
+
+### Population coverage by geometry type
+
+To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. 
+
+```{r}
+
+# simplified overall population coverage by geometry type
+
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  select(population_served_count, wsb, tigris, echo) %>%
+  gather(-population_served_count, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type,
+             fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  ggtitle("Population served by geometry coverage type") +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# More complex, this same breakdown by state
+
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  select(primacy_agency_code, population_served_count, wsb, tigris, echo) %>%
+  gather(-primacy_agency_code, -population_served_count, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type,
+             fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  geofacet::facet_geo(~primacy_agency_code) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  ggtitle("Population served by geometry coverage type") +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+
+```
 
 # Recommendations and next steps
