@@ -116,6 +116,7 @@ mapviewOptions(fgb = FALSE)
 
 # data input location for EDA is the post-transformer staging path
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
+data_path    <- Sys.getenv("WSB_DATA_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # # previously run to generate a small data file for plotting, then save
@@ -603,12 +604,7 @@ The above section on missingness necessarily analyzes data quality, as the two t
 
 "Impostors" are PWSIDs that report coordinates in one state but plot in another--they are not where they say they are, thus they are impostors. Impostors likely result from faulty geocoding and pose a challenge to broader project aims because they "decenter" predicted boundaries, spatially placing them in the wrong state. We assessed impostors in FRS, ECHO, and mobile home parks (MHP) during data transformation preprocessing and wrote a function to drop impostors and sink them into a log file for review. 
 
-
-<br>  
-
-### Impostors (FRS)
-
-First, observe 2 examples of impostors in FRS data. Impostors need to be dropped and audited here because taking centroids of centoids using FRS data will be skewed by data 
+Take for example, 2 sets impostors in FRS data below.
 
 ```{r}
 # the following code is copied from `src/transformers/transform_frs.R`
@@ -645,17 +641,69 @@ frs %>% filter(pwsid == "CA1502034") %>% mapview::mapview()
 frs %>% filter(pwsid == "AK2262351") %>% mapview::mapview()
 ```
 
-Similar impostors exist in FRS and MHP datasets and have already been addressed in the data pipeline. Overall, imposter count and proprotion were small, and most notable in FRS data:
+Similar impostors exist in FRS and MHP datasets and have already been addressed in the data pipeline. Overall, impostor count and proportion were small, and most notable in FRS data:
 
-- FRS: 68,536 / 69,722 rows are valid ( 98.3 % of input data). 1,186 imposters.  
-- ECHO: 426,195 / 426,545 rows are valid ( 99.9 % of input data). 350 imposters.  
-- MHP: 45,636 / 45,642 rows are valid ( 99.99 % of input data). 6 imposters.  
+- FRS: 68,536 / 69,722 rows are valid ( 98.3 % of input data). 1,186 impostors.  
+- ECHO: 426,195 / 426,545 rows are valid ( 99.9 % of input data). 350 impostors.  
+- MHP: 45,636 / 45,642 rows are valid ( 99.99 % of input data). 6 impostors.  
 
 
-> **RECOMMENDATION**: Because they are so few in number, we advise drop imposters to prevent "decentering" error caused by incorrect impostor centroids, and will review/audit output log files to clean additional imposters should they be relevant to the prediction task at hand.  
+> **RECOMMENDATION**: Because they are so few in number, we advise dropping impostors to prevent "decentering" error caused by incorrect impostor centroids, and will review/audit output log files to clean additional impostor should they be relevant to the prediction task at hand.  
+
+
+<br>  
+
+# TIGRER proxy polygon appropriateness
+
+A key assumption that underpins the approach herein is that US Census [TIGER Place](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) polygons are appropriate proxy boundaries for unlabeled data. In other words, when a PWSID is matched either by name or spatial location to a TIGER Place polygon, how reasonable is that match? We cannot assess how reasonable a TIGER proxy is for unlabeled data, but we can for labeled data, and by extension, validate the approach for unlabeled data.
+
+```{r}
+# pwsids that matched tiger places in the labeled states
+matches <- j %>% 
+  filter(!is.na(tigris_match_geoid) & state_code %in% states_labeled) %>% 
+  select(pwsid, tigris_match_geoid)
+
+# labeled data: wsb
+wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
+  filter(pwsid %in% matches$pwsid)
+
+# labeled data: tiger place proxies
+tiger <- st_read(path(staging_path, "tigris_places_clean.geojson")) %>% 
+  filter(geoid %in% matches$tigris_match_geoid)
+
+# calculate overlap
+
+# calculate overlap
+f_intersects <- function(x, y){
+  res <- st_intersects(
+    filter(wsb_labeled, pwsid %in% matches$pwsid[x]), 
+    filter(tiger, geoid %in% matches$tigris_match_geoid[y])
+  )
+  return(res)
+}
+
+st_intersects(filter(wsb_labeled, pwsid %in% matches$pwsid[5]), 
+                filter(tiger, geoid %in% matches$tigris_match_geoid[5])) %>% unlist() %>% class()
+
+st_intersects(filter(wsb_labeled, pwsid %in% matches$pwsid[c(3,5)]), 
+                filter(tiger, geoid %in% matches$tigris_match_geoid[c(3,5)]))
+```
+
+```{r}
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[5]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[5]), 
+          layer.name = "TIGER")
+```
+
+
+
+<br>  
 
 # Coverage relative to SDWIS master list of active, community water systems
-It is helpful to look at coverage disaggregated by different system categories. 
+
+
+It is helpful to look at coverage disaggregated by different system categories.  
 
 ```{r, echo=FALSE}
 # get list of pwsid with boundaries
