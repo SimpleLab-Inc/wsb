@@ -429,7 +429,7 @@ We classify water service areas by size consistent with [EPA guidelines](https:/
 According to the [EPA](https://echo.epa.gov/help/drinking-water-dashboard-help#:~:text=Small%20and%20very%20small%20PWSs%20comprise%20the,source%2C%20such%20as%20a%20drinking%20water%20well.), "small and very small PWSs comprise the approximately 95% of all PWSs, but they serve just 12 percent of all consumers. Small PWSs include both community and non-community water systems. Some examples of non-community systems include office buildings, schools, campgrounds, or highway rest stops with their own water source, such as a drinking water well."
 
 Service connection count ranges from 0 (`r nrow(filter(j, service_connections_count == 0))` PWSIDs) to 
-approximately 1 million (New York City, NY7003493). Within size classes, service connection count shows approximately log-2 scaling, with a the tail of the distribution about falling around twice the mean value. Very Small and Small systems account for 92% of CWSs, which is consistent with EPA's findings (95%). In the plot below, note the different x and y scales. 
+approximately 1 million (New York City, NY7003493). Within size classes, service connection count shows approximately log-2 scaling, with the tail of the distribution about falling around twice the mean value. Very Small and Small systems account for 92% of CWSs, which is consistent with EPA's findings (95%). In the plot below, note the different x and y scales. 
 
 ```{r}
 # add water system size to the "incomplete" joined data (2k/55k without lat/lng) joined data
@@ -542,7 +542,7 @@ zero_pop %>%
 
 #### zero service connections AND zero population served
 
-- `r round((nrow(filter(j, service_connections_count == 0 & population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served **AND** 0 service connection count. These primarily impact 
+- `r round((nrow(filter(j, service_connections_count == 0 & population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served **AND** 0 service connection count. These primarily impact SC, ID, CA.
 
 ```{r}
 zero_sc_pop <- filter(j, service_connections_count == 0 & 
@@ -759,7 +759,9 @@ pwsid_bnd <- wsb_labeled_simp %>%
 jb <- j %>%
   mutate(wsb    = ifelse(pwsid %in% pwsid_bnd$pwsid, TRUE, FALSE),
          tigris = ifelse(!is.na(tigris_match_geoid), TRUE, FALSE),
-         echo   = ifelse(!is.na(echo_latitude), TRUE, FALSE))
+         echo   = ifelse(!is.na(echo_latitude), TRUE, FALSE), 
+         tigris_or_wsb = if_else(wsb == TRUE | tigris == TRUE, TRUE, FALSE),
+         tigris_and_wsb = if_else(wsb == TRUE & tigris == TRUE, TRUE, FALSE))
 ```
 
 We currently have coverage in the current set of service boundaries for `r round((nrow(filter(jb, tigris == TRUE | wsb == TRUE)) / nrow(jb))*100, 2)`% of community water systems. Interestingly, only `r round((nrow(filter(jb, tigris == TRUE & wsb == TRUE)) / nrow(jb))*100, 2)`% of systems have _both_ water service boundaries _and_ TIGER/Line shapefile boundaries according to our current list. Of the public water systems that have an established or potential polygon from TIGER/Line shapefiles, they serve `r jb %>% filter(tigris == TRUE | wsb == TRUE) %>% summarise(pop_sum = sum(population_served_count, na.rm=TRUE)) %>% unlist() %>% formatC(big.mark = ",", format = "d")` people, although this number is likely an underestimate given previous analysis in this report that suggests that population counts of zero are likely faulty and should be imputed. 
@@ -848,21 +850,21 @@ jb %>%
 ### Territory vs State
 
 
-
+Water systems in ECHO are assigned a flag indicating whether or not they are within a Native American tribal boundary. While we cannot know how many people they serve within the tribal boundary from centroids alone, we might still be interested in patterns of geometry coverage based on whether a systemm is within a Native American tribal boundary or not. The following plot demonstrates that 1) very few systems overall are designated as within Native American tribal boundaries and 2) there are almost no water systems with spatial boundaries or TIGER/Line shapefiles that are labeled as within a Native American tribal boundary. 
 ```{r}
 # summary of existing geometry types by FRS / ECHO flag
 jb %>% 
   filter(!is.na(fac_indian_cntry_flg)) %>%
   select(fac_indian_cntry_flg, wsb, tigris, echo) %>%
   gather(-fac_indian_cntry_flg, key = "geom_type", value = "indicator") %>%
-  # group_by(fac_indian_cntry_flg, geom_type) %>%
-  ggplot(aes(fac_indian_cntry_flg, fill = indicator)) + 
+  group_by(fac_indian_cntry_flg, geom_type) %>%
+  ggplot(aes(x = geom_type, fill = indicator)) + 
   geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
-  scale_color_manual(values = c("red", "blue")) +
-  facet_wrap(~geom_type, scales = "free", ncol = 2) +
-  labs(x = "Tribal/Native Territory (True/False)", y = "Count") +
+  coord_flip() +
+  facet_wrap(~fac_indian_cntry_flg) +
+  labs(x = "Geometry Type", y = "Number of systems") +
   ggtitle("Geometry type availability by systems within Native American tribal boundary", 
-          subtitle = "Based on indicator from EPA") +
+          subtitle = "Indicator fill colors reflect whether a geometry is present (true/false) \nThe two columns, True and False, indicate whether systems are inside Tribal Boundary") +
   theme_minimal() +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
 
@@ -881,7 +883,9 @@ jb %>%
 
 ### Population coverage by geometry type
 
-To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. States like CA, TX, NY and FL clearly control an outsized portion of the overall population served, so labeled data collection in these locations should be prioritized. TIGER shows reasonable coverage across most states. ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). 
+To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. States like NY and FL clearly control an outsized portion of the overall population served, so labeled data collection in these locations (which do not have readily available spatial boundaries) should be prioritized. TIGER shows reasonable coverage across most states. 
+
+ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). 
 
 ```{r}
 # simplified overall population coverage by geometry type
@@ -918,6 +922,30 @@ jb %>%
   theme_minimal(base_size = 6) +
   theme(panel.grid.minor = element_blank(), legend.position = "top")
 ```
+We can also look at overlap in our preferred water system boundary geometries - i.e. water systems that have labeled spatial data AND a TIGER/Line match, or water systems that have labeled spatial data OR a TIGER/Line match, but not both. We see that together, systems with labeled spatial data OR a TIGER/Line shapefile cover shy of ~190,000,000 people. Improved matching between water system names and TIGER/Line shapefiles will hopefully increase the number of systems with boundaries that ALSO have TIGER/Line geometries.
+```{r}
+# simplified overall population coverage by geometry type, combinations
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  mutate(tigris_or_wsb = if_else(wsb == TRUE | tigris == TRUE, TRUE, FALSE),
+         tigris_and_wsb = if_else(wsb == TRUE & tigris == TRUE, TRUE, FALSE)) %>%
+  select(population_served_count, wsb, tigris, tigris_or_wsb, tigris_and_wsb) %>%
+  gather(-population_served_count, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type, fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  # coord_flip() +
+  scale_fill_carto_d() +
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Population served by geometry coverage type", 
+       subtitle = "Labeled spatial data",
+       x = "Population count", y = "") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+jbp <- jb %>% select(pwsid, population_served_count, tigris_or_wsb, tigris_and_wsb) %>% 
+  gather(-population_served_count, -pwsid, key = "geom_type", value = "indicator")
+```
+
 
 
 <br>  
@@ -927,8 +955,12 @@ jb %>%
 This report makes recommendations throughout in each section. Key takeaways are summarized here.  
 
 1. We should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
-2. ECHO centroid estimates cover nearly 300 million people, which surpasses TIGRIS (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "tigris" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) and labeled data (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "wsb" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) coverage. However, centroid accuracy issues affect ECHO data. County centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. In the relevant section above, we suggest re-estimating centroids as zip code centroids (assuming we can obtain high-fidelity zip code data for each PWSID).  
+2. ECHO centroid estimates cover nearly 300 million people, which surpasses TIGRIS (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "tigris" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) and labeled data (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "wsb" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) coverage. Centroid accuracy issues affect ECHO data. County centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. In the relevant section above, we suggest re-estimating centroids as zip code centroids (assuming we can obtain high-fidelity zip code data for each PWSID).  
 3. Around 5% of data is missing population served count, which can be "mean imputed" from systems of similar size, as population served and service connection count (typically present) shows a strong linear relationship.  
 4. "Impostors" are PWSIDs that report being in one state, but that have location (i.e., lat/lng) data in another state. They are infrequent in ECHO and MPH data (< 0.1%) and slightly more frequent in FRS data (~1.7%). Impostors are currently dropped to prevent "decentering" error caused by incorrect impostor centroids, and will be reviewed.  
+5. If we look at systems that have either TIGER/Line shapefiles OR labeled spatial boundaries, there are in fact `r jbp %>% filter(geom_type == "tigris_or_wsb" & indicator == "TRUE") %>% summarise(n=sum(population_served_count)) %>% pull(n) %>% formatC(big.mark = ",", format = "d")` people served by those systems, which is **`r ((jbp %>% filter(geom_type == "tigris_or_wsb" & indicator == "TRUE") %>% summarise(n=sum(population_served_count)) %>% pull(n))/jb %>% summarise(n = sum(population_served_count)) %>% pull(n))*100`%** of the total population served by active, community water systems in the master list. This is a high representation of population served where we think we can have decently accurate polygons. It also sets the stage for more accurate modeling. Nonetheless, several important categories to keep in mind for modeling efforts:
+- Very small to medium systems have less labeled data relative to larger systems, and classes are highly imbalanced
+- Most ownership types are missing labeled data relative to L (Local) and P (Private) systems
+- Very few systems are reported within Native American Tribal boundaries, and for the most part, those that are do not have spatial boundaries
 
 Next steps should address the recommendations herein. Ultimately, these recommendations service the goal of estimating reasonable water service boundaries, a task which hinges on clean data and as much labeled data as can be gathered. 
