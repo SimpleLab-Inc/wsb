@@ -671,28 +671,52 @@ wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>%
 tiger <- st_read(path(staging_path, "tigris_places_clean.geojson")) %>% 
   filter(geoid %in% matches$tigris_match_geoid)
 
-# calculate overlap
+# pare down matches to only those in TIGER and labeled data
+matches <- matches %>% 
+  filter(pwsid %in% wsb_labeled$pwsid & tigris_match_geoid %in% tiger$geoid)
 
 # calculate overlap
-f_intersects <- function(x, y){
-  res <- st_intersects(
-    filter(wsb_labeled, pwsid %in% matches$pwsid[x]), 
-    filter(tiger, geoid %in% matches$tigris_match_geoid[y])
+f_intersects <- function(x){
+  
+  res = st_intersects(
+    st_make_valid(filter(wsb_labeled, pwsid %in% matches$pwsid[x])),
+    st_make_valid(filter(tiger, geoid %in% matches$tigris_match_geoid[x]))
   )
+  
+  res = unlist(res)
+  
+  if(length(res) == 0)
+    res = NA 
+  
+  if(length(res) > 1)
+    res = mean(res, na.rm = TRUE)
+
   return(res)
 }
 
-st_intersects(filter(wsb_labeled, pwsid %in% matches$pwsid[5]), 
-                filter(tiger, geoid %in% matches$tigris_match_geoid[5])) %>% unlist() %>% class()
+# intersection across all labeled polygons
+lti <- map_dbl(1:nrow(matches), ~f_intersects(.x))
 
-st_intersects(filter(wsb_labeled, pwsid %in% matches$pwsid[c(3,5)]), 
-                filter(tiger, geoid %in% matches$tigris_match_geoid[c(3,5)]))
+# 92% of labeled wsb that intersect their assigned TIGER place - 92%
+sum(lti, na.rm = TRUE)/length(lti)
 ```
 
+An impressive `r round((sum(lti, na.rm = TRUE)/length(lti))*100, 2)`% of assigned TIGER proxy boundaries intersect their labeled data, which strongly indicates that (1) TIGER places are a good proxy boundary, and (2) the match approach used herein is effective. Maps below demonstrate that TIGER places are appropriate proxy boundaries, even if they do not perfectly overlap. A future work effort should examine the residual `r 100 - round((sum(lti, na.rm = TRUE)/length(lti))*100, 2)`% of data where TIGER places don't intersect and use this information to iteratively improve the match. 
+
 ```{r}
-mapview(filter(wsb_labeled, pwsid == matches$pwsid[5]), 
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[1]), 
         layer.name = "actual", col.regions = "red") + 
-  mapview(filter(tiger, geoid == matches$tigris_match_geoid[5]), 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[1]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[6]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[6]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[8]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[8]), 
           layer.name = "TIGER")
 ```
 
