@@ -27,17 +27,6 @@ Data Sources:
 6. Various exact geometries from states
 """
 
-# TODO - Chat with team
-# - [ ] Some of this logic could be moved to the transformers
-# - Share PostGIS database
-# - Discuss standards:
-#       - Why ESRI:102003 instead of EPSG:4326? Apparently geojson only allows 4326
-#       - Let's unify the data formats. GeoJSON? Shared PostGIS DB? Shapefiles?
-#       - Why's OK an RDS instead of a geojson?
-# - What's "transform_wsb"? How's it differ from the separat MHP and OK transforms?
-# - Only 16k matches to FRS. Should we look to Echo instead? Is that admin addresses?
-# - Echo has much better matches, and seems to be a superset of FRS.
-
 #%% ##########################################
 # 1) SDWIS
 ##############################################
