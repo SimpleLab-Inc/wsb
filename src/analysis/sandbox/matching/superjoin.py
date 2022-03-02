@@ -22,7 +22,7 @@ Data Sources:
 1. SDWIS - Official list of PWS's to classify. Narrow to Active CWS's.
 2. FRS - Has centroids for ~15k facilities.
 3. ECHO? - Similar to FRS. Better matching. The points might be a superset of FRS.
-4. TIGRIS - Generic city boundaries. Attempt to match on city name.
+4. TIGER - Generic city boundaries. Attempt to match on city name.
 5. Mobile Home Parks - 
 6. Various exact geometries from states
 """
@@ -217,21 +217,21 @@ len(frs[frs["matched"]]["pwsid"].unique())
 frs = frs[frs["matched"]].drop(columns=["matched"])
 
 #%% ##########################################
-# 3) TIGRIS
+# 3) TIGER
 ##############################################
-tigris = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
+tiger = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
-# tigris = tigris[keep_columns]
+# tiger = tiger[keep_columns]
 
 # Standardize data type
-tigris["statefp"] = tigris["statefp"].astype("int")
+tiger["statefp"] = tiger["statefp"].astype("int")
 
 # Augment with state abbrev
-tigris = tigris.join(crosswalk, on="statefp", how="inner")
+tiger = tiger.join(crosswalk, on="statefp", how="inner")
 
 # GEOID seems to be a safe unique identifier
-tigris.head()
+tiger.head()
 
 #%% ##########################################
 # 6) ECHO
@@ -278,127 +278,12 @@ print(echo[~echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_cou
 #  - fac_collection_method - Primarily "County Centroid", "Zip Code Centroid", "State Centroid". Yuck.
 #  - fac_reference_point - Mostly null.
 
-
-#%%
-
-#%% #############################
-# Trying a stacked approach
-#################################
-
-"""
-I want to create a stacked merge report.
-
-1) Map to a unified data model:
-    - source system name
-    - source system key
-    - pwsid
-    - name
-    - city served?
-    - lat?
-    - long?
-    - geometry? - Either multiple columns for different geometry quality, or smart survivorship
-        - shape
-        - point
-        - zip centroid
-        - geometry_quality - (Opt?) Notes about the quality; e.g. whether it came from a zip, from multiple points that were averaged, etc
-
-2)  pwsid will serve as the merge ID. We probably don't need a separate merge ID,
-    unless it turns out that some pwsid's are wrong.
-
-3) Matching:
-    - SDWIS is the anchor.
-    - FRS / ECHO match easily on PWSID. Easy to assign MK. 
-        - Or I could just join directly to SDWIS. pwsid is unique in ECHO, not in FRS
-    - TIGRIS will need spatial matching, fuzzy name matching, and manual review.
-    - MHP will need spatial matching, fuzzy name matching, and manual review.
-    - Boundaries:
-        - OK has good PWSID matching. But are the boundaries right? They look pretty weird.
-
-"""
-
-"""
-
-#%%
-
-model = {
-    "source_system": "str",
-    "source_system_id": "str",
-    "master_key": "str",
-    "name": "string",
-    "fac_street": "string",
-    "fac_city": "string",
-    "fac_state": "string",
-    "fac_zip": "string",
-    "fac_county": "string",
-    "city_served": "string",
-    "primacy_agency_code": "string",
-    "geometry_shape": object,
-    "geometry_lat": "string",
-    "geometry_long": "string",
-    "geometry_point_quality": "string"
-}
-
-supermodel = pd.DataFrame(columns=list(model.keys())).astype(model)
-
-#%%
-sdwis_supermodel = (sdwis
-    .assign(
-        source_system = "sdwis",
-        source_system_id = sdwis["pwsid"],
-        master_key = sdwis["pwsid"]
-    )
-    .rename(columns={
-        "pws_name": "name"
-    })
-    [["source_system", "source_system_id", "master_key", "pwsid",
-    "primacy_agency_code", "name", "city_served"]])
-
-sdwis_supermodel
-
-#%%
-
-echo_supermodel = (echo
-    .assign(
-        source_system = "echo",
-        source_system_id = echo["pwsid"],
-        master_key = echo["pwsid"]
-    )
-    .rename(columns={
-        "fac_name": "name",
-        "fac_lat": "geometry_lat",
-        "fac_long": "geometry_long",
-        "fac_collection_point": "geometry_point_quality"
-    })
-    [["source_system", "source_system_id", "master_key", "pwsid", "name",
-    "geometry_lat", "geometry_long", "geometry_point_quality"]])
-
-echo_supermodel
-
-#%%
-
-tigris_supermodel = (tigris
-    .assign(
-        source_system = "tigris",
-        source_system_id = tigris["geoid"],
-        master_key = pd.NA
-    )
-    .rename(columns={
-        "state": "primacy_agency_code",
-        "geometry": "geometry_shape"
-    })
-    [["source_system", "source_system_id", "master_key", "name",
-    "geometry_shape"]])
-
-tigris_supermodel
-
-"""
-
 #%% ##########################
-# Nvm, I'll lay off that for a bit. Let's just try to do simple geo matching.
+# SDWIS/ECHO <-> TIGER - Spatial + Name matching
 ##############################
 
 # Match rules:
-# 1) echo point inside TIGRIS geometry
+# 1) ECHO point inside TIGER geometry
 # 2) Matching state AND tokenized facility name
 # 3) Matching state and tokenized city served
 # 4) Combos of the above
@@ -421,7 +306,7 @@ def tokenize_name(series) -> pd.Series:
 
 #%%
 # Woot! We have spatial matches. 23k
-join = tigris.sjoin(echo, how="inner")
+join = tiger.sjoin(echo, how="inner")
 
 print(f"Spatial matches: {len(join)}")
 
@@ -443,25 +328,24 @@ print("Max: " + str(join.groupby("geoid").size().max()))
 
 #%%
 # Tokenize names (strip out common words and acronyms)
-join["tigris_name"] = tokenize_name(join["name"])
+join["tiger_name"] = tokenize_name(join["name"])
 join["echo_name"] = tokenize_name(join["fac_name"])
 join["sdwis_pws_name"] = tokenize_name(join["pws_name"])
 
 join.head()
 
-#%%
-# Narrowed to 4643 when you match tokenized echo_name == tigris_name
-matches = join[join["tigris_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+name_token")
+# Narrowed to 4643 when you match tokenized echo_name == tiger_name
+matches = join[join["tiger_name"] == join["echo_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+name_token")
 
-# 7232 matches on city_served == tigris_name. That's surprisingly good!
+# 7232 matches on city_served == tiger_name. That's surprisingly good!
 matches = pd.concat([
     matches,
-    join[join["city_served"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+city_served")])
+    join[join["city_served"] == join["tiger_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+city_served")])
 
-# 6107 matches on tokenized sdwis_pws_name == tigris_name
+# 6107 matches on tokenized sdwis_pws_name == tiger_name
 matches = pd.concat([
     matches,
-    join[join["sdwis_pws_name"] == join["tigris_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+sdwis_pws_name")])
+    join[join["sdwis_pws_name"] == join["tiger_name"]][["geoid", "pwsid"]].assign(match_type = "spatial+sdwis_pws_name")])
 
 #%%
 
@@ -501,7 +385,7 @@ Column                   | Data Source
 pwsid                    | SDWIS
 pws_name                 | SDWIS
 wsb                      | WSB (hold for now)
-tigris_match             | TIGRIS - Rather than just a bool, let's include the geoid and how it matched
+tiger_match              | TIGER - Rather than just a bool, let's include the geoid and how it matched
 echo_match               | ECHO - Rather than just a bool, let's include the lat/long and method
 mhp_match                | MHP - hold for now
 state_code               | SDWIS
@@ -519,12 +403,12 @@ output = sdwis[[
     "service_area_type_code", "owner_type_code"
 ]]
 
-# Supplement with tigris match info
+# Supplement with tiger match info
 output = (output
     .merge(join_sub[["pwsid", "geoid", "match_type"]], on="pwsid", how="left")
     .rename(columns={
-        "geoid": "tigris_match_geoid",
-        "match_type": "tigris_match_type"
+        "geoid": "tiger_match_geoid",
+        "match_type": "tiger_match_type"
     }))
 
 # Supplement with echo match info
@@ -546,13 +430,3 @@ if not (len(output) == len(sdwis)):
 #%%
 # This should probably go to some other folder
 output.to_csv(DATA_PATH + "/matched_output.csv")
-
-# How to study this report?
-# Wouldn't it be cool if we had tiny little "sparkmaps" on each match to show how close they are?
-# Or maybe that's not doable cause maps are hard to read up close.
-# How could we map it so that we can visually see the corresponding tigris and echo pairs?
-
-#%%
-
-# TODO - Add a match on JUST state + name
-# TODO - Combine the unmatched tigris into the output report and sort by name so we can check for no-matches
