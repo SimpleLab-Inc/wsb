@@ -17,17 +17,20 @@ options(timeout = 100000)
 
 # read Natural Earth ocean geometry
 ocean <- st_read(path(data_path, "ne/ocean/ne-ocean-10m/ne_10m_ocean.shp")) %>% 
-  select(geometry)
-
-# transform places to ocean crs, make valid, intersect with oceans, 
-# reproject to projected crs, and write
-places <- read_rds(path(data_path, "tigris/tigris_places.rds"))
-places_clean <- places %>% 
-  st_transform(st_crs(ocean)$epsg) %>% 
-  st_make_valid() %>%
-  st_intersection(st_make_valid(ocean)) %>% 
-  st_transform(epsg) %>% 
+  select(geometry) %>% 
   st_make_valid()
+
+# transform places to ocean crs, make valid
+places <- read_rds(path(data_path, "tigris/tigris_places.rds")) %>% 
+  st_transform(st_crs(ocean)$epsg) %>% 
+  st_make_valid() 
+
+# intersect places with oceans and write
+places_clean <- places %>% 
+  st_intersection(ocean) %>% 
+  st_make_valid() %>% 
+  janitor::clean_names() %>% 
+  mutate(statefp = as.numeric(statefp))
 
 # sanity check that oceans are removed
 # mapview::mapview(places_clean)

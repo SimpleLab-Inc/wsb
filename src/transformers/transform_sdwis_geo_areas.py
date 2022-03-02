@@ -63,4 +63,4 @@ if (geo_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()
      
  # %% Save csv in staging
 
-geo_area.to_csv(os.path.join(staging_path, "geographic_area.csv"), index = False)
+geo_area.to_csv(os.path.join(staging_path, "sdwis_geographic_area.csv"), index = False)

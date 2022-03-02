@@ -58,4 +58,4 @@ if (service_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").a
 
 # %% Save csv in staging
 
-service_area.to_csv(os.path.join(staging_path, "service_area.csv"), index = False)
+service_area.to_csv(os.path.join(staging_path, "sdwis_service_area.csv"), index = False)

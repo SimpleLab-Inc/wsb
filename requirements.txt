@@ -2,6 +2,9 @@ numpy==1.22.2
 pandas==1.4.1
 python-dotenv==0.19.2
 openpyxl==3.0.9
+sqlalchemy==1.4.31
+psycopg2==2.9.3
+geoalchemy2==0.6.3
 
 # Optional
 ipykernel==6.9.0
