@@ -1,0 +1,997 @@
+---
+title: "EDA: water system boundary missingness, quality, & coverage"
+output: 
+  html_document:
+    highlight: zenburn
+    code_folding: hide
+    toc: true
+    # toc_float: true
+    toc_depth: 3
+    number_sections: true
+    # css: etc/style/style.css
+# bibliography: etc/references.bib  
+# link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
+
+# datatable style
+dt_make <- function(x){
+  x %>% 
+    DT::datatable(
+    rownames = FALSE, 
+    extensions = 'Buttons', 
+    options = list(
+      dom = 'Bfrtip', 
+      buttons = c('copy', 'csv', 'excel')
+    )
+  )
+}
+```
+
+*Jess Goddard & Rich Pauloo*
+
+*Last updated `r Sys.time()`*
+
+<br>  
+
+# Introduction
+
+Presently, approximately 55,700 active community water systems in the United States collectively serve tap water to approximately *318,000,000* people (source: SDWIS). These water systems cross-cut racial/ethnic, income, and political boundaries, yet despite their importance, up-to-date, easily accessible boundary data (i.e., spatial polygons that delineate water service boundaries) are not organized at the national level. State-level data may exist, but these data tend to be hard to find online, may require cleaning, and little is known about the completeness of these data at a national scale. This is beginning to change as organizations, businesses, and academics currently aim to fill the gaps. Insights into water quality challenges nationwide are stymied by a lack of water service area boundaries -- most research and work on water quality, for example, emphasizes county-level analyses. Moreover, funding for water systems under the new Justice40 Initiative require organized, accurate spatial data on community water systems and who they serve. 
+
+The overarching goal of this [project](https://github.com/SimpleLab-Inc/wsb) is to assemble the nation's first open-source, reproducible pipeline to assimilate existing water service boundary data and provide estimated service boundaries where existing spatial data does not exist. Given large gaps in data, we will use a combination of data assimilation and machine learning to assign and predict proxy boundaries where formally labeled spatial data does not exist. To produce the national water service boundary layer, a variety of state and federal data sources must be cleaned, analyzed, joined, and ultimately, modeled. Underpinning this technical effort is a broader context of stakeholder communication and engagement, and data collection efforts to support modeling. 
+
+This report provides an initial assessment of existing data sources to prepare for modeling and to facilitate the best allocation of resources in pursuit of a national boundary layer. In this report, we investigate data quality issues in state and federal data to:  
+
+1. assess data "missingness" (e.g., missing water system boundary polygons, and `NA` or `NULL` values which will impact data collection efforts, and the ability to model missing data)  
+2. examine data quality (e.g., do data actually represent what they report to represent?) to inform future data collection and cleaning efforts and to gauge the appropriateness of modeling with existing data  
+3. review data coverage by various features of water systems (e.g., system size, system type, tribal designation, population served) to inform future data collection and cleaning efforts, and understand potential model limitations  
+
+The work herein will be filed under an MIT License. Our motivation for doing this is the recognition that water data has historically been siloed within different state repositories, academic journals, or simply unavailable. We strive to break this boundary by encouraging an organized, open-source space where anyone can contribute and use the resulting data products.
+
+
+<br>  
+
+# Report outline
+
+The following outline reflects an exploratory data analysis of the existing data, which can be expanded and re-run as new data sources are ingested:
+
+_Missingness_  
+
+- Existing coverage of spatial labeled data  
+- Coverage and quality of centroids  
+- Tabular data: assess missingness for key categories (i.e., population served, system size AKA connection count)  
+
+_Data Quality_  
+
+- Number of "imposer" centroids across datasets (ECHO, FRS, MPH or 'mobile home parks')  
+- Appropriateness of TIGER/Line shapefile as proxy. Compare join for labeled systems   
+
+_Coverage relative to SDWIS master list of active, community water systems_  
+
+- Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))  
+- Summary of existing boundary coverage by system type (Municipal, etc) / ownership type  
+- Summary of existing boundary coverage by tribal vs non-tribal  
+- Total US population served by existing boundary date (using SDWIS provided `population_served`)  
+
+
+<br>  
+
+# Data Sources
+
+Data Source  | Description  | Link|
+------------- | ------------- | -------------|
+EPA Safe Drinking Water Information Systems  | Public water systems "master list" with key attribute data and some tabular geographic data like cities served | [SDWIS MODEL](https://www.epa.gov/enviro/sdwis-model) |
+EPA Enforcement and Compliance History Online| Public water system facilities archive, drawing lat/long data for facilities centroids from FRS | [ECHO Exporter](https://echo.epa.gov/tools/data-downloads#exporter)|
+EPA Facilities Registry Service | FRS regularly updates facilities data with lat/long information, which pipes into ECHO | [FRS Geospatial](https://www.epa.gov/frs/geospatial-data-download-service) |
+US Census Bureau TIGER/Line | US Census data of places--cities and towns--used to identify potential service area boundaries | [TIGER/Line Shapefiles](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) accessed using R package [tigris](https://www.rdocumentation.org/packages/tigris/versions/1.6) |
+Labeled Water System Boundaries | URLs on state pages for various water service boundary sources| [State URL tracking doc](https://docs.google.com/spreadsheets/d/1ov0vx0A-qawxLwASHNRUIyXgJXhLjBHIQ4JxdhIyW4o/edit#gid=0) |
+
+<br>  
+
+# Missingness
+
+We examine missingness of key datasets in terms of:
+
+- **The existing coverage of "labeled" service boundaries.** "Labeled" service boundaries refer to spatial polygons of existing data and stand in contrast to "unlabeled" data, which are water systems _without_ explicit spatial polygons and for which we must estimate a boundary.  
+- **Centroid coverage and quality.** For unlabeled data, we must estimate a boundary, and the model we will develop will estimate the radius of a water system boundary from a centroid. Thus we need spatial centroids for unlabeled data. Sometimes these centroids are provided, sometimes not. We assess their coverage nationwide and state-by-state.  
+- **Tabular data missingness.** Tabular data is non-spatial data associated with water systems (e.g., population served, system size) that can be used to predict water system radii. Missingness or data quality issues in these columns may limit the extensibility of modeling and is thus characterized.  
+
+<br>  
+
+## Existing coverage of spatial labeled data
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(fs)
+library(sf)
+library(mapview)
+library(rcartocolor)
+library(geofacet)
+
+mapviewOptions(fgb = FALSE)
+
+# data input location for EDA is the post-transformer staging path
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+data_path    <- Sys.getenv("WSB_DATA_PATH")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
+
+# # previously run to generate a small data file for plotting, then save
+# wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>%
+#   rmapshaper::ms_simplify()
+# dir_create(here("etc"))
+# write_rds(wsb_labeled, here("etc/wsb_labeled_simplified.rds"))
+
+# load existing labeled data and simply it for viewing
+wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds"))
+```
+
+Labeled spatial data (i.e., spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs that cover `r length(unique(wsb_labeled_simp$state))` states: `r paste(unique(wsb_labeled_simp$state), collapse = ", ")`^[Due to constraints on visualizing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices, but analyses all use the high-resolution version.].  
+
+```{r, echo=FALSE}
+wsb_labeled_simp %>% 
+  select(pwsid, gis_name) %>% 
+  mapview(layer.name = "labeled wsb")
+```
+
+Labeled data is always preferred to unlabeled data. The assimilation of labeled data from all states would replace the proxy matching and modeling stages of this work, which aims to estimate water service boundaries for unlabeled data in their absence. Thus, data collection efforts should be prioritized for missing states (below).  
+
+```{r}
+# summarise missing and present states in a dataframe
+states_missing <- state.abb[!state.abb %in% unique(wsb_labeled_simp$state)]
+states_present <- unique(wsb_labeled_simp$state)
+
+states_df <- tibble(
+  state_abbr = c(states_missing, states_present),
+  status = c(rep("missing", length(states_missing)), 
+             rep("present", length(states_present)))
+)
+
+# pull usa state geometries, project to input data CRS
+usa <- USAboundaries::us_states(resolution = "low") %>% 
+  st_transform(epsg) %>% 
+  left_join(states_df) %>% 
+  tigris::shift_geometry() %>% 
+  # remove Puerto Rico
+  filter(!is.na(status))
+
+# map of missing states
+ggplot() +
+  geom_sf(data = usa, aes(fill = status), alpha = 0.5, color = "white") +
+  scale_fill_carto_d(palette = "Pastel") +
+  labs(fill = "") +
+  theme_void() + 
+  labs(title = "Labeled data coverage by state",
+       subtitle = paste("Last updated:", Sys.Date()))
+
+# data table with buttons to export table
+states_df %>% 
+  filter(!is.na(state_abbr)) %>% 
+  arrange(status, state_abbr) %>% 
+  dt_make()
+```
+
+> **RECOMENDATION:** Collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
+
+<br>  
+
+## Centroid coverage
+
+
+<br>  
+
+### Centroid coverage at all PWSIDs
+
+Two federal datasets contain water system centroid data--ECHO and FRS (see [data sources table above](#data-sources) for links). Preliminary investigation of these data sources indicated that ECHO is a maintained facilities archive that updates quarterly. Much of its spatial data--lat/long centroids--comes directly from FRS, which is a weekly-updated database. FRS maintains a geospatial database of facilities (by water system) with geolocated centroids, but does not approximate centroids for systems without provided lat/long data. ECHO, on the other hand, conducts a geocoding exercise to assign a centroid to all water systems. As such, ECHO is a superset of FRS data, thus ECHO centroid coverage is assessed. As stated before, in this analysis we only focus on active community water systems (CWS). 
+
+```{r}
+# j stands for joined data, read and rm rownumber column
+j <- read_csv(path(staging_path, "matched_output.csv"), col_select = -1)
+```
+
+First, `r round((nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude))) / nrow(j))*100, 2)`% of pwsids (`r nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude)))` / `r nrow(j)` ) are missing either a longitude or latitude (i.e., the x or y coordinate is `NA`). 
+
+For the remaining systems that are "complete" in the sense that they have a spatial centroid, we want to understand how accurate that centroid is. ECHO provides the spatial method used to calculate a centroid for each system. Most centroids are derived from the county centroid, address matching on a house number, or a zip code centroid. County- and state-level centroids are of little use as these data offer low to little indication of the true water system location. Any method that appears less then 5% of the time is lumped into "other", while a small portion of systems were not geocoded and thus the method is `NA`.
+
+```{r}
+# joined data that is "complete" in the sense that it has a lng/lat
+jc <- filter(j, !is.na(echo_latitude) & !is.na(echo_longitude))
+
+jc %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  mutate(
+    p = n/sum(n),
+    echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = "", y = "Count", title = "ECHO geocoding method", 
+       subtitle = "Each CWS centroid estimated according to the following methods.") +
+  guides(fill = "none")
+```
+
+Centroid geocoding method varies by state. States primarily derive centroid from:
+
+- county centroids (e.g., VT, NH, NY, SD, NJ, UT, CO, and so on - blue bars in plot below)  
+- zipcode centroids (e.g., MT, MA, NV, CT, HI - green bars in plot below)
+- interpolation photos (e.g., WA, ID, OR, AK - pink bars in plot below)  
+- address (e.g., IA, IN, OH - orange bars in plot below)  
+
+
+```{r}
+# summary proportion of geocoding method by state
+jcs <- jc %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(primacy_agency_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(p = n / sum(n)) %>% 
+  mutate(echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ungroup()
+  
+jcs %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(breaks = c(0, 0.5, 1),
+                     labels = c(0, 0.5, 1),
+                     limits = c(0, 1)) +
+  geofacet::facet_geo(~primacy_agency_code) +
+  labs(x = "", y = "Proportion", 
+       title = "ECHO geocoding method by state") +
+  guides(fill = "none") +
+  theme_minimal(base_size = 6) +
+  theme(panel.grid.minor = element_blank())
+```
+
+In the plots above, any method that appeared less then 5% of the time was lumped into "other", and in the table below, we show all methods, sorted by occurrence. In the table below, we preserve all categories for review.
+
+```{r}
+jc %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(primacy_agency_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n / sum(n)*100, 2)) %>% 
+  ungroup() %>% 
+  arrange(primacy_agency_code, desc(percent)) %>% 
+  # remove non-states
+  filter(primacy_agency_code %in% state.abb) %>% 
+  dt_make()
+```
+
+
+<br>  
+
+### Centroid coverage at PWSIDs with unlabeled spatial data
+
+Centroid accuracy is more important for _unlabeled systems that we do not have explicit boundary polygons for, or that we cannot assign to a TIGER proxy polygon_. This is because--where no spatial boundary exists--the centroid will be the basis for an estimated water service boundary. We will model a radius from this centroid to approximate a service area. Thus, we now recalculate missingness for the subset of data **without** an existing spatial boundary and without a matching TIGER/Line place using the same two plots and table in the previous section.
+
+In our current attempt to match community water systems to TIGER/Line place polygons, which can serve as an estimated water service boundary, we achieve a `r round((nrow(filter(jc, !is.na(tigris_match_geoid)))/nrow(jc))*100, 2)`% match rate. We are continuing to improve our matching approach and expect this number to grow. Currently we are only looking at name matches for systems whose ECHO lat/long centroid falls within a TIGER/Line polygon, but we will expand this to simply match on names in a future iteration.
+
+```{r}
+# states where we have labeled spatial data
+states_labeled <- unique(wsb_labeled_simp$state) %>% discard(is.na)
+  
+jc %>% 
+  # remove all pwsids that match to a TIGER/Line proxy polygon or labeled state
+  filter(is.na(tigris_match_geoid)) %>% 
+  filter(! primacy_agency_code %in% states_labeled) %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  mutate(
+    p = n/sum(n),
+    echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = "", y = "Count", title = "ECHO geocoding method",  subtitle = "Water systems with *no* labeled spatial data.") +
+  guides(fill = "none")
+
+# summary proportion of geocoding method by state
+jcs2 <- jc %>% 
+  # remove all pwsids that match to a TIGER/Line proxy polygon or labeled state
+  filter(is.na(tigris_match_geoid)) %>% 
+  filter(! primacy_agency_code %in% states_labeled) %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(primacy_agency_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(p = n / sum(n)) %>% 
+  mutate(echo_geocode_method = case_when(
+    echo_geocode_method == "ADDRESS MATCHING-HOUSE NUMBER" ~ "address match",
+    echo_geocode_method == "INTERPOLATION-PHOTO"           ~ "interp photo",
+    echo_geocode_method == "County Centroid"               ~ "centroid county",
+    echo_geocode_method == "State Centroid"                ~ "centroid state",
+    echo_geocode_method == "Zip Code Centroid"             ~ "centroid zip",
+    echo_geocode_method == "Other"                         ~ "other",
+    TRUE ~ NA_character_
+  )) %>% 
+  ungroup()
+```
+
+
+In the plot below, note that blank states are those for which we have labeled data. States with results only show water systems without a matching TIGER/Line place proxy polygon. 
+
+```{r}
+# plot
+jcs2 %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  ggplot(aes(fct_reorder(echo_geocode_method, p), p, 
+             fill = echo_geocode_method)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(breaks = c(0, 0.5, 1),
+                     labels = c(0, 0.5, 1),
+                     limits = c(0, 1)) +
+  geofacet::facet_geo(~primacy_agency_code) +
+  labs(x = "", y = "Proportion", 
+       title = "ECHO geocoding method", subtitle = "Water systems by state with *no* labeled spatial data.") +
+  guides(fill = "none") +
+  theme_minimal(base_size = 6) +
+  theme(panel.grid.minor = element_blank())
+
+# datatable
+jc %>% 
+  # remove all pwsids that match to a tigris proxy polygon or labeled state
+  filter(is.na(tigris_match_geoid)) %>% 
+  filter(! primacy_agency_code %in% states_labeled) %>% 
+  # anything that appears less then 5% of the time is lumped into "other"
+  mutate(echo_geocode_method = fct_lump_prop(echo_geocode_method, 0.05)) %>%
+  group_by(primacy_agency_code, echo_geocode_method) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n / sum(n)*100,2)) %>% 
+  ungroup() %>% 
+  arrange(primacy_agency_code, desc(percent)) %>% 
+  # remove non-states
+  filter(primacy_agency_code %in% state.abb) %>% 
+  dt_make()
+```
+
+
+> **RECOMENDATION**: Results suggest different approaches to centroid estimation across states. Some approaches are more accurate than others. Moreover, centroid accuracy is most important for _unlabeled_ data, and for these data, county centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. We advise creation of a supplementary table with two columns (`echo_geocode_method` and `valid`) where each row is a unique centroid geocoding method. The `valid` column should be a boolean (`TRUE/FALSE`) that designates if we wish to "trust" and retain this information. A rule of thumb may be if we have reason to believe that the approach is less accurate than the zip code centroid. For methods where `valid == FALSE`, we should then re-estimate centroids as zip code centroids (if we can obtain zip codes). 
+
+
+<br>  
+
+## Tabular data missingness
+
+"Tabular data" refers to any data attached to PWSIDs (e.g., population served, system size) in various federal databases (e.g., FRS, ECHO, and so on). These tabular data are the independent variables on which we will train statistical and machine learning models to predict water service boundaries for unlabeled data, thus it is critical that they are present across the dataset^[Tabular data missingness may be addressed in a number of imputation methods, but importantly, these methods are not as accurate as a complete dataset to begin with.]. 
+
+`r nrow(filter(j, is.na(population_served_count))) / nrow(j)`% of PWSIDs are missing "population served", and `r round((nrow(filter(j, is.na(service_connections_count))) / nrow(j))*100, 2)`% of PWSIDs are missing "service connection count". We expect these two variables to be important in predicting unlabeled water service boundary radii, hence, we assess their missingness here. As we identify additional features to train models on, we will assess their missingness and update this report. 
+
+
+<br>  
+
+### System size (i.e., connection count) and population served
+
+As these variables relate to one another (we expect a linear correlation), they are examined together. `r nrow(filter(j, is.na(service_connections_count))) / nrow(j)`% of PWSIDs are missing "system size" and `r nrow(filter(j, is.na(population_served_count))) / nrow(j)`% of PWSIDs are missing "population served", although some of these values are equal to zero and likely incorrect, which we explore later in this section. 
+
+We classify water service areas by size consistent with [EPA guidelines](https://echo.epa.gov/help/drinking-water-dashboard-help#:~:text=Very%20Small%20%C2%A0%20%C2%A0%20%C2%A0%20500,Very%20Large%C2%A0%C2%A0%C2%A0%C2%A0%C2%A0%20%3E100%2C000):  
+ 
+ 
+| EPA classification | Connection count    |
+|--------------------|---------------------|
+| Very Small         |  500 or less        |
+| Small              |  501 - 3,300        |
+| Medium             |  3,301 - 10,000     |
+| Large              |  10,001 - 100,000   |  
+| Very Large         |  >100,000           |
+
+According to the [EPA](https://echo.epa.gov/help/drinking-water-dashboard-help#:~:text=Small%20and%20very%20small%20PWSs%20comprise%20the,source%2C%20such%20as%20a%20drinking%20water%20well.), "small and very small PWSs comprise the approximately 95% of all PWSs, but they serve just 12 percent of all consumers. Small PWSs include both community and non-community water systems. Some examples of non-community systems include office buildings, schools, campgrounds, or highway rest stops with their own water source, such as a drinking water well."
+
+Service connection count ranges from 0 (`r nrow(filter(j, service_connections_count == 0))` PWSIDs) to 
+approximately 1 million (New York City, NY7003493). Within size classes, service connection count shows approximately log-2 scaling, with the tail of the distribution about falling around twice the mean value. Very Small and Small systems account for 92% of CWSs, which is consistent with EPA's findings (95%). In the plot below, note the different x and y scales. 
+
+```{r}
+# add water system size to the "incomplete" joined data (2k/55k without lat/lng) joined data
+size_lvls <- c("Very Small", "Small", "Medium", "Large", "Very Large")
+
+j <- j %>% 
+  mutate(
+    size_class = case_when(
+      service_connections_count <= 500 ~ "Very Small",
+      service_connections_count > 500 & service_connections_count <= 3300 ~ "Small",
+      service_connections_count > 3300 & service_connections_count <= 10000 ~ "Medium",
+      service_connections_count > 10000 & service_connections_count <= 100000 ~ "Large",
+      service_connections_count > 100000 ~ "Very Large"),
+    size_class = factor(size_class, levels = size_lvls)
+  )
+  
+# annotation text and line to highlight NYC
+ann_text <- tibble(
+  label = "New York City",
+  size_class = factor("Very Large", levels = size_lvls)
+)
+
+ann_line <- tibble(
+  xmin = 8e5, xmax = 9.35e5, ymin = 10, ymax = 2,
+  size_class = factor("Very Large", levels = size_lvls)
+)
+
+# plot
+j %>% 
+  ggplot(aes(service_connections_count, fill = size_class)) + 
+  geom_histogram(color = "white", lwd = 0.2) +
+  geom_text(
+    data    = ann_text,
+    mapping = aes(x = 6e5, y = 13, label = label)
+  ) +
+  geom_segment(
+    data = ann_line,
+    aes(x = xmin, xend = xmax, y = ymin, yend = ymax),
+    arrow = arrow(length = unit(0.2, "cm"))) +
+  scale_fill_carto_d() +
+  scale_x_continuous(label = scales::comma) +
+  scale_y_continuous(label = scales::comma) +
+  facet_wrap(~size_class, scales = "free", ncol = 2) +
+  labs(x = "Service Connection count", y = "Count") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank()) +
+  guides(fill = "none")
+```
+
+```{r}
+j %>% 
+  count(size_class) %>% 
+  mutate(proportion = round(n/sum(n), 2)) %>% 
+  dt_make()
+```
+
+
+Although no population count or service connection count is missing, there are zeroes in some of these data fields which may indicate faulty data. Importantly, zeroes are not "completely at random", and show higher frequency in states like SC, which further suggests faultiness. 
+
+
+<br>  
+
+#### zero service connections
+
+`r round((nrow(filter(j, service_connections_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served, which is unlikely to be true and primarily impacts SC. We may drop these, or impute a population equal to the mean population for the reported system size if present. 
+
+```{r}
+zero_sc <- filter(j, service_connections_count == 0) 
+
+zero_sc %>%   
+  # rm column created on suspect data
+  select(-size_class) %>% 
+  # only show certain cols in DT
+  select(pwsid, pws_name, pop_count = population_served_count, 
+         con_count = service_connections_count, 
+         tigris = tigris_match_geoid) %>% 
+  dt_make()
+
+zero_sc %>% 
+  count(primacy_agency_code, sort = TRUE, name = "n_missing") %>% 
+  dt_make()
+```
+
+
+<br>  
+
+#### zero population count
+
+`r round((nrow(filter(j, population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served, which is unlikely to be true and primarily impacts TX, CA, SC, CO, and ME. We may drop these, or impute a population equal to the mean population for the reported system size (if present). 
+
+```{r}
+zero_pop <- filter(j, population_served_count == 0) 
+
+zero_pop %>%   
+  # rm column created on suspect data
+  select(-size_class) %>% 
+  # only show certain cols in DT
+  select(pwsid, pws_name, pop_count = population_served_count, 
+         con_count = service_connections_count, 
+         tigris = tigris_match_geoid) %>% 
+  dt_make()
+
+zero_pop %>% 
+  count(primacy_agency_code, sort = TRUE, name = "n_missing") %>% 
+  dt_make()
+```
+
+
+<br>  
+
+#### zero service connections AND zero population served
+
+- `r round((nrow(filter(j, service_connections_count == 0 & population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served **AND** 0 service connection count. These primarily impact SC, ID, CA.
+
+```{r}
+zero_sc_pop <- filter(j, service_connections_count == 0 & 
+                        population_served_count == 0)
+
+zero_sc_pop %>% 
+  # rm column created on suspect data
+  select(-size_class) %>% 
+  # only show certain cols in DT
+  select(pwsid, pws_name, pop_count = population_served_count, 
+         con_count = service_connections_count, 
+         tigris = tigris_match_geoid) %>% 
+  dt_make()
+
+zero_sc_pop %>% 
+  count(primacy_agency_code, sort = TRUE, name = "n_missing") %>% 
+  dt_make()
+```
+
+
+<br>  
+
+#### zero service connections OR zero population served
+
+- `r round((nrow(filter(j, service_connections_count == 0 | population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served **OR** 0 service connection count. These strongly indicate faulty data: how can non-zero service connections indicate zero population, or vice versa? TX, CA, SC, and CO are among the chief offenders, although we expect more faulty data for large states like CA and TX, but not as much for a small state like SC.
+
+```{r}
+zero_sc_or_pop <- filter(j, service_connections_count == 0 | 
+                        population_served_count == 0)
+
+zero_sc_or_pop %>% 
+  # rm column created on suspect data
+  select(-size_class) %>% 
+  # only show certain cols in DT
+  select(pwsid, pws_name, pop_count = population_served_count, 
+         con_count = service_connections_count, 
+         tigris = tigris_match_geoid) %>% 
+  dt_make()
+
+zero_sc_or_pop %>% 
+  count(primacy_agency_code, sort = TRUE, name = "n_missing") %>% 
+  dt_make()
+```
+
+
+> **RECOMMENDATION**: Results suggest around 5% of data is missing either a population served or system size. More often than not, the population served is missing. This may be "mean imputed" from systems of similar size, as population served and service connection count shows a strong linear relationship^[This plot shows other potentially faulty data, for instance, a high leverage point on the x-axis with a population served of 2.5 million, but a very small nonzero service connection count. Similarly, another data point on the y axis has a ~700,000 service connections but serves a very small nonzero population. Outliers outside of, say, 2 or 3SD from the linear model may be discarded from the model, or we may individually clean data, particularly where incorrect data will yield unreasonable predicted boundaries.]: 
+
+```{r}
+j %>% 
+  # remove the rows we propose imputing
+  filter(population_served_count > 0 & service_connections_count > 0) %>% 
+  # remove new york city which exerts excessive leverage
+  filter(pwsid != "NY7003493") %>% 
+  ggplot(aes(population_served_count, service_connections_count)) +
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+```
+
+
+<br>  
+
+# Data Quality
+
+The above section on missingness necessarily analyzes data quality, as the two topics are inseparable--data missingness is a data quality issue. This section delves more deeply into pure data quality issues where non-missing data may simply be wrong. We investigate:
+
+1. "impostors" which are PWSIDs with reported coordinates that actually plot in a different state. We cannot use these coordinates and must either omit them, or clean them.  
+2. appropriateness of the TIGER proxy boundaries by comparing labeled data to assigned proxies.  
+
+
+<br>  
+
+## Impostors 
+
+"Impostors" are PWSIDs that report coordinates in one state but plot in another--they are not where they say they are, thus they are impostors. Impostors likely result from faulty geocoding and pose a challenge to broader project aims because they "decenter" predicted boundaries, spatially placing them in the wrong state. We assessed impostors in FRS, ECHO, and mobile home parks (MHP) during data transformation preprocessing and wrote a function to drop impostors and sink them into a log file for review. 
+
+Take for example, 2 sets impostors in FRS data below.
+
+```{r}
+# the following code is copied from `src/transformers/transform_frs.R`
+# Read un-zipped geodatabase (~6GB so querying on water to reduce file size)
+# First look at available layers
+frs_layers <- st_layers(dsn = path(data_path, "frs/FRS_INTERESTS.gdb"))
+
+#  SQL query to target facilities with water focus
+get_water_frs <- 
+  "SELECT * FROM FACILITY_INTERESTS WHERE INTEREST_TYPE 
+   IN ('COMMUNITY WATER SYSTEM', 'NON-TRANSIENT NON-COMMUNITY WATER SYSTEM',
+   'TRANSIENT NON-COMMUNITY WATER SYSTEM', 'WATER TREATMENT PLANT', 
+   'DRINKING WATER PROGRAM', 'DRINKING WATER SYSTEM')"
+
+# Read layer for FRS_INTERESTS with conditional query on `INTEREST_TYPE`.
+# Then, transform to standard epsg.
+frs <- path(data_path, "frs/FRS_INTERESTS.gdb") %>% 
+  st_read(query = get_water_frs, 
+          layer = "FACILITY_INTERESTS", 
+          stringsAsFactors = FALSE) %>% 
+  st_transform(epsg) %>% 
+  rename(geometry = Shape) %>% 
+  janitor::clean_names() %>% 
+  mutate(
+    pwsid = word(pgm_sys_id, 1),
+    state = substr(pwsid, 1, 2),
+    facility_id = word(pgm_sys_id, 2),
+    facility_id = ifelse(pwsid == facility_id, NA, facility_id),
+    # light cleaning that needs to move to transformer
+    state_code = ifelse(is.na(state_code), str_sub(pwsid, 1, 2), state_code)
+  ) %>% 
+  suppressMessages()
+
+frs %>% filter(pwsid == "CA1502034") %>% mapview::mapview()
+frs %>% filter(pwsid == "AK2262351") %>% mapview::mapview()
+```
+
+Similar impostors exist in FRS and MHP datasets and have already been addressed in the data pipeline. Overall, impostor count and proportion were small, and most notable in FRS data:
+
+- FRS: 68,536 / 69,722 rows are valid ( 98.3 % of input data). 1,186 impostors.  
+- ECHO: 426,195 / 426,545 rows are valid ( 99.9 % of input data). 350 impostors.  
+- MHP: 45,636 / 45,642 rows are valid ( 99.99 % of input data). 6 impostors.  
+
+
+> **RECOMMENDATION**: Because they are so few in number, we advise dropping impostors to prevent "decentering" error caused by incorrect impostor centroids, and will review/audit output log files to clean additional impostor should they be relevant to the prediction task at hand.  
+
+
+<br>  
+
+# TIGER proxy polygon appropriateness
+
+A key assumption that underpins the approach herein is that US Census [TIGER Place](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) polygons are appropriate proxy boundaries for unlabeled data. In other words, when a PWSID is matched either by name or spatial location to a TIGER Place polygon, how reasonable is that match? We cannot assess how reasonable a TIGER proxy is for unlabeled data, but we can for labeled data, and by extension, validate the approach for unlabeled data.
+
+```{r}
+# pwsids that matched tiger places in the labeled states
+matches <- j %>% 
+  filter(!is.na(tigris_match_geoid) & state_code %in% states_labeled) %>% 
+  select(pwsid, tigris_match_geoid)
+
+# labeled data: wsb
+wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
+  filter(pwsid %in% matches$pwsid) %>% 
+  suppressMessages()
+
+# labeled data: tiger place proxies
+tiger <- st_read(path(staging_path, "tigris_places_clean.geojson")) %>% 
+  filter(geoid %in% matches$tigris_match_geoid) %>% 
+  suppressMessages()
+
+# pare down matches to only those in TIGER and labeled data
+matches <- matches %>% 
+  filter(pwsid %in% wsb_labeled$pwsid & tigris_match_geoid %in% tiger$geoid)
+
+# calculate overlap
+f_intersects <- function(x){
+  
+  # intersect labeled geometries with tigris polygon matches 
+  # (based of course, on the current input: combined_data.csv matching algorithm)
+  res = st_intersects(
+    st_make_valid(filter(wsb_labeled, pwsid %in% matches$pwsid[x])),
+    st_make_valid(filter(tiger, geoid %in% matches$tigris_match_geoid[x]))
+  )
+  
+  # clean up the result
+  res = unlist(res)
+  
+  # a non-intersection returns `integer(0)` - a zero length vector - so we
+  # replace with a true NA
+  if(length(res) == 0)
+    res = NA 
+  
+  # for systems with multi polygon, there is return vector > length 1 - so we
+  # make the intersection TRUE (1) if at least one polygon intersects
+  if(length(res) > 1)
+    res = ifelse(1 %in% res, 1, NA)
+
+  return(res)
+}
+
+# intersection across all labeled polygons - takes a while
+lti <- map_dbl(1:nrow(matches), ~f_intersects(.x))
+
+# 92% of labeled wsb that intersect their assigned TIGER place - 92%
+# sum(lti, na.rm = TRUE)/length(lti)
+```
+
+An impressive `r round((sum(lti, na.rm = TRUE)/length(lti))*100, 2)`% of assigned TIGER proxy boundaries intersect their labeled data, which strongly indicates that (1) TIGER places are a good proxy boundary, and (2) the match approach used herein is effective. Maps below demonstrate that TIGER places are appropriate proxy boundaries, even if they do not perfectly overlap. A future work effort should examine the residual `r 100 - round((sum(lti, na.rm = TRUE)/length(lti))*100, 2)`% of data where TIGER places don't intersect and use this information to iteratively improve the match. 
+
+```{r}
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[1]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[1]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[6]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[6]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == matches$pwsid[8]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == matches$tigris_match_geoid[8]), 
+          layer.name = "TIGER")
+```
+
+
+```{r}
+# non intersections (ni)
+ni <- matches[which(is.na(lti)), ]
+```
+
+Let's now examine some of the non-intersections to understand their generating mechanism. There are `r nrow(ni)` non-intersections between TIGER places and labeled boundaries (recall, we aim to _validate_ the matching process here). Most non-intersections are spatially close enough where adding a small buffer would ensure an intersection. For all intents and purposes, these polygons match. For example see below:
+
+```{r}
+# non intersections (ni)
+ni <- matches[which(is.na(lti)), ]
+
+mapview(filter(wsb_labeled, pwsid == ni$pwsid[1]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == ni$tigris_match_geoid[1]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == ni$pwsid[30]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == ni$tigris_match_geoid[30]), 
+          layer.name = "TIGER")
+```
+
+
+
+
+<br>  
+
+# Coverage relative to SDWIS master list of active community water systems
+
+
+It is helpful to look at coverage dis-aggregated by different system categories.  
+
+```{r, echo=FALSE}
+# get list of pwsid with boundaries
+pwsid_bnd <- wsb_labeled_simp %>% 
+  select(pwsid) %>%
+  st_drop_geometry()
+
+# create boolean for full sdwis dataset: contains information on
+# boundaries, TIGER/Line shapefiles, and centroids
+jb <- j %>%
+  mutate(wsb    = ifelse(pwsid %in% pwsid_bnd$pwsid, TRUE, FALSE),
+         tigris = ifelse(!is.na(tigris_match_geoid), TRUE, FALSE),
+         echo   = ifelse(!is.na(echo_latitude), TRUE, FALSE), 
+         tigris_or_wsb = if_else(wsb == TRUE | tigris == TRUE, TRUE, FALSE),
+         tigris_and_wsb = if_else(wsb == TRUE & tigris == TRUE, TRUE, FALSE))
+```
+
+We currently have coverage in the current set of service boundaries for `r round((nrow(filter(jb, tigris == TRUE | wsb == TRUE)) / nrow(jb))*100, 2)`% of community water systems. Interestingly, only `r round((nrow(filter(jb, tigris == TRUE & wsb == TRUE)) / nrow(jb))*100, 2)`% of systems have _both_ water service boundaries _and_ TIGER/Line shapefile boundaries according to our current list. Of the public water systems that have an established or potential polygon from TIGER/Line shapefiles, they serve `r jb %>% filter(tigris == TRUE | wsb == TRUE) %>% summarise(pop_sum = sum(population_served_count, na.rm=TRUE)) %>% unlist() %>% formatC(big.mark = ",", format = "d")` people, although this number is likely an underestimate given previous analysis in this report that suggests that population counts of zero are likely faulty and should be imputed. 
+
+The objective of this section is to look at the coverage across boundary types by key variables of concern (e.g., system size, ownership type, whether the system serves a tribal area or not, and overall population coverage). We cover:
+
+- Summary of existing boundary coverage by system size (using [EPA categories](https://echo.epa.gov/help/drinking-water-dashboard-help))  
+- Summary of existing boundary coverage by system type (Municipal, etc) / ownership type  
+- Summary of existing boundary coverage by tribal vs non-tribal (i.e. primacy_type_code is territory?)  
+- Total US population served by existing boundary date (using SDWIS provided `population_served`)  
+
+
+<br>  
+
+### System size
+
+Nearly all water systems have ECHO data, whereas TIGER and labeled (wsb) data are more common for large and very large systems. Thus, very small, small, and medium systems have a higher proportion of unknown boundaries, and less TIGER/Line shapefile coverage, relative to their overall counts. However, do not let proportions fool you: classes are imbalanced because Small and Very Small systems predominate the data at around 92%.    
+
+```{r}
+# summary of existing geometry types by system size
+jb %>% 
+  select(size_class, wsb, tigris, echo) %>%
+  gather(-size_class, key = "geom_type", value = "indicator") %>%
+  group_by(size_class, geom_type) %>% 
+  summarise(prop = sum(indicator)/n()) %>% 
+  ggplot(aes(size_class, prop, fill = size_class)) + 
+  geom_col(color = "white", lwd = 0.2, show.legend = TRUE) +
+  coord_flip() +
+  scale_fill_carto_d() +
+  facet_wrap(~geom_type, ncol = 2) +
+  labs(title = "Geometry type availability by system size", 
+       x = "System Size", y = "Proportion available") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = c(0.75, 0.2)) +
+  guides(fill = "none")
+
+# table indicating presence/absence of boundary by geometry type and owner type
+jb %>% 
+  select(size_class, wsb, tigris, echo) %>%
+  gather(-size_class, key = "geom_type", value = "indicator") %>%
+  group_by(size_class, geom_type) %>%
+  summarise(
+    n = n(),
+    prop_true = round(sum(indicator)/n, 2)
+  ) %>% 
+  dt_make()
+```
+
+
+<br>  
+
+### Ownership type
+
+Systems with boundaries and/or TIGER/Line shapefiles are largely local (L) or privately (P) owned systems, according to this classification. More work should be done to understand if all municipal types are under local ownership in SDWIS, and why more of them are do not match to TIGER/Line shapefiles.
+
+```{r}
+# summary of existing geometry types by owner type
+jb %>% 
+  select(owner_type_code, wsb, tigris, echo) %>%
+  gather(-owner_type_code, key = "geom_type", value = "indicator") %>%
+  group_by(owner_type_code, geom_type) %>%
+  ggplot(aes(owner_type_code, fill = indicator)) + 
+  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
+  coord_flip() +
+  scale_fill_carto_d() +
+  scale_y_continuous(label = scales::comma) +
+  facet_wrap(~geom_type, scales = "free", ncol = 2) +
+  labs(x = "Ownership Type", y = "Count", fill = "Present?",
+       title = "Geometry type availability by ownership type") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = c(0.75, 0.2))
+
+# table indicating presence/absence of boundary by geometry type and owner type
+jb %>% 
+  select(owner_type_code, wsb, tigris, echo) %>%
+  gather(-owner_type_code, key = "geom_type", value = "indicator") %>%
+  group_by(owner_type_code, geom_type, indicator) %>%
+  summarize(n = n()) %>%
+  distinct() %>% 
+  dt_make()
+```
+
+
+<br>  
+
+### Territory vs State
+
+
+Water systems in ECHO are assigned a flag indicating whether or not they are within a Native American tribal boundary. While we cannot know how many people they serve within the tribal boundary from centroids alone, we might still be interested in patterns of geometry coverage based on whether a systemm is within a Native American tribal boundary or not. The following plot demonstrates that 1) very few systems overall are designated as within Native American tribal boundaries and 2) there are almost no water systems with spatial boundaries or TIGER/Line shapefiles that are labeled as within a Native American tribal boundary. 
+```{r}
+# summary of existing geometry types by FRS / ECHO flag
+jb %>% 
+  filter(!is.na(fac_indian_cntry_flg)) %>%
+  select(fac_indian_cntry_flg, wsb, tigris, echo) %>%
+  gather(-fac_indian_cntry_flg, key = "geom_type", value = "indicator") %>%
+  group_by(fac_indian_cntry_flg, geom_type) %>%
+  ggplot(aes(x = geom_type, fill = indicator)) + 
+  geom_bar(color = "white", lwd = 0.2, show.legend = TRUE) +
+  coord_flip() +
+  facet_wrap(~fac_indian_cntry_flg) +
+  labs(x = "Geometry Type", y = "Number of systems") +
+  ggtitle("Geometry type availability by systems within Native American tribal boundary", 
+          subtitle = "Indicator fill colors reflect whether a geometry is present (true/false) \nThe two columns, True and False, indicate whether systems are inside Tribal Boundary") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# table indicating presence/absence of boundary by geometry type and tribal boundary flag
+jb %>% 
+  select(in_tribal_boundary = fac_indian_cntry_flg, wsb, tigris, echo) %>%
+  gather(-in_tribal_boundary, key = "geom_type", value = "indicator") %>%
+  group_by(in_tribal_boundary, geom_type, indicator) %>%
+  summarize(n = n()) %>%
+  distinct() %>% 
+  dt_make()
+```
+
+
+<br>  
+
+### Population coverage by geometry type
+
+To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. States like NY and FL clearly control an outsized portion of the overall population served, so labeled data collection in these locations (which do not have readily available spatial boundaries) should be prioritized. TIGER shows reasonable coverage across most states. 
+
+ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). However, we have seen above that [ECHO centroid accuracy](#centroid-coverage) is less accurate in regions with a county or state centroid level accuracy, which will lead to a "pancake problem" -- essentially, predicted circular boundaries will overlap at the county or state centroid location, like a stack of pancakes. Thus, improving centroid data quality is imperative. 
+
+```{r}
+# simplified overall population coverage by geometry type
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  select(population_served_count, wsb, tigris, echo) %>%
+  gather(-population_served_count, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type, fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  # coord_flip() +
+  scale_fill_carto_d() +
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Population served by geometry coverage type",
+       x = "Population count", y = "") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+# More complex, this same breakdown by state
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  select(primacy_agency_code, population_served_count, wsb, tigris, echo) %>%
+  gather(-primacy_agency_code, -population_served_count, 
+         key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type,
+             fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  scale_fill_carto_d() +
+  scale_x_continuous(limits = c(0, 4e7), 
+                     breaks = c(0, 2e7, 4e7), 
+                     labels = c("0", "20", "40")) +
+  geofacet::facet_geo(~primacy_agency_code) +
+  labs("Population served by geometry coverage type", 
+       x = "Population served (Millions)") +
+  theme_minimal(base_size = 6) +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+```
+We can also look at overlap in our preferred water system boundary geometries - i.e. water systems that have labeled spatial data AND a TIGER/Line match, or water systems that have labeled spatial data OR a TIGER/Line match, but not both. We see that together, systems with labeled spatial data OR a TIGER/Line shapefile cover shy of ~190,000,000 people. Improved matching between water system names and TIGER/Line shapefiles will hopefully increase the number of systems with boundaries that ALSO have TIGER/Line geometries.
+```{r}
+# simplified overall population coverage by geometry type, combinations
+jb %>% 
+  filter(!is.na(primacy_agency_code)) %>% 
+  mutate(tigris_or_wsb = if_else(wsb == TRUE | tigris == TRUE, TRUE, FALSE),
+         tigris_and_wsb = if_else(wsb == TRUE & tigris == TRUE, TRUE, FALSE)) %>%
+  select(population_served_count, wsb, tigris, tigris_or_wsb, tigris_and_wsb) %>%
+  gather(-population_served_count, key = "geom_type", value = "indicator") %>%
+  ggplot(aes(population_served_count, geom_type, fill = indicator)) + 
+  geom_col(show.legend = TRUE) + 
+  # coord_flip() +
+  scale_fill_carto_d() +
+  scale_x_continuous(label = scales::comma) +
+  labs(title = "Population served by geometry coverage type", 
+       subtitle = "Labeled spatial data",
+       x = "Population count", y = "") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+
+jbp <- jb %>% select(pwsid, population_served_count, tigris_or_wsb, tigris_and_wsb) %>% 
+  gather(-population_served_count, -pwsid, key = "geom_type", value = "indicator")
+```
+
+
+
+<br>  
+
+# Recommendations and next steps
+
+This report makes recommendations throughout in each section. Key takeaways are summarized here.  
+
+1. We should collect as many upstream labeled data sources from missing states which will increase the completeness of the overall labeled dataset and improve predicted boundaries.  
+2. ECHO centroid estimates cover nearly 300 million people, which surpasses TIGRIS (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "tigris" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) and labeled data (`r jb %>%  filter(!is.na(primacy_agency_code)) %>% select(population_served_count, wsb, tigris, echo) %>% gather(-population_served_count, key = "geom_type", value = "indicator") %>% group_by(geom_type, indicator) %>% summarise(n=sum(population_served_count)) %>% filter(geom_type == "wsb" & indicator == "TRUE") %>% pull(n) %>% formatC(big.mark = ",", format = "d")`) coverage. Centroid accuracy issues affect ECHO data. County centroids account for half of centroid locations--improvement is needed in these centroid estimates to better "center" service boundary predictions. In the relevant section above, we suggest re-estimating centroids as zip code centroids (assuming we can obtain high-fidelity zip code data for each PWSID).  
+3. Around 5% of data is missing population served count, which can be "mean imputed" from systems of similar size, as population served and service connection count (typically present) shows a strong linear relationship.  
+4. "Impostors" are PWSIDs that report being in one state, but that have location (i.e., lat/lng) data in another state. They are infrequent in ECHO and MPH data (< 0.1%) and slightly more frequent in FRS data (~1.7%). Impostors are currently dropped to prevent "decentering" error caused by incorrect impostor centroids, and will be reviewed.  
+5. If we look at systems that have either TIGER/Line shapefiles OR labeled spatial boundaries, there are in fact `r jbp %>% filter(geom_type == "tigris_or_wsb" & indicator == "TRUE") %>% summarise(n=sum(population_served_count)) %>% pull(n) %>% formatC(big.mark = ",", format = "d")` people served by those systems, which is **`r ((jbp %>% filter(geom_type == "tigris_or_wsb" & indicator == "TRUE") %>% summarise(n=sum(population_served_count)) %>% pull(n))/jb %>% summarise(n = sum(population_served_count)) %>% pull(n))*100`%** of the total population served by active, community water systems in the master list. This is a high representation of population served where we think we can have decently accurate polygons. It also sets the stage for more accurate modeling. Nonetheless, several important categories to keep in mind for modeling efforts:
+- Very small to medium systems have less labeled data relative to larger systems, and classes are highly imbalanced
+- Most ownership types are missing labeled data relative to L (Local) and P (Private) systems
+- Very few systems are reported within Native American Tribal boundaries, and for the most part, those that are do not have spatial boundaries
+
+Next steps should address the recommendations herein. Ultimately, these recommendations service the goal of estimating reasonable water service boundaries, a task which hinges on clean data and as much labeled data as can be gathered. 
