@@ -670,7 +670,7 @@ Similar impostors exist in FRS and MHP datasets and have already been addressed 
 
 <br>  
 
-# TIGRER proxy polygon appropriateness
+# TIGER proxy polygon appropriateness
 
 A key assumption that underpins the approach herein is that US Census [TIGER Place](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) polygons are appropriate proxy boundaries for unlabeled data. In other words, when a PWSID is matched either by name or spatial location to a TIGER Place polygon, how reasonable is that match? We cannot assess how reasonable a TIGER proxy is for unlabeled data, but we can for labeled data, and by extension, validate the approach for unlabeled data.
 
@@ -743,7 +743,7 @@ mapview(filter(wsb_labeled, pwsid == matches$pwsid[8]),
 
 <br>  
 
-# Coverage relative to SDWIS master list of active, community water systems
+# Coverage relative to SDWIS master list of active community water systems
 
 
 It is helpful to look at coverage dis-aggregated by different system categories.  
@@ -885,7 +885,7 @@ jb %>%
 
 To identify areas with the most types of coverage, we can look at population served by different geometry types, also by state. States like NY and FL clearly control an outsized portion of the overall population served, so labeled data collection in these locations (which do not have readily available spatial boundaries) should be prioritized. TIGER shows reasonable coverage across most states. 
 
-ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). 
+ECHO coverage is ubiquitous, which implies that predicted service boundaries about ECHO centroids will attain similar population served coverage as ECHO (~300 million people). However, we have seen above that [ECHO centroid accuracy](#centroid-coverage) is less accurate in regions with a county or state centroid level accuracy, which will lead to a "pancake problem" -- essentially, predicted circular boundaries will overlap at the county or state centroid location, like a stack of pancakes. Thus, improving centroid data quality is imperative. 
 
 ```{r}
 # simplified overall population coverage by geometry type
