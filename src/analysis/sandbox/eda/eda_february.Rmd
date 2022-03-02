@@ -697,23 +697,30 @@ matches <- matches %>%
 # calculate overlap
 f_intersects <- function(x){
   
+  # intersect labeled geometries with tigris polygon matches 
+  # (based of course, on the current input: combined_data.csv matching algorithm)
   res = st_intersects(
     st_make_valid(filter(wsb_labeled, pwsid %in% matches$pwsid[x])),
     st_make_valid(filter(tiger, geoid %in% matches$tigris_match_geoid[x]))
   )
   
+  # clean up the result
   res = unlist(res)
   
+  # a non-intersection returns `integer(0)` - a zero length vector - so we
+  # replace with a true NA
   if(length(res) == 0)
     res = NA 
   
+  # for systems with multi polygon, there is return vector > length 1 - so we
+  # make the intersection TRUE (1) if at least one polygon intersects
   if(length(res) > 1)
-    res = mean(res, na.rm = TRUE)
+    res = ifelse(1 %in% res, 1, NA)
 
   return(res)
 }
 
-# intersection across all labeled polygons
+# intersection across all labeled polygons - takes a while
 lti <- map_dbl(1:nrow(matches), ~f_intersects(.x))
 
 # 92% of labeled wsb that intersect their assigned TIGER place - 92%
@@ -738,6 +745,30 @@ mapview(filter(wsb_labeled, pwsid == matches$pwsid[8]),
   mapview(filter(tiger, geoid == matches$tigris_match_geoid[8]), 
           layer.name = "TIGER")
 ```
+
+
+```{r}
+# non intersections (ni)
+ni <- matches[which(is.na(lti)), ]
+```
+
+Let's now examine some of the non-intersections to understand their generating mechanism. There are `r nrow(ni)` non-intersections between TIGER places and labeled boundaries (recall, we aim to _validate_ the matching process here). Most non-intersections are spatially close enough where adding a small buffer would ensure an intersection. For all intents and purposes, these polygons match. For example see below:
+
+```{r}
+# non intersections (ni)
+ni <- matches[which(is.na(lti)), ]
+
+mapview(filter(wsb_labeled, pwsid == ni$pwsid[1]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == ni$tigris_match_geoid[1]), 
+          layer.name = "TIGER")
+
+mapview(filter(wsb_labeled, pwsid == ni$pwsid[30]), 
+        layer.name = "actual", col.regions = "red") + 
+  mapview(filter(tiger, geoid == ni$tigris_match_geoid[30]), 
+          layer.name = "TIGER")
+```
+
 
 
 
