@@ -198,7 +198,7 @@ For the remaining systems that are "complete" in the sense that they have a spat
 
 ```{r}
 # joined data that is "complete" in the sense that it has a lng/lat
-jc <- filter(j, !is.na(echo_latitude) & !is.na(echo_longitude))
+jc <- filter(j, !is.na(echo_latitude) | !is.na(echo_longitude))
 
 jc %>% 
   # anything that appears less then 5% of the time is lumped into "other"
