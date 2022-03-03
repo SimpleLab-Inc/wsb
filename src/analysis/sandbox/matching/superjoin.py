@@ -84,7 +84,7 @@ sdwis_unfiltered = pd.read_csv(
 # Starts as 400k, drops to ~50k after this filter
 sdwis = (
     sdwis_unfiltered.loc[
-        (sdwis_unfiltered["pws_activity_code"].isin(["A", "N", "P"])) &
+        (sdwis_unfiltered["pws_activity_code" == "A"]) &
         (sdwis_unfiltered["pws_type_code"] == "CWS")])
 
 
