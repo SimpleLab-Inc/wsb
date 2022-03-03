@@ -71,9 +71,10 @@ sdwis_unfiltered = pd.read_csv(
 
 # Filter to only active community water systems
 # Starts as 400k, drops to ~50k after this filter
+# Keep only "A" for active
 sdwis = (
     sdwis_unfiltered.loc[
-        (sdwis_unfiltered["pws_activity_code"].isin(["A", "N", "P"])) &
+        (sdwis_unfiltered["pws_activity_code"].isin(["A"])) &
         (sdwis_unfiltered["pws_type_code"] == "CWS")])
 
 
@@ -160,7 +161,7 @@ if (~(frs["interest_type"] == "WATER TREATMENT PLANT") == (frs["pgm_sys_id"].str
 
 print(f"Unique pwsid's: {len(frs['pwsid'].unique())}")
 
-# 32,329 unique pwsid's after splitting apart the key.
+# 31,752 unique pwsid's after splitting apart the key.
 # We'll either need to join to water_system_facilities for water treatment plants,
 # Or we'll need to somehow aggregate the geometries
 frs.head()
@@ -223,7 +224,7 @@ echo_df = pd.read_csv(
     dtype="string")
 
 # Filter to only those in our SDWIS list and with lat/long
-# 53,500 SDWIS match to ECHO, 2209 don't match
+# 47,951 SDWIS match to ECHO, 1494 don't match
 echo_df = echo_df.loc[
     echo_df["pwsid"].isin(sdwis["pwsid"]) &
     echo_df["fac_lat"].notna()].copy()
@@ -273,6 +274,7 @@ I want to create a stacked merge report.
     - lat?
     - long?
     - geometry? - Either multiple columns for different geometry quality, or smart survivorship
+#Jess notes: retain a column for each geometry, and then a new column for the winning geom?
         - shape
         - point
         - zip centroid
@@ -294,7 +296,7 @@ I want to create a stacked merge report.
 
 
 #%%
-
+#jess note to ryan: do we want to retain the match_ids (e.g. tiger geoid, etc)?
 model = {
     "source_system": "str",
     "source_system_id": "str",
