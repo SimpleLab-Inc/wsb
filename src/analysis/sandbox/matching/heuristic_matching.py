@@ -167,6 +167,18 @@ echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
 
 echo.head()
 
+
+#%% ##########################################
+# 7) UCMR
+##############################################
+
+# Primarily: This links pwsid to zip code.
+# But something is making this a big file. Are there zip code polygons in here?
+# Will we use that or do we just need the centroid?
+
+# ucmr = gpd.read_file(DATA_PATH + "/ucmr.geojson")
+# ucmr.head()
+
 #%% #############################
 # Mapping to a standard model
 #################################
@@ -218,7 +230,7 @@ model = {
     "fac_county": "string",
     "city_served": "string",
     "primacy_agency_code": "string",
-    "geometry_shape": object,
+#    "geometry_shape": object,
     "geometry_lat": "string",
     "geometry_long": "string",
     "geometry": "object",
@@ -270,18 +282,11 @@ supermodel = pd.concat([
     tiger_supermodel
 ])
 
+# Assign missing master keys as "UNK-"
+mask = supermodel["master_key"].isna()
+supermodel.loc[mask, "master_key"] = "UNK-" + pd.Series(range(mask.sum())).astype("str")
+
 supermodel.sample(10)
-
-#%%
-# Output as a sorted table to visually inspect
-(supermodel
-    .sort_values(["state", "name_tkn"])
-    .drop(columns=["geometry"])
-    .to_csv("match_sort.csv"))
-
-
-#%%
-sdwis.head()
 
 
 #%% ##########################
@@ -321,6 +326,14 @@ tokens["city_served"] = tokens["city_served"].str.upper()
 
 #%%
 
+# Output as a sorted table to visually inspect
+(tokens
+    .sort_values(["state", "name"])
+    .drop(columns=["geometry"])
+    .to_csv("match_sort.csv"))
+
+#%%
+
 # In general, we'll be matching sdwis/echo to tiger
 mask = tokens["source_system"].isin(["sdwis", "echo"])
 left = tokens[mask]
@@ -332,7 +345,7 @@ right = tokens[~mask]
 new_matches = (left
     .merge(right, on=["state", "name"], how="inner")
     [["xref_id_x", "xref_id_y"]]
-    .assign(match_type="state+name"))
+    .assign(match_rule="state+name"))
 
 print(f"State+Name matches: {len(new_matches)}")
 
@@ -344,7 +357,7 @@ matches = new_matches
 new_matches = (left
     .sjoin(right, lsuffix="x", rsuffix="y")
     [["xref_id_x", "xref_id_y"]]
-    .assign(match_type="spatial"))
+    .assign(match_rule="spatial"))
 
 print(f"Spatial matches: {len(new_matches)}")
 
@@ -357,7 +370,7 @@ matches = pd.concat([matches, new_matches])
 new_matches = (left
     .merge(right, left_on=["state", "city_served"], right_on=["state", "name"])
     [["xref_id_x", "xref_id_y"]]
-    .assign(match_type="state+city_served<->name"))
+    .assign(match_rule="state+city_served<->name"))
 
 print(f"Match on city_served: {len(new_matches)}")
 
@@ -365,47 +378,59 @@ matches = pd.concat([matches, new_matches])
 
 #%%
 
+# Convert matches to MK matches.
+
+mk_xwalk = supermodel[["xref_id", "master_key"]].set_index("xref_id")
+
+mk_matches = (matches
+    .join(mk_xwalk, on="xref_id_x").rename(columns={"master_key": "master_key_x"})
+    .join(mk_xwalk, on="xref_id_y").rename(columns={"master_key": "master_key_y"})
+    [["master_key_x", "master_key_y", "match_rule"]])
+
+# Deduplicate
+mk_matches = (mk_matches
+    .groupby(["master_key_x", "master_key_y"])["match_rule"]
+    .apply(list)
+    .reset_index())
+
+print(f"Distinct master matches: {len(mk_matches)}")
+print(f"Distinct PWSID matches: {len(mk_matches['master_key_x'].unique())}")
+
+# 31k distinct pwsid matches. Interesting! 62%.
+
+#%%
+# Now, finally, the stacked match report.
+
+anchors = supermodel[supermodel["master_key"].isin(mk_matches["master_key_x"])]
+
+candidates = (supermodel
+    .merge(mk_matches, left_on="master_key", right_on="master_key_y")
+    .drop(columns="master_key_y")
+    .rename(columns={"master_key_x": "mk_match"}))
+
+base_columns = ["type", "mk_match", "match_rule"]
+remainder = [c for c in candidates.columns if c not in base_columns]
+
+stacked_match = (pd.concat([
+        anchors.assign(type="anchor", mk_match=anchors["master_key"]),
+        candidates.assign(type="candidate")])
+    .sort_values(["mk_match", "type"])
+    [base_columns + remainder]
+    )
+
+# Instead of actual geometry, which isn't very helpful in an Excel report, let's just sub in the type of geometry
+# (We might want to leave the actual geometry if this will be consumed by R or something to create another report)
+stacked_match["geometry_type"] = stacked_match["geometry"].geom_type
+stacked_match = stacked_match.drop(columns=["geometry"])
+
+#%%
+stacked_match.to_excel("stacked_match_report.xlsx", index=False)
+
+
+#%%
 # Heuristic matching TODO's
-# TODO: Convert matches to master key matches
-# TODO: Produce a stacked report of matches
 
 # Superjoin todo's:
 # TODO: Add UCMR4 zip codes + centroids
 # TODO: Add MHP's
 # TODO: Add "Has WSB" flag (need to pull in all the WSB's)
-
-#%%
-right.head()
-
-#%%
-
-# How many distinct geoids had matches? 10,446
-print("Distinct geoids: " + str(len(join["geoid"].unique())))
-# How many matches per geoid? 2.2 avg, 1 min, 617 max (whoa! It's Houston)
-print("Mean: " + str(join.groupby("geoid").size().mean()))
-print("Min: " + str(join.groupby("geoid").size().min()))
-print("Max: " + str(join.groupby("geoid").size().max()))
-
-
-#%%
-
-# Combine and dedupe matches, with: city_served > name_token > sdwis_pws_name. 9755 remaining
-matches = matches.sort_values(["geoid", "pwsid", "match_type"]).drop_duplicates(subset=["geoid", "pwsid"], keep="first")
-
-print(f"Distinct matches on spatial & (facility name or city served): {len(matches)}")
-
-#%%
-# Filter the spatial join based on the name matches we just found
-join_sub = join.merge(matches, on=["geoid", "pwsid"], how="inner")
-
-#%%
-# How many distinct geoids had matches? 7676
-len(join_sub["geoid"].unique())
-
-#%%
-# How many matches per geoid? 1.3 avg, 1 min, 83 max (Raleigh this time. City served might worsen matches!)
-# This is getting closer to 1:1
-print("Mean: " + str(join_sub.groupby("geoid").size().mean()))
-print("Median: " + str(join_sub.groupby("geoid").size().median()))
-print("Min: " + str(join_sub.groupby("geoid").size().min()))
-print("Max: " + str(join_sub.groupby("geoid").size().max()))
