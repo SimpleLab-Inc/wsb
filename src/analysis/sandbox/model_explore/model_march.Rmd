@@ -16,7 +16,8 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r cars}
 # labeled data
-wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds"))
+wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds")) %>% 
+  filter(state != "OR")
 
 # distribution of labeled radius
 wsb_labeled_simp %>% 
