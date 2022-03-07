@@ -124,76 +124,6 @@ sdwis.head()
 
 
 #%% ##########################################
-# 2) FRS (EPA "Facility Registry Service")
-# FRS data model: https://www.epa.gov/frs/frs-physical-data-model
-##############################################
-
-"""
-Useful columns:
-pgm_sys_id - 
-    This is pretty much the primary key. (69,697 unique / 69,722 total). Dupes might be inactives
-    The key varies based on INTEREST_TYPE:
-    - When INTEREST_TYPE is "WATER TREATMENT PLANT" it's a pwsid + " " + facility_id
-    - For all others, it appears to be a pwsid
-active_status - 55k are "ACTIVE". Others have "INACTIVE", "CHANGED TO NON-PUBLIC SYSTEM", OR N/A
-state_code - The state in which the facility is located
-latitude83 - Lat of the facility
-longitude83 - Long of the facility
-accuracy_value - Measure of accuracy (in meters) of the lat/long
-collect_mth_desc - Text describing how lat/long was calculated
-ref_point_desc - Name that identifies the place for which geographic coordinates were established.
-"""
-
-frs = gpd.read_file(
-    DATA_PATH + "/frs.geojson")
-
-# keep_columns = [
-#     "PGM_SYS_ID", "LATITUDE83", "LONGITUDE83", "ACCURACY_VALUE", 
-#     "COLLECT_MTH_DESC", "REF_POINT_DESC", "geometry"]
-#
-#frs = frs[keep_columns]
-
-#%%
-
-# Assumption: PGM_SYS_ID is concatenated IFF INTEREST_TYPE == "WATER TREATMENT PLANT"
-if (~(frs["interest_type"] == "WATER TREATMENT PLANT") == (frs["pgm_sys_id"].str.contains(" "))).any():
-    raise Exception("Failed assumption: pgm_sys_id is concatenated IFF interest_type == 'WATER TREATMENT PLANT'")
-
-print(f"Unique pwsid's: {len(frs['pwsid'].unique())}")
-
-# 31,752 unique pwsid's after splitting apart the key.
-# We'll either need to join to water_system_facilities for water treatment plants,
-# Or we'll need to somehow aggregate the geometries
-frs.head()
-
-#%%
-# Almost every pwsid matches to the unfiltered sdwis list
-frs["pwsid"].isin(sdwis_unfiltered["pwsid"]).value_counts()
-
-#%%
-# But only 18k are CWS. Another 14k are non-community (TNCWS or NTNCWS)
-sdwis_unfiltered[sdwis_unfiltered["pwsid"].isin(frs["pwsid"])]["pws_type_code"].value_counts()
-
-#%%
-# Only 16k distinct matches are active CWS
-frs["matched"] = frs["pwsid"].isin(sdwis["pwsid"])
-len(frs[frs["matched"]]["pwsid"].unique())
-
-# 16k matches is far short of 50k matches.
-# But I went back to the raw FRS data and couldn't find any additional matches.
-
-# Since we successfully matched almost all FRS to unfiltered sdwis, it's not a matching problem.
-# Instead, it's an FRS problem. FRS simply appears to lack many pwsid's.
-
-# Options:
-#  - echo_exporter dataset instead. That had better lat/long
-
-#%%
-# Filter to only those that have a match on pwsid. 
-# 45k entries, but many are duplicated on facility_id
-frs = frs[frs["matched"]].drop(columns=["matched"])
-
-#%% ##########################################
 # 3) TIGER
 ##############################################
 tiger = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
@@ -237,29 +167,8 @@ echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
 
 echo.head()
 
-
-#%%
-# Are there any patterns when echo is in FRS vs when it's not in FRS?
-
-print("In FRS:")
-print(echo[echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_counts())
-
-print("\nNot in FRS:")
-print(echo[~echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_counts())
-
-# Yeah, interesting...
-# When it matches FRS:
-#  - fac_collection_method - Primarily "ADDRESS MATCHING-HOUSE NUMBER", "INTERPOLATION-PHOTO", "INTERPOLATION-MAP", etc.
-#  - fac_reference_point - Detailed info about the specific reference point where the centroid was picked at the facility
-# When it doesn't match FRS:
-#  - fac_collection_method - Primarily "County Centroid", "Zip Code Centroid", "State Centroid". Yuck.
-#  - fac_reference_point - Mostly null.
-
-
-#%%
-
 #%% #############################
-# Trying a stacked approach
+# Mapping to a standard model
 #################################
 
 """
@@ -376,7 +285,7 @@ sdwis.head()
 
 
 #%% ##########################
-# Nvm, I'll lay off that for a bit. Let's just try to do simple geo matching.
+# Now on to the matching.
 ##############################
 
 # Match rules:
@@ -456,9 +365,6 @@ matches = pd.concat([matches, new_matches])
 
 #%%
 
-# TODO: Bring back the superjoin
-# TODO: Clean up superjoin; split off the analysis
-
 # Heuristic matching TODO's
 # TODO: Convert matches to master key matches
 # TODO: Produce a stacked report of matches
@@ -503,74 +409,3 @@ print("Mean: " + str(join_sub.groupby("geoid").size().mean()))
 print("Median: " + str(join_sub.groupby("geoid").size().median()))
 print("Min: " + str(join_sub.groupby("geoid").size().min()))
 print("Max: " + str(join_sub.groupby("geoid").size().max()))
-
-# This seems like a decent stopping point.
-# TODO - Treat these as 3 match rules. Revisit the stacked match report, where multiple matches = higher strength
-
-#%% ##########################
-# Generate the final table
-##############################
-
-"""
-Requested table:
-
-Column                   | Data Source
--------------------------|----------------
-pwsid                    | SDWIS
-pws_name                 | SDWIS
-wsb                      | WSB (hold for now)
-tiger_match              | TIGER - Rather than just a bool, let's include the geoid and how it matched
-echo_match               | ECHO - Rather than just a bool, let's include the lat/long and method
-mhp_match                | MHP - hold for now
-state_code               | SDWIS
-county_served            | SDWIS
-city_served              | SDWIS
-population_served        | SDWIS
-connections              | SDWIS
-primacy_agency_code      | SDWIS
-service_area_type_code   | SDWIS
-"""
-
-output = sdwis[[
-    "pwsid", "pws_name", "primacy_agency_code", "state_code", "city_served",
-    "county_served", "population_served_count", "service_connections_count",
-    "service_area_type_code", "owner_type_code"
-]]
-
-# Supplement with tiger match info
-output = (output
-    .merge(join_sub[["pwsid", "geoid", "match_type"]], on="pwsid", how="left")
-    .rename(columns={
-        "geoid": "tiger_match_geoid",
-        "match_type": "tiger_match_type"
-    }))
-
-# Supplement with echo match info
-output = (output
-    .merge(echo[["pwsid", "fac_lat", "fac_long", "fac_collection_method",
-                 "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
-                 'fac_reference_point', 'fac_accuracy_meters', 
-                 'fac_indian_cntry_flg', 'fac_percent_minority', 'fac_pop_den', 'ejscreen_flag_us']], on="pwsid", how="left")
-    .rename(columns={
-        "fac_lat": "echo_latitude",
-        "fac_long": "echo_longitude",
-        "fac_collection_method": "echo_geocode_method"
-    }))
-
-# Verify: We should still have exactly the number of pwsid's as we started with
-if not (len(output) == len(sdwis)):
-    raise Exception("Output was filtered or denormalized")
-
-#%%
-# This should probably go to some other folder
-output.to_csv(DATA_PATH + "/matched_output.csv")
-
-# How to study this report?
-# Wouldn't it be cool if we had tiny little "sparkmaps" on each match to show how close they are?
-# Or maybe that's not doable cause maps are hard to read up close.
-# How could we map it so that we can visually see the corresponding tiger and echo pairs?
-
-#%%
-
-# TODO - Add a match on JUST state + name
-# TODO - Combine the unmatched tiger into the output report and sort by name so we can check for no-matches
