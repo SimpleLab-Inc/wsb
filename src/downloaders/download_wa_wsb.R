@@ -8,11 +8,15 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 # Allow for longer timeout to map download file
 options(timeout = 10000)
 
-# Data Source: Washington ArcGIS geojson water system boundary
-url <- paste0("https://github.com/NIEPS-Water-Program/",
-                 "water-affordability/raw/main/data/wa_systems.geojson")
+# Data Source: Washington ArcGIS Geodatabase water system boundary
+url <- paste0("https://fortress.wa.gov/doh/base/gis/ServiceAreas.zip")
 
-# create dir to store file and download
-dir_create(path(data_path, "boundary/wa"))
-download.file(url, path(data_path, "/boundary/wa/wa.geojson"))
+# create dir to store folder and download
+dir_path <- path(data_path, "boundary/wa")
+file_path <- path(dir_path, "wa.zip")
+dir_create(dir_path)
+download.file(url, file_path)
 cat("Downloaded WA polygon boundary data.\n")
+
+# unzip folder
+unzip(zipfile=file_path, exdir=dir_path)
