@@ -8,7 +8,7 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 # Allow for longer timeout to map download file
 options(timeout = 10000)
 
-# Data Source: Connecticut ArcGIS geojson water system boundary
+# Data Source: Connecticut ArcGIS shapefile water system boundary
 ct_url <- paste0("https://portal.ct.gov/-/media/Departments-and-Agencies/",
                  "DPH/dph/drinking_water/GIS/",
                  "Buffered_Community_PWS_Service_Areas.zip")
