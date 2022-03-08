@@ -14,5 +14,5 @@ ok_url <- paste0("https://opendata.arcgis.com/datasets/",
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/ok"))
-download.file(ok_url, path(data_path, "/boundary/ok/ok.geojson"))
+download.file(ok_url, path(data_path, "boundary/ok/ok.geojson"))
 cat("Downloaded OK polygon boundary data.\n")

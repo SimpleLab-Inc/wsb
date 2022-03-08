@@ -15,5 +15,5 @@ nc_url <- paste0("https://opendata.arcgis.com/datasets/",
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/nc"))
-download.file(nc_url, path(data_path, "/boundary/nc/nc.geojson"))
+download.file(nc_url, path(data_path, "boundary/nc/nc.geojson"))
 cat("Downloaded NC polygon boundary data.\n")
