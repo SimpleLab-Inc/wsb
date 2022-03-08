@@ -9,8 +9,7 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Pennsylvania ArcGIS geojson water system boundary
-url <- paste0("https://github.com/NIEPS-Water-Program/",
-                 "water-affordability/raw/main/data/pa_systems.geojson")
+url <- paste0("https://www.pasda.psu.edu/json/PublicWaterSupply2022_01.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/pa"))
