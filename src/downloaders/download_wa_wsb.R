@@ -9,10 +9,10 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Washington ArcGIS geojson water system boundary
-wa_url <- paste0("https://github.com/NIEPS-Water-Program/",
+url <- paste0("https://github.com/NIEPS-Water-Program/",
                  "water-affordability/raw/main/data/wa_systems.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/wa"))
-download.file(wa_url, path(data_path, "/boundary/wa/wa.geojson"))
+download.file(url, path(data_path, "/boundary/wa/wa.geojson"))
 cat("Downloaded WA polygon boundary data.\n")

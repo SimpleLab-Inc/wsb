@@ -9,10 +9,10 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Oregon ArcGIS geojson water system boundary
-or_url <- paste0("https://github.com/NIEPS-Water-Program/",
+url <- paste0("https://github.com/NIEPS-Water-Program/",
                  "water-affordability/raw/main/data/or_systems.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/or"))
-download.file(or_url, path(data_path, "boundary/or/or.geojson"))
+download.file(url, path(data_path, "boundary/or/or.geojson"))
 cat("Downloaded OR polygon boundary data.\n")

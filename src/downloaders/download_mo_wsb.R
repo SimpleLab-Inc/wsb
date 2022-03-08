@@ -9,10 +9,10 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Missouri ArcGIS geojson water system boundary
-mo_url <- paste0("https://opendata.arcgis.com/datasets/",
+url <- paste0("https://opendata.arcgis.com/datasets/",
                  "c3bee75a86e04856b28d7f1ce2a24e6f_0.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/mo"))
-download.file(mo_url, path(data_path, "boundary/mo/mo.geojson"))
+download.file(url, path(data_path, "boundary/mo/mo.geojson"))
 cat("Downloaded MO polygon boundary data.\n")
