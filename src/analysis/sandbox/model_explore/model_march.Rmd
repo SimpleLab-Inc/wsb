@@ -1,43 +1,48 @@
 ---
-title: "model_march"
-output: html_document
-date: '2022-03-05'
+title: "Preliminary wsb layer"
+output: 
+  html_document:
+    highlight: zenburn
+    code_folding: hide
+    toc: true
+    # toc_float: true
+    toc_depth: 3
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
+
+# datatable style
+dt_make <- function(x){
+  x %>% 
+    DT::datatable(
+    rownames = FALSE, 
+    extensions = 'Buttons', 
+    options = list(
+      dom = 'Bfrtip', 
+      buttons = c('copy', 'csv', 'excel')
+    )
+  )
+}
 ```
 
-## R Markdown
+*Jess Goddard & Rich Pauloo*
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+*Last updated `r Sys.time()`*
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+<br>  
 
-```{r cars}
-# labeled data
-wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds")) %>% 
-  filter(state != "OR")
+# Introduction
 
-# distribution of labeled radius
-wsb_labeled_simp %>% 
-  ggplot(aes(radius/1000)) + 
-  geom_density() + 
-  facet_wrap(~state, scales = "free_y") + 
-  labs(x = "radius (km)")
+Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report. 
 
-# Compare labeled wsb and TIGER place radius: do they align for states, 
-# and hence is it a valid assumption to train on TIGER place radii? 
-# Could do a simple t-tst difference in median between groups
+The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fiedlity. 
 
-```
 
-## Including Plots
 
-You can also embed plots, for example:
+# Report outline
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Recommendations and next steps
+
