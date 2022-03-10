@@ -24,21 +24,21 @@ nc_wsb <- st_read(dsn = path(data_path, "boundary/nc/nc.geojson")) %>%
   # correct invalid geometries
   st_make_valid()
 
-cat("Read NC boundary layer; cleaned names and whitespace\n ")
+# print(unique(nc_wsb$pws_id))
+
+cat("Read NC boundary layer; cleaned names and whitespace.\n ")
 
 # Compute centroids, convex hulls, and radius assuming circular
-d <- d %>%
+nc_wsb <- nc_wsb %>%
   bind_rows() %>%
   mutate(
+    state          = "NC",
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
-    radius         = sqrt(area_hull/pi),
-    # one pesky pwsid in NM with a weird pwsid that begins with "CR"
-    state          = "NC",
-    source         = ifelse(is.na(source), "NIEPS Water Program", source),
+    radius         = sqrt(area_hull/pi)
   ) %>%
   # transform back to standard epsg for geojson write
   st_transform(epsg) %>%
@@ -62,9 +62,12 @@ d <- d %>%
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer and added data source and geospatial columns.\n")
 
+# create state dir in staging
+dir_create(path(staging_path, "nc"))
+
 # delete layer if it exists, then write to geojson
 path_out <- path(staging_path, "nc/nc_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(d, path_out)
+st_write(nc_wsb, path_out)
 cat("Wrote clean, labeled data to geojson.\n")
