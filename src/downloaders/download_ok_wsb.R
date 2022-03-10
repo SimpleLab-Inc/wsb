@@ -9,10 +9,10 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Oklahoma ArcGIS geojson water system boundary
-ok_url <- paste0("https://opendata.arcgis.com/datasets/",
-                 "d015bc14d3b84b8985ff3a4fd55c0844_0.geojson")
+url <- paste0("https://opendata.arcgis.com/datasets/",
+              "d015bc14d3b84b8985ff3a4fd55c0844_0.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/ok"))
-download.file(ok_url, path(data_path, "/boundary/ok/ok.geojson"))
+download.file(url, path(data_path, "boundary/ok/ok.geojson"))
 cat("Downloaded OK polygon boundary data.\n")
