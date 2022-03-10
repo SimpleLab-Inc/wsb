@@ -15,8 +15,6 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for NC water service boundaries, clean, transform CRS
 nc_wsb <- st_read(dsn = path(data_path, "boundary/nc/nc.geojson")) %>% 
-  # clean names
-  janitor::clean_names() %>% 
   # transform to area weighted CRS
   st_transform(epsg_aw) %>%
   # clean whitespace
@@ -24,9 +22,7 @@ nc_wsb <- st_read(dsn = path(data_path, "boundary/nc/nc.geojson")) %>%
   # correct invalid geometries
   st_make_valid()
 
-# print(unique(nc_wsb$pws_id))
-
-cat("Read NC boundary layer; cleaned names and whitespace.\n ")
+cat("Read NC boundary layer; cleaned whitespace; corrected geometries.\n ")
 
 # Compute centroids, convex hulls, and radius assuming circular
 nc_wsb <- nc_wsb %>%
@@ -45,13 +41,13 @@ nc_wsb <- nc_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid           = pws_id,
-    ws_name         = system_nam,
+    pwsid           = WASYID,
+    ws_name         = WASYNAME,
     state,
-    county          = sys_county,
-    city            = loc_city,
-    source          = src_name,
-    owner,
+    county          = WAPCS,
+#    city,
+#    source,
+#    owner,
     # geospatial columns
     st_areashape,
     centroid,
@@ -60,7 +56,7 @@ nc_wsb <- nc_wsb %>%
     geometry
   )
 cat("Computed area, centroids, and radii from convex hulls.\n")
-cat("Combined into one layer and added data source and geospatial columns.\n")
+cat("Combined into one layer; added geospatial columns.\n")
 
 # create state dir in staging
 dir_create(path(staging_path, "nc"))

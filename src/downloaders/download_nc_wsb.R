@@ -11,7 +11,7 @@ options(timeout = 10000)
 # Data Source: North Carolina ArcGIS geojson water system boundary
 # https://hub.arcgis.com/datasets/nconemap::type-a-current-public-water-systems-2004/
 url <- paste0("https://opendata.arcgis.com/datasets/",
-                 "30cf567422ec4930ae0b0c8544f8263f_1.geojson")
+              "58548b90bdfd4148829103ac7f4db9ce_4.geojson")
 
 # create dir to store file and download
 dir_create(path(data_path, "boundary/nc"))
