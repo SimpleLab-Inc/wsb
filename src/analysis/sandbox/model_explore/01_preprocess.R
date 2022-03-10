@@ -26,8 +26,9 @@ cat("Read", nrow(j),
 # wholesalers and water systems with a zero population count. However, 
 # many water systems have low population counts (e.g., between 0 and 10), 
 # but very high service connection count (e.g., in the hundreds to 
-# thousands), and wholesalers in labeled data are primarily found in WA 
-# and TX. Thus, we retain all observations and mean impute nonsensical
+# thousands), wholesalers in labeled data are primarily found in WA 
+# and TX, and wholesalers typically occupy urban areas and do not contain
+# smaller pwsids. Thus, we retain all observations and mean impute suspect
 # (between 0 and N) population counts.
 
 # this is the critical population served count below which (inclusive) we
@@ -67,7 +68,6 @@ j <- j %>%
       population_served_count)
   )
 cat("Mean imputed population served count.\n")
-
 
 
 # recalculate area, radius for multipolygon pwsids in labeled data --------
