@@ -37,12 +37,39 @@ dt_make <- function(x){
 
 Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report. 
 
-The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fiedlity. 
+The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fidelity. 
 
+```{r load}
+library(tidyverse)
+library(tidymodels)
+library(sf)
+library(fs)
+
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
+
+d <- read_csv(path(staging_path, "matched_output_clean.csv"))
+```
 
 
 # Report outline
 
 
+# Limitations
+
+1. We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect is.  
+
+```{r}
+d %>% 
+  group_by(primacy_type) %>% 
+  summarise(proportion_present = sum(!is.na(radius))/n(),
+            proportion_present = round(proportion_present, 2)) %>% 
+  dt_make()
+```
+
+
 # Recommendations and next steps
+
+- Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions). 
 
