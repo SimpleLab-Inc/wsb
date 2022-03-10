@@ -1,0 +1,70 @@
+# transform NC water system data to standard model -------------------
+
+library(fs)
+library(sf)
+library(tidyverse)
+
+# helper function
+source(here::here("src/functions/f_clean_whitespace_nas.R"))
+
+# path to save raw data, staging data, and standard projection
+data_path    <- Sys.getenv("WSB_DATA_PATH")
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
+epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
+
+# Read layer for NC water service boundaries, clean, transform CRS
+nc_wsb <- st_read(dsn = path(data_path, "boundary/nc/nc.geojson")) %>% 
+  # clean names
+  janitor::clean_names() %>% 
+  # transform to area weighted CRS
+  st_transform(epsg_aw) %>%
+  # clean whitespace
+  f_clean_whitespace_nas() %>%
+  # correct invalid geometries
+  st_make_valid()
+
+cat("Read NC boundary layer; cleaned names and whitespace\n ")
+
+# Compute centroids, convex hulls, and radius assuming circular
+d <- d %>%
+  bind_rows() %>%
+  mutate(
+    # importantly, area calculations occur in area weighted epsg
+    st_areashape   = st_area(geometry),
+    centroid       = st_geometry(st_centroid(geometry)),
+    convex_hull    = st_geometry(st_convex_hull(geometry)),
+    area_hull      = st_area(convex_hull),
+    radius         = sqrt(area_hull/pi),
+    # one pesky pwsid in NM with a weird pwsid that begins with "CR"
+    state          = "NC",
+    source         = ifelse(is.na(source), "NIEPS Water Program", source),
+  ) %>%
+  # transform back to standard epsg for geojson write
+  st_transform(epsg) %>%
+  # select columns and rename for staging
+  select(
+    # data source columns
+    pwsid           = pws_id,
+    ws_name         = system_nam,
+    state,
+    county          = sys_county,
+    city            = loc_city,
+    source          = src_name,
+    owner,
+    # geospatial columns
+    st_areashape,
+    centroid,
+    area_hull,
+    radius,
+    geometry
+  )
+cat("Computed area, centroids, and radii from convex hulls.\n")
+cat("Combined into one layer and added data source and geospatial columns.\n")
+
+# delete layer if it exists, then write to geojson
+path_out <- path(staging_path, "nc/nc_wsb_labeled.geojson")
+if(file_exists(path_out)) file_delete(path_out)
+
+st_write(d, path_out)
+cat("Wrote clean, labeled data to geojson.\n")
