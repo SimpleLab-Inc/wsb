@@ -153,10 +153,11 @@ wsb_labeled_clean_df <- wsb_labeled_clean %>%
 # add other data, including SDWIS
 
 # cols to keep from sdwis data
-cols_keep <- c("pwsid", "is_wholesaler_ind")
+cols_keep <- c("pwsid", "is_wholesaler_ind", 
+               "primacy_type", "primary_source_code")
 
 # read sdwis data and only keep the specified columns
-sdwis <- path(staging_path, "sdwis_water_system.csv") %>% 
+sdwis <- path(staging_path, "sdwis_water_system.csv") %>%
   read_csv(col_select = all_of(cols_keep))
 
 # ensure non-duplicate pwsid in SDIWS pre-join
