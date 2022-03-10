@@ -28,7 +28,9 @@ set.seed(55)
 # full dataset
 d <- read_csv(path(staging_path, "matched_output_clean.csv"))
 
-# labeled data (dl): split into train and test
+# labeled data (dl): split into train and test with stratified random sampling
+# in each of the radius quartiles to account for the lognormal distribution
+# of the response variable (radius) and avoid overfitting to small radius obs
 dl      <- d %>% filter(!is.na(radius))
 d_split <- initial_split(dl, prop = 0.8, strata = radius)
 train   <- training(d_split)
