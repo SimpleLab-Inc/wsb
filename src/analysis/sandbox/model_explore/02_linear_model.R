@@ -30,7 +30,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv"))
 
 # labeled data (dl): split into train and test
 dl <- d %>% filter(!is.na(radius))
-train_test_split <- initial_split(dl)
+train_test_split <- initial_split(dl, prop = 0.8)
 train <- training(train_test_split)
 test  <- testing(train_test_split)
 
