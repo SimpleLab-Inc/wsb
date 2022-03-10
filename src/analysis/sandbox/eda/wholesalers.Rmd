@@ -1,0 +1,42 @@
+---
+title: "Wholesaler EDA"
+output: 
+  html_document:
+    highlight: zenburn
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
+```
+
+**Wholesalers**: to keep or not to keep?
+
+Labeled data seems to indicate that these should be kept, as there are clear urban areas covered by wholesalers without internal water system boundaries.
+
+```{r}
+library(tidyverse)
+library(sf)
+library(fs)
+library(mapview)
+
+mapviewOptions(fgb = FALSE)
+
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+
+# cols to keep from sdwis data
+cols_keep <- c("pwsid", "is_wholesaler_ind", 
+               "primacy_type", "primary_source_code")
+
+# read sdwis data and only keep the specified columns
+sdwis <- path(staging_path, "sdwis_water_system.csv") %>%
+  read_csv(col_select = all_of(cols_keep))
+
+# clean labeled wsb
+wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson"))
+
+# plot
+wsb_labeled_clean %>% 
+  left_join(sdwis) %>% 
+  mapview(zcol = "is_wholesaler_ind")
+```
