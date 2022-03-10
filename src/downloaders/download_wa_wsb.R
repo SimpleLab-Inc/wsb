@@ -11,12 +11,14 @@ options(timeout = 10000)
 # Data Source: Washington ArcGIS Geodatabase water system boundary
 url <- paste0("https://fortress.wa.gov/doh/base/gis/ServiceAreas.zip")
 
-# create dir to store folder and download
+# directory and file path
 dir_path <- path(data_path, "boundary/wa")
 file_path <- path(dir_path, "wa.zip")
+
+# create directory, download, and unzip file
 dir_create(dir_path)
 download.file(url, file_path)
-cat("Downloaded WA polygon boundary data.\n")
-
-# unzip folder
 unzip(zipfile=file_path, exdir=dir_path)
+
+cat("Downloaded and unzipped WA polygon boundary data.\n")
+

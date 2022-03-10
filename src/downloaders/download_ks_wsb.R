@@ -12,12 +12,13 @@ options(timeout = 10000)
 url <- paste0("https://data.kansasgis.org/catalog/",
                  "administrative_boundaries/shp/pws/PWS_bnd_2021_0430.zip")
 
-# create dir to store folder and download
+# directory and file path
 dir_path <- path(data_path, "boundary/ks")
 file_path <- path(dir_path, "ks.zip")
+
+# create directory, download file and unzip
 dir_create(dir_path)
 download.file(url, file_path)
-cat("Downloaded KS polygon boundary data.\n")
-
-# unzip folder
 unzip(zipfile=file_path, exdir=dir_path)
+
+cat("Downloaded KS polygon boundary data.\n")
