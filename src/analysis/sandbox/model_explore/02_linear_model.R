@@ -29,10 +29,10 @@ set.seed(55)
 d <- read_csv(path(staging_path, "matched_output_clean.csv"))
 
 # labeled data (dl): split into train and test
-dl <- d %>% filter(!is.na(radius))
-train_test_split <- initial_split(dl, prop = 0.8)
-train <- training(train_test_split)
-test  <- testing(train_test_split)
+dl      <- d %>% filter(!is.na(radius))
+d_split <- initial_split(dl, prop = 0.8, strata = radius)
+train   <- training(d_split)
+test    <- testing(d_split)
 
 # unlabeled data
 du <- d %>% filter(is.na(radius))
