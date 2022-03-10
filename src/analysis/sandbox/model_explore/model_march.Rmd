@@ -56,6 +56,36 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv"))
 # Report outline
 
 
+# EDA
+
+Response variable (radius) is log-normal.
+
+```{r}
+d %>% 
+  ggplot(aes(radius/1000)) + 
+  geom_histogram(bins = 50, col= "white") +
+  labs(x = "Radius (km)")
+
+d %>% 
+  ggplot(aes(radius/1000)) + 
+  geom_histogram(bins = 50, col= "white") + 
+  scale_x_log10() +
+  labs(x = "Radius (km)")
+```
+
+Population served and service connections are highly correlated ~ 0.83
+
+```{r}
+cor.test(d$population_served_count, d$service_connections_count)
+
+d %>% 
+  ggplot(aes(population_served_count/1e6, service_connections_count/1e3)) + 
+  geom_point(alpha = 0.3) + 
+  labs(x = "Poulation served (millions)", 
+       y = "Service connections (thousands)")
+```
+
+
 # Limitations
 
 1. We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect is.  

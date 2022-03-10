@@ -22,4 +22,46 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
+# model reproducibility 
+set.seed(55)
+
+# full dataset
 d <- read_csv(path(staging_path, "matched_output_clean.csv"))
+
+# labeled data (dl): split into train and test
+dl <- d %>% filter(!is.na(radius))
+train_test_split <- initial_split(dl)
+train <- training(train_test_split)
+test  <- testing(train_test_split)
+
+# unlabeled data
+du <- d %>% filter(is.na(radius))
+
+# specify model and engine 
+lm_mod <- linear_reg() %>% 
+  set_engine("lm")
+
+# fit the model
+lm_fit <- lm_mod %>% 
+  # consider interaction effect between pop and connections because they 
+  # are highly correlated ~ 0.83 via cor.test()
+  fit(radius ~ (population_served_count + service_connections_count)^2, 
+      data = train)
+
+lm_fit
+tidy(lm_fit)
+
+# predict
+mean_pred <- predict(lm_fit, du)
+conf_int_pred <- predict(lm_fit, du, type = "conf_int")
+
+
+du %>% 
+  bind_cols(mean_pred) %>% 
+  bind_cols(conf_int_pred) %>% 
+  ggplot(aes(x = cyl)) +
+  geom_point(aes(y = .pred)) +
+  geom_errorbar(aes(ymin = .pred_lower, 
+                    ymax = .pred_upper),
+                width = 0.2) +
+  labs(y = "wt")
