@@ -27,7 +27,7 @@ file_ucmr4 <- path(data_path, "ucmr/ucmr4.zip")
 
 # download and unzip
 download.file(ucmr3_url, file_ucmr3)
-download.file(ucmr4_url, file_ucmr4)
+download.file(ucmr4_url, file_ucmr4, mode="wb")
 
 unzip(file_ucmr3, exdir = path(data_path, "ucmr"))
 unzip(file_ucmr4, exdir = path(data_path, "ucmr"))
