@@ -38,7 +38,7 @@ dt_make <- function(x){
 
 # Introduction
 
-Presently, approximately 55,700 active community water systems in the United States collectively serve tap water to approximately *318,000,000* people (source: SDWIS). These water systems cross-cut racial/ethnic, income, and political boundaries, yet despite their importance, up-to-date, easily accessible boundary data (i.e., spatial polygons that delineate water service boundaries) are not organized at the national level. State-level data may exist, but these data tend to be hard to find online, may require cleaning, and little is known about the completeness of these data at a national scale. This is beginning to change as organizations, businesses, and academics currently aim to fill the gaps. Insights into water quality challenges nationwide are stymied by a lack of water service area boundaries -- most research and work on water quality, for example, emphasizes county-level analyses. Moreover, funding for water systems under the new Justice40 Initiative require organized, accurate spatial data on community water systems and who they serve. 
+Presently, approximately 49,455 active community water systems in the United States collectively serve tap water to approximately *315,660,000* people (source: SDWIS). These water systems cross-cut racial/ethnic, income, and political boundaries, yet despite their importance, up-to-date, easily accessible boundary data (i.e., spatial polygons that delineate water service boundaries) are not organized at the national level. State-level data may exist, but these data tend to be hard to find online, may require cleaning, and little is known about the completeness of these data at a national scale. This is beginning to change as organizations, businesses, and academics currently aim to fill the gaps. Insights into water quality challenges nationwide are stymied by a lack of water service area boundaries -- most research and work on water quality, for example, emphasizes county-level analyses. Moreover, funding for water systems under the new Justice40 Initiative require organized, accurate spatial data on community water systems and who they serve. 
 
 The overarching goal of this [project](https://github.com/SimpleLab-Inc/wsb) is to assemble the nation's first open-source, reproducible pipeline to assimilate existing water service boundary data and provide estimated service boundaries where existing spatial data does not exist. Given large gaps in data, we will use a combination of data assimilation and machine learning to assign and predict proxy boundaries where formally labeled spatial data does not exist. To produce the national water service boundary layer, a variety of state and federal data sources must be cleaned, analyzed, joined, and ultimately, modeled. Underpinning this technical effort is a broader context of stakeholder communication and engagement, and data collection efforts to support modeling. 
 
@@ -127,9 +127,15 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # load existing labeled data and simply it for viewing
 wsb_labeled_simp <- read_rds(here("etc/wsb_labeled_simplified.rds"))
+
+# Bring in all data for population counts and summaries
+# j stands for joined data, read and rm rownumber column
+j <- read_csv(path(staging_path, "matched_output.csv"), col_select = -1)
+
 ```
 
-Labeled spatial data (i.e., spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs that cover `r length(unique(wsb_labeled_simp$state))` states: `r paste(unique(wsb_labeled_simp$state), collapse = ", ")`^[Due to constraints on visualizing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices, but analyses all use the high-resolution version.].  
+Labeled spatial data (i.e., spatial polygons present) are present for `r nrow(wsb_labeled_simp)` PWSIDs that cover `r length(unique(wsb_labeled_simp$state))` states: `r paste(unique(wsb_labeled_simp$state), collapse = ", ")`^[Due to constraints on visualizing the large number of vertices in these polygon data, the map shown below provides a low-resolution version of the labeled data, with only ~5% of vertices, but analyses all use the high-resolution version.]. This represents `r round(nrow(wsb_labeled_simp)/nrow(j)*100,2)`% of active, community water systems, serving `r j %>% filter(pwsid %in% wsb_labeled_simp$pwsid) %>% summarize(pop = sum(population_served_count)) %>% pull(pop)` people, or `r round((j %>% filter(pwsid %in% wsb_labeled_simp$pwsid) %>% summarize(pop = sum(population_served_count)) %>% pull(pop))/(j %>% summarize(full_pop = sum(population_served_count)) %>% pull(full_pop))*100,2)`% of people served by active, community water systems.
+
 
 ```{r, echo=FALSE}
 wsb_labeled_simp %>% 
@@ -186,11 +192,6 @@ states_df %>%
 ### Centroid coverage at all PWSIDs
 
 Two federal datasets contain water system centroid data--ECHO and FRS (see [data sources table above](#data-sources) for links). Preliminary investigation of these data sources indicated that ECHO is a maintained facilities archive that updates quarterly. Much of its spatial data--lat/long centroids--comes directly from FRS, which is a weekly-updated database. FRS maintains a geospatial database of facilities (by water system) with geolocated centroids, but does not approximate centroids for systems without provided lat/long data. ECHO, on the other hand, conducts a geocoding exercise to assign a centroid to all water systems. As such, ECHO is a superset of FRS data, thus ECHO centroid coverage is assessed. As stated before, in this analysis we only focus on active community water systems (CWS). 
-
-```{r}
-# j stands for joined data, read and rm rownumber column
-j <- read_csv(path(staging_path, "matched_output.csv"), col_select = -1)
-```
 
 First, `r round((nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude))) / nrow(j))*100, 2)`% of pwsids (`r nrow(filter(j, is.na(echo_latitude) | is.na(echo_longitude)))` / `r nrow(j)` ) are missing either a longitude or latitude (i.e., the x or y coordinate is `NA`). 
 
@@ -494,7 +495,7 @@ Although no population count or service connection count is missing, there are z
 
 #### zero service connections
 
-`r round((nrow(filter(j, service_connections_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served, which is unlikely to be true and primarily impacts SC. We may drop these, or impute a population equal to the mean population for the reported system size if present. 
+`r round((nrow(filter(j, service_connections_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 service connections, which is unlikely to be true and primarily impacts SC. We may drop these, or impute service connections equal to the mean connections for the reported system size if present. 
 
 ```{r}
 zero_sc <- filter(j, service_connections_count == 0) 
@@ -518,7 +519,7 @@ zero_sc %>%
 
 #### zero population count
 
-`r round((nrow(filter(j, population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served, which is unlikely to be true and primarily impacts TX, CA, SC, CO, and ME. We may drop these, or impute a population equal to the mean population for the reported system size (if present). 
+`r round((nrow(filter(j, population_served_count == 0))/nrow(j))*100, 2)`% of PWSIDs have 0 population served, which is unlikely to be true and primarily impacts TX, CA, SC, CO, and ME. We may drop these, or impute a population equal to the mean population for the reported system size (if present).
 
 ```{r}
 zero_pop <- filter(j, population_served_count == 0) 
@@ -531,12 +532,14 @@ zero_pop %>%
          con_count = service_connections_count, 
          tigris = tigris_match_geoid) %>% 
   dt_make()
+```
 
+The following table shows the counts of systems with a reported population of zero, by state.
+```{r}
 zero_pop %>% 
   count(primacy_agency_code, sort = TRUE, name = "n_missing") %>% 
   dt_make()
 ```
-
 
 <br>  
 
@@ -588,7 +591,7 @@ zero_sc_or_pop %>%
 ```
 
 
-> **RECOMMENDATION**: Results suggest around 5% of data is missing either a population served or system size. More often than not, the population served is missing. This may be "mean imputed" from systems of similar size, as population served and service connection count shows a strong linear relationship^[This plot shows other potentially faulty data, for instance, a high leverage point on the x-axis with a population served of 2.5 million, but a very small nonzero service connection count. Similarly, another data point on the y axis has a ~700,000 service connections but serves a very small nonzero population. Outliers outside of, say, 2 or 3SD from the linear model may be discarded from the model, or we may individually clean data, particularly where incorrect data will yield unreasonable predicted boundaries.]: 
+> **RECOMMENDATION**: Results suggest `r round(sum(nrow(zero_pop), nrow(zero_sc))/nrow(j)*100,2)`% of data is missing either a population served or system size. More often than not, the population served is missing. This may be "mean imputed" from systems of similar size, as population served and service connection count shows a strong linear relationship^[This plot shows other potentially faulty data, for instance, a high leverage point on the x-axis with a population served of 2.5 million, but a very small nonzero service connection count. Similarly, another data point on the y axis has a ~700,000 service connections but serves a very small nonzero population. Outliers outside of, say, 2 or 3SD from the linear model may be discarded from the model, or we may individually clean data, particularly where incorrect data will yield unreasonable predicted boundaries.]: 
 
 ```{r}
 j %>% 
@@ -620,7 +623,7 @@ The above section on missingness necessarily analyzes data quality, as the two t
 
 "Impostors" are PWSIDs that report coordinates in one state but plot in another--they are not where they say they are, thus they are impostors. Impostors likely result from faulty geocoding and pose a challenge to broader project aims because they "decenter" predicted boundaries, spatially placing them in the wrong state. We assessed impostors in FRS, ECHO, and mobile home parks (MHP) during data transformation preprocessing and wrote a function to drop impostors and sink them into a log file for review. 
 
-Take for example, 2 sets impostors in FRS data below.
+Take for example, 2 sets impostors in FRS data below. Each map presents two centroids of facilities that are supposed to belong to the same water system. The first map is for a system in California, which has an "imposter" centroid in Indiana. The second map is for a system in Alaska, which has an "imposter" centroid in Washington state.
 
 ```{r}
 # the following code is copied from `src/transformers/transform_frs.R`
