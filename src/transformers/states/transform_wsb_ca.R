@@ -41,10 +41,10 @@ ca_wsb <- ca_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pws_id           = WASYID,
-    pws_name         = WASYNAME,
+    pwsid            = pwsid,
+    pws_name         = gis_name,
     state,
-    county          = WAPCS,
+    #    county,
     #    city,
     #    source,
     #    owner,
