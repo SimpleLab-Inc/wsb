@@ -1,7 +1,6 @@
 #%%
 
 import os
-from typing import Dict
 import pandas as pd
 import geopandas as gpd
 from dotenv import load_dotenv
@@ -28,7 +27,7 @@ Data Sources:
 """
 
 #%% ##########################################
-# 1) SDWIS
+# SDWIS
 ##############################################
 
 """
@@ -77,6 +76,10 @@ sdwis = (
         (sdwis_unfiltered["pws_activity_code"].isin(["A"])) &
         (sdwis_unfiltered["pws_type_code"] == "CWS")])
 
+# If state_code is NA, copy from primacy_agency_code
+mask = sdwis["state_code"].isna()
+sdwis.loc[mask, "state_code"] = sdwis.loc[mask, "primacy_agency_code"]
+
 
 #########
 # Supplement with geographic_area
@@ -124,7 +127,7 @@ sdwis.head()
 
 
 #%% ##########################################
-# 3) TIGER
+# TIGER
 ##############################################
 tiger = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
@@ -141,7 +144,7 @@ tiger = tiger.join(crosswalk, on="statefp", how="inner")
 tiger.head()
 
 #%% ##########################################
-# 6) ECHO
+# ECHO
 ##############################################
 
 echo_df = pd.read_csv(
@@ -159,6 +162,10 @@ echo_df = echo_df.loc[
     echo_df["pwsid"].isin(sdwis["pwsid"]) &
     echo_df["fac_lat"].notna()].copy()
 
+# If fac_state is NA, copy from pwsid
+mask = echo_df["fac_state"].isna()
+echo_df.loc[mask, "fac_state"] = echo_df.loc[mask, "pwsid"].str[0:2]
+
 # Convert to geopandas
 echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
     echo_df,
@@ -167,9 +174,44 @@ echo: gpd.GeoDataFrame = gpd.GeoDataFrame(
 
 echo.head()
 
+#%% ##########################################
+# FRS
+##############################################
+
+frs = gpd.read_file(
+    DATA_PATH + "/frs.geojson")
+
+# keep_columns = [
+#     "PGM_SYS_ID", "LATITUDE83", "LONGITUDE83", "ACCURACY_VALUE", 
+#     "COLLECT_MTH_DESC", "REF_POINT_DESC", "geometry"]
+#
+#frs = frs[keep_columns]
+
+# Filter to those in SDWIS
+# And only those with interest_type "WATER TREATMENT PLANT". Other interest types are already in Echo.
+frs = frs[
+    frs["pwsid"].isin(sdwis["pwsid"]) &
+    (frs["interest_type"] == "WATER TREATMENT PLANT")]
+
+# Exclude FRS that are identical to echo on name and lat/long.
+# Maybe later, we also want to allow them through if they have different addresses.
+
+frs = frs.loc[(frs
+    # Find matches to echo, then only include those from FRS that _didn't_ match
+    .reset_index()
+    .merge(echo,
+        left_on=["pwsid", "primary_name", "latitude83", "longitude83"],
+        right_on=["pwsid", "fac_name", "fac_lat", "fac_long"],
+        how="outer", indicator=True)
+    .query("_merge == 'left_only'")
+    ["index"]
+)]
+
+print(f"{len(frs)} FRS entries remain after removing echo duplicates")
+
 
 #%% ##########################################
-# 7) UCMR
+# UCMR
 ##############################################
 
 # Primarily: This links pwsid to zip code.
@@ -249,6 +291,10 @@ sdwis_supermodel = gpd.GeoDataFrame().assign(
     pwsid                = sdwis["pwsid"],
     state                = sdwis["state_code"],
     name                 = sdwis["pws_name"],
+    address_line_1       = sdwis["address_line1"],
+    address_line_2       = sdwis["address_line2"],
+    city                 = sdwis["city_name"],
+    zip                  = sdwis["zip_code"],
     city_served          = sdwis["city_served"]
 )
 
@@ -260,11 +306,32 @@ echo_supermodel = gpd.GeoDataFrame().assign(
     pwsid                   = echo["pwsid"],
     state                   = echo["fac_state"],
     name                    = echo["fac_name"],
+    address_line_1          = echo["fac_street"],
+    city                    = echo["fac_city"],
+    zip                     = echo["fac_zip"],
     geometry_lat            = echo["fac_lat"],
     geometry_long           = echo["fac_long"],
     geometry                = echo["geometry"],
     geometry_quality        = echo["fac_collection_method"],
 )
+
+frs_supermodel = gpd.GeoDataFrame().assign(
+    source_system_id        = frs["pwsid"],
+    source_system           = "frs",
+    xref_id                 = "frs." + frs["pwsid"], # This isn't actually unique, but makes it simpler to drop dupes
+    master_key              = frs["pwsid"],
+    pwsid                   = frs["pwsid"],
+    state                   = frs["state"],
+    name                    = frs["primary_name"],
+    address_line_1          = frs["location_address"],
+    city                    = frs["city_name"],
+    zip                     = frs["postal_code"],
+    county                  = frs["county_name"],
+    geometry_lat            = frs["latitude83"], # May need to convert CRS to make meaningful. Maybe in transformer?
+    geometry_long           = frs["longitude83"],
+    geometry                = frs["geometry"],
+    geometry_quality        = frs["ref_point_desc"],
+).drop_duplicates()
 
 tiger_supermodel = gpd.GeoDataFrame().assign(
     source_system_id    = tiger["geoid"],
@@ -279,15 +346,18 @@ tiger_supermodel = gpd.GeoDataFrame().assign(
 supermodel = pd.concat([
     sdwis_supermodel,
     echo_supermodel,
+    frs_supermodel,
     tiger_supermodel
 ])
+
+# Reset the CRS - it gets lost in the concat (maybe because sdwis has no CRS)
+supermodel = supermodel.set_crs(epsg=EPSG, allow_override=True)
 
 # Assign missing master keys as "UNK-"
 mask = supermodel["master_key"].isna()
 supermodel.loc[mask, "master_key"] = "UNK-" + pd.Series(range(mask.sum())).astype("str")
 
 supermodel.sample(10)
-
 
 #%% ##########################
 # Now on to the matching.
@@ -318,9 +388,9 @@ def tokenize_name(series) -> pd.Series:
 #%%
 
 # Create a token table and apply standardizations
-tokens = supermodel[["source_system", "xref_id", "state", "name", "city_served", "geometry"]].copy()
+tokens = supermodel[["source_system", "xref_id", "master_key", "state", "name", "city_served", "geometry"]].copy()
 
-tokens["name"] = tokenize_name(tokens["name"])
+tokens["name_tkn"] = tokenize_name(tokens["name"])
 tokens["state"] = tokens["state"].str.upper()
 tokens["city_served"] = tokens["city_served"].str.upper()
 
@@ -328,14 +398,14 @@ tokens["city_served"] = tokens["city_served"].str.upper()
 
 # Output as a sorted table to visually inspect
 (tokens
-    .sort_values(["state", "name"])
+    .sort_values(["state", "name_tkn"])
     .drop(columns=["geometry"])
     .to_csv("match_sort.csv"))
 
 #%%
 
 # In general, we'll be matching sdwis/echo to tiger
-mask = tokens["source_system"].isin(["sdwis", "echo"])
+mask = tokens["source_system"].isin(["sdwis", "echo", "frs"])
 left = tokens[mask]
 right = tokens[~mask]
 
@@ -343,7 +413,7 @@ right = tokens[~mask]
 # Rule: Match on state + name
 # 23,542 matches
 new_matches = (left
-    .merge(right, on=["state", "name"], how="inner")
+    .merge(right, on=["state", "name_tkn"], how="inner")
     [["xref_id_x", "xref_id_y"]]
     .assign(match_rule="state+name"))
 
@@ -353,7 +423,7 @@ matches = new_matches
 
 #%%
 # Rule: Spatial matches
-# 23k matches between echo and tiger
+# 21k matches between echo and tiger
 new_matches = (left
     .sjoin(right, lsuffix="x", rsuffix="y")
     [["xref_id_x", "xref_id_y"]]
@@ -368,7 +438,7 @@ matches = pd.concat([matches, new_matches])
 # Rule: match state+city_served to name
 
 new_matches = (left
-    .merge(right, left_on=["state", "city_served"], right_on=["state", "name"])
+    .merge(right, left_on=["state", "city_served"], right_on=["state", "name_tkn"])
     [["xref_id_x", "xref_id_y"]]
     .assign(match_rule="state+city_served<->name"))
 
@@ -421,16 +491,151 @@ stacked_match = (pd.concat([
 # Instead of actual geometry, which isn't very helpful in an Excel report, let's just sub in the type of geometry
 # (We might want to leave the actual geometry if this will be consumed by R or something to create another report)
 stacked_match["geometry_type"] = stacked_match["geometry"].geom_type
-stacked_match = stacked_match.drop(columns=["geometry"])
 
 #%%
-stacked_match.to_excel("stacked_match_report.xlsx", index=False)
-
+# Output the report
+stacked_match.drop(columns=["geometry"]).to_excel("stacked_match_report2.xlsx", index=False)
 
 #%%
-# Heuristic matching TODO's
+
+# Unmatched report
+anchors = tokens[
+    tokens["source_system"].isin(["sdwis"]) & 
+    (~tokens["master_key"].isin(mk_matches["master_key_x"]))]
+
+candidates = tokens[
+    (tokens["source_system"] == "tiger")
+    # Let's include ALL tiger, not just unmatched
+    #& (~tokens["master_key"].isin(mk_matches["master_key_y"]))
+    ]
+
+umatched_report = pd.concat([anchors, candidates]).sort_values(["state", "name_tkn"])
+
+umatched_report["geometry_type"] = umatched_report["geometry"].geom_type
+umatched_report = umatched_report.drop(columns=["geometry"])
+
+#%%
+umatched_report.to_excel("unmatched_report.xlsx", index=False)
+
+#%%
+
+# Could I get a few sample little maps? for the report?
+# Stats on matches in each direction?
+
+#%%
+
+# Stats?
+mk_matches["match_rule"].value_counts()
+
+"""
+Match types:
+[spatial]                                                      11795 - Weak? Likely lots of centroids, lots of overlap
+[state+city_served<->name]                                      6721 - Strong matches. Could improve lat/long with these
+[state+name, state+name]                                        3318
+[spatial, state+city_served<->name]                             3186 - Very strong matches
+[state+name, state+name, spatial, state+city_served<->name]     2938
+[state+name, state+name, state+city_served<->name]              2349
+[state+name, state+name, spatial]                               1569
+[state+name, spatial]                                            937
+[state+name]                                                     792
+[state+name, spatial, state+city_served<->name]                  721
+[state+name, state+city_served<->name]                           387
+
+Rules taking shape:
+- If we have a state+name or state+city_served match, and a different spatial match, trash the spatial match.
+    - Possible variation: Only do this if it's a zip or county centroid. Counterexample: There are some bad address matches.
+"""
+
+#%%
+# TODO: What type of centroid was most frequent in each of the match types?
+
+#%%
+
+# How many distinct records did each SDWIS match to?
+# Pretty close to 1. That's good.
+# But we'll need to analyze those 1:N's.
+print("PWS matches to distinct TIGER's:")
+print("Mean: " + str(mk_matches.groupby("master_key_x").size().mean()))
+print("Median: " + str(mk_matches.groupby("master_key_x").size().median()))
+print("Min: " + str(mk_matches.groupby("master_key_x").size().min()))
+print("Max: " + str(mk_matches.groupby("master_key_x").size().max()))
+
+mk_matches.groupby("master_key_x").size().hist()
+#%%
+mk_matches.groupby("master_key_x").size().hist(log=True)
+
+#%%
+
+# How bout TIGER to SDWIS?
+# 2 on average. Interesting.
+print("TIGER matches to distinct SDWIS's:")
+print("Mean: " + str(mk_matches.groupby("master_key_y").size().mean()))
+print("Median: " + str(mk_matches.groupby("master_key_y").size().median()))
+print("Min: " + str(mk_matches.groupby("master_key_y").size().min()))
+print("Max: " + str(mk_matches.groupby("master_key_y").size().max()))
+
+# Log histogram
+mk_matches.groupby("master_key_y").size().hist(log=True, bins=100)
 
 # Superjoin todo's:
 # TODO: Add UCMR4 zip codes + centroids
 # TODO: Add MHP's
 # TODO: Add "Has WSB" flag (need to pull in all the WSB's)
+# TODO: Consider a county match (maybe in cases where there are multiple state+name matches?)
+
+
+#%%
+stacked_match.head()
+
+#%%
+# Visualize specific match groups on a map
+# 055293501 - This one matched two two separate polygons, one spatially, one on name.
+# The name match is better.
+# The spatial match is because the address is an admin address (Chippewa Indians Office)
+
+subset = (
+    stacked_match[
+        (stacked_match["mk_match"] == "055294703") &
+        (stacked_match["geometry"].notna())]
+    # Sort ascending on geometry type to ensure points appear over polygons
+    .sort_values("geometry_type", ascending=True))
+subset
+
+#%%
+
+subset.explore(tooltip=False, popup=True, tiles="")
+
+#%%
+
+"""
+
+TODO:
+- [ ] Pull in more data
+    - [ ] MHP
+    - [ ] UCMR
+    - [ ] wsb_labeled.geojson
+
+- [ ] Try to quantify error compared to labeled boundaries
+- [ ] Spend a little time in the rabbit hole, then try to gen a new match output
+
+- [ ] Do we have a summary of data sources, studies, etc
+- [x] Plot some points
+- [ ] Rate the quality of matches
+    - [ ] Which matches are best quality? Review
+    - [ ] Why is there so little overlap between spatial and name matches? Research.
+    - [ ] Assign match scores based on match type. Try to get population covered.
+- [ ] Rate the quality of geocodes
+    - [ ] Zip and county centroids are not great.
+    - [ ] Centroids that overlap could be bad (e.g. admin offices)
+    - Possibly: Don't do spatial match rule on county centroids
+
+- [ ] Consider: Create a Dash app for visualizing and stewarding potential matches (incl. leaflet map)?
+
+
+
+- Try adding a buffer around the polygons and rerun for matching
+- If multiple spatial matches, use a min distance to "win"
+- Do we want looser spatial matches? Even if we know it's not exact? N:1 Tiger:SDWIS is OK?
+- Could we come up with some kind of "accuracy score" - involving spatial distance, # match rules, 
+
+"""

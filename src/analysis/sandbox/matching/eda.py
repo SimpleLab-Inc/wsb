@@ -23,11 +23,15 @@ crosswalk = (pd.read_csv("../crosswalks/state_fips_to_abbr.csv")
 """
 Data Sources:
 1. SDWIS - Official list of PWS's to classify. Narrow to Active CWS's.
-2. FRS - Has centroids for ~15k facilities.
+2. FRS - Has centroids for ~15k facilities, but is largely redundant with ECHO.
 3. ECHO? - Similar to FRS. Better matching. The points might be a superset of FRS.
 4. TIGER - Generic city boundaries. Attempt to match on city name.
 5. Mobile Home Parks - 
 6. Various exact geometries from states
+
+Possible other data sets:
+- Facility Addresses from FRS or Echo (in addition to the primary PWS address which we already bring in)
+
 """
 
 #%% ##########################################
@@ -52,7 +56,8 @@ ws.address_line1 - "The address applicable to the legal entity", whatever that m
 ws.address_line2
 ws.city_name
 ws.zip_code
-ws.primacy_agency_code
+ws.primacy_agency_code - Code for the state or territory with regulatory oversight
+ws.population_served - Estimated number of people served. 0 or 1 might represent a wholesaler.
 wsf.facility_id - Optional. This denormalizes the data substantially.
 sa.service_area_type_code - for municipal vs mobile home park
 ga.city_served - this column is not populated in ws unfortunately
@@ -127,6 +132,8 @@ sdwis.head()
 """
 # Supplement with water_system_facilities?
 # This would roughly denormalize by 10x...probably don't want to do that yet.
+
+# Are facility addresses going to be a useful dataset? We could get from Echo or SDWIS
 
 # water_system_facilities - PWSID + facility_id is unique
 # There are ~300 PWSID's in water_system but not water_system_facilities
@@ -269,3 +276,23 @@ print(echo[~echo["pwsid"].isin(frs["pwsid"])]["fac_collection_method"].value_cou
 # When it doesn't match FRS:
 #  - fac_collection_method - Primarily "County Centroid", "Zip Code Centroid", "State Centroid". Yuck.
 #  - fac_reference_point - Mostly null.
+
+
+#%%
+# Are all FRS attributes just a subset of ECHO?
+# Hypothesis: FRS names, addresses, and lat/long match echo 100% when interest_type = "CWS"
+# So FRS only provides additional value when interest_type = "WATER TREATMENT PLANT"
+
+join = frs.merge(echo, on="pwsid")
+
+latdiff = (join["fac_lat"] != join["latitude83"]) | (join["fac_long"] != join["longitude83"])
+namediff = (join["primary_name"] != join["fac_name"])
+addrdiff = (join["location_address"] != join["fac_street"]) | (join["city_name"] != join["fac_city"]) | (join["postal_code"] != join["fac_zip"])
+
+#%%
+# Yup - Almost all that have a name or lat/long diff are "Water Treatment Plant"
+join[latdiff | namediff]["interest_type"].value_counts()
+
+#%%
+# But there are lots more address diffs because we've got multiple facilities
+join[addrdiff]["interest_type"].value_counts()
