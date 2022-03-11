@@ -15,10 +15,10 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for NC water service boundaries, clean, transform CRS
 nc_wsb <- st_read(dsn = path(data_path, "boundary/nc/nc.geojson")) %>% 
-  # transform to area weighted CRS
-  st_transform(epsg_aw) %>%
   # clean whitespace
   f_clean_whitespace_nas() %>%
+  # transform to area weighted CRS
+  st_transform(epsg_aw) %>%
   # correct invalid geometries
   st_make_valid()
 
@@ -41,8 +41,8 @@ nc_wsb <- nc_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid           = WASYID,
-    ws_name         = WASYNAME,
+    pws_id           = WASYID,
+    pws_name         = WASYNAME,
     state,
     county          = WAPCS,
 #    city,
