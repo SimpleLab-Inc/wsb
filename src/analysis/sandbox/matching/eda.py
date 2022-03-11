@@ -296,3 +296,30 @@ join[latdiff | namediff]["interest_type"].value_counts()
 #%%
 # But there are lots more address diffs because we've got multiple facilities
 join[addrdiff]["interest_type"].value_counts()
+
+
+#%% ##########################################
+# 6) UCMR
+##############################################
+
+# 24,180 links from pwsid to zipcode
+# pwsid, zipcode is _almost_ the PK. 5 duplicates
+# 7,069 distinct pwsids
+
+# Research:
+# - [ ] Why are there 5 dupes on pwsid + zip?
+# - [ ] Why are there a bunch where geometry is empty?
+
+
+df = gpd.read_file(DATA_PATH + "/ucmr.geojson")
+
+#%%
+# Remove empty geometries
+df = df[(~df["geometry"].is_empty) & df["geometry"].notna()]
+
+#%%
+# Aggregate polygons so pwsid is unique
+df = df[["pwsid", "geometry"]].dissolve(by="pwsid")
+
+#%%
+df.head()

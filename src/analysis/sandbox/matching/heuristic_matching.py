@@ -10,6 +10,7 @@ load_dotenv()
 pd.options.display.max_columns = None
 
 DATA_PATH = os.environ["WSB_STAGING_PATH"]
+OUTPUT_PATH = os.path.join(DATA_PATH, "..", "outputs")
 EPSG = os.environ["WSB_EPSG"]
 
 # Bring in the FIPS -> State Abbr crosswalk
@@ -196,7 +197,7 @@ frs = frs[
 # Exclude FRS that are identical to echo on name and lat/long.
 # Maybe later, we also want to allow them through if they have different addresses.
 
-frs = frs.loc[(frs
+frs = frs.loc[frs
     # Find matches to echo, then only include those from FRS that _didn't_ match
     .reset_index()
     .merge(echo,
@@ -205,7 +206,7 @@ frs = frs.loc[(frs
         how="outer", indicator=True)
     .query("_merge == 'left_only'")
     ["index"]
-)]
+]
 
 print(f"{len(frs)} FRS entries remain after removing echo duplicates")
 
@@ -215,11 +216,18 @@ print(f"{len(frs)} FRS entries remain after removing echo duplicates")
 ##############################################
 
 # Primarily: This links pwsid to zip code.
-# But something is making this a big file. Are there zip code polygons in here?
-# Will we use that or do we just need the centroid?
+# Primary Key: pwsid + zipcode (because pws's may serve more than one zip)
 
-# ucmr = gpd.read_file(DATA_PATH + "/ucmr.geojson")
-# ucmr.head()
+ucmr = gpd.read_file(DATA_PATH + "/ucmr.geojson")
+
+# Remove empty geometries
+ucmr = ucmr[(~ucmr["geometry"].is_empty) & ucmr["geometry"].notna()]
+
+# Aggregate polygons so pwsid is unique
+ucmr = (ucmr[["pwsid", "geometry"]]
+    .dissolve(by="pwsid")
+    .reset_index())
+
 
 #%% #############################
 # Mapping to a standard model
@@ -341,12 +349,23 @@ tiger_supermodel = gpd.GeoDataFrame().assign(
     name                = tiger["name"],
     state               = tiger["state"],
     geometry            = tiger["geometry"],
+    geometry_quality    = "Tiger boundary"
+)
+
+ucmr_supermodel = gpd.GeoDataFrame().assign(
+    source_system_id    = ucmr["pwsid"],
+    source_system       = "ucmr",
+    xref_id             = "ucmr." + ucmr["pwsid"],
+    master_key          = ucmr["pwsid"],
+    geometry            = ucmr["geometry"],
+    geometry_quality    = "Zip code boundary"
 )
 
 supermodel = pd.concat([
     sdwis_supermodel,
     echo_supermodel,
     frs_supermodel,
+    ucmr_supermodel,
     tiger_supermodel
 ])
 
@@ -405,9 +424,13 @@ tokens["city_served"] = tokens["city_served"].str.upper()
 #%%
 
 # In general, we'll be matching sdwis/echo to tiger
+# SDWIS, ECHO, and FRS are already matched - they'll go on the left.
+# TIGER needs to be matched - it's on the right.
+# UCMR is already matched, and doesn't add any helpful matching criteria, so we exclude it. Exception: IF it's high quality, it might be helpful in spatial matching to TIGER?
+
 mask = tokens["source_system"].isin(["sdwis", "echo", "frs"])
-left = tokens[mask]
-right = tokens[~mask]
+left = tokens[tokens["source_system"].isin(["sdwis", "echo", "frs"])]
+right = tokens[tokens["source_system"].isin(["tiger"])]
 
 #%%
 # Rule: Match on state + name
@@ -471,6 +494,7 @@ print(f"Distinct PWSID matches: {len(mk_matches['master_key_x'].unique())}")
 #%%
 # Now, finally, the stacked match report.
 
+# This will include all XREFs where the master key is already known and there is a match to TIGER
 anchors = supermodel[supermodel["master_key"].isin(mk_matches["master_key_x"])]
 
 candidates = (supermodel
@@ -492,9 +516,15 @@ stacked_match = (pd.concat([
 # (We might want to leave the actual geometry if this will be consumed by R or something to create another report)
 stacked_match["geometry_type"] = stacked_match["geometry"].geom_type
 
+# Let's add a "color" column that just toggles on and off per match group
+# First, we'll number each match group. Then, we'll color odd numbers.
+stacked_match["color"] = (stacked_match["mk_match"].rank(method="dense") % 2) == 0
+
 #%%
 # Output the report
-stacked_match.drop(columns=["geometry"]).to_excel("stacked_match_report2.xlsx", index=False)
+(stacked_match
+    .drop(columns=["geometry"])
+    .to_excel(OUTPUT_PATH + "/stacked_match_report3.xlsx", index=False))
 
 #%%
 
@@ -593,17 +623,25 @@ stacked_match.head()
 # The name match is better.
 # The spatial match is because the address is an admin address (Chippewa Indians Office)
 
-subset = (
-    stacked_match[
-        (stacked_match["mk_match"] == "055294703") &
-        (stacked_match["geometry"].notna())]
-    # Sort ascending on geometry type to ensure points appear over polygons
-    .sort_values("geometry_type", ascending=True))
+subset = stacked_match[
+    (stacked_match["mk_match"] == "043740039") &
+    (stacked_match["geometry"].notna())]
+
+# Assign a rank so that bigger polygons (in general) appear under smaller polygons and points
+# subset["rank"] = subset["geometry_type"].map({
+#         "Point": 1
+#         "Polygon": 2,
+#         "MultiPolygon": 3,
+#     })
+
+subset["area"] = subset["geometry"].area
+
+subset = subset.sort_values("area", ascending=False)
 subset
 
 #%%
 
-subset.explore(tooltip=False, popup=True, tiles="")
+subset.explore(tooltip=False, popup=True)
 
 #%%
 
