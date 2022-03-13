@@ -309,7 +309,7 @@ join[addrdiff]["interest_type"].value_counts()
 # Research:
 # - [ ] Why are there 5 dupes on pwsid + zip?
 # - [ ] Why are there a bunch where geometry is empty?
-
+# - [ ] Could we get state code and county as columns in this file?
 
 df = gpd.read_file(DATA_PATH + "/ucmr.geojson")
 
@@ -323,3 +323,6 @@ df = df[["pwsid", "geometry"]].dissolve(by="pwsid")
 
 #%%
 df.head()
+
+#%%
+
