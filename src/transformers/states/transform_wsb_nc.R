@@ -29,6 +29,7 @@ nc_wsb <- nc_wsb %>%
   bind_rows() %>%
   mutate(
     state          = "NC",
+    WASYID         = paste0("NC", WASYID),
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
