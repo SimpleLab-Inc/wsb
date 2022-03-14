@@ -33,6 +33,8 @@ nc_wsb <- nc_wsb %>%
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
+    centroid_x     = st_coordinates(centroid)[, 1],
+    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
@@ -51,7 +53,8 @@ nc_wsb <- nc_wsb %>%
 #    owner,
     # geospatial columns
     st_areashape,
-    centroid,
+    centroid_x,
+    centroid_y,
     area_hull,
     radius,
     geometry
