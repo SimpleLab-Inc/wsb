@@ -32,6 +32,8 @@ nj_wsb <- nj_wsb %>%
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
+    centroid_x     = st_coordinates(centroid)[, 1],
+    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
@@ -41,7 +43,7 @@ nj_wsb <- nj_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pws_id           = PWID,
+    pwsid            = PWID,
     pws_name         = SYS_NAME,
     state,
     #    county,   # county code is first 2 digits of PWID
@@ -50,7 +52,8 @@ nj_wsb <- nj_wsb %>%
     #    owner,
     # geospatial columns
     st_areashape,
-    centroid,
+    centroid_x,
+    centroid_y,
     area_hull,
     radius,
     geometry
