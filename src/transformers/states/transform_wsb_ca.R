@@ -14,7 +14,8 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for CA water service boundaries, clean, transform CRS
-ca_wsb <- st_read(dsn = path(data_path, "boundary/ca/ca.geojson")) %>% 
+ca_wsb <- st_read(dsn = path(data_path, "boundary/ca/SABL_Public_220207/",
+                                         "SABL_Public_220207.shp")) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
   # transform to area weighted CRS
@@ -32,6 +33,8 @@ ca_wsb <- ca_wsb %>%
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
+    centroid_x     = st_coordinates(centroid)[, 1],
+    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
@@ -41,16 +44,17 @@ ca_wsb <- ca_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = pwsid,
-    pws_name         = gis_name,
+    pwsid            = WATER_SYST,
+    pws_name         = WATER_SY_1,
     state,
-    #    county,
+    county           = COUNTY,
     #    city,
     #    source,
     #    owner,
     # geospatial columns
     st_areashape,
-    centroid,
+    centroid_x,
+    centroid_y,
     area_hull,
     radius,
     geometry
