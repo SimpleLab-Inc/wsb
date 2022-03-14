@@ -29,6 +29,7 @@ pa_wsb <- pa_wsb %>%
   bind_rows() %>%
   mutate(
     state          = "PA",
+    PWS_ID         = paste0("PA", PWS_ID),
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     centroid       = st_geometry(st_centroid(geometry)),
@@ -43,7 +44,7 @@ pa_wsb <- pa_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pws_id           = PWS_ID,
+    pwsid           = PWS_ID,
     pws_name         = NAME,
     state,
     county           = CNTY_NAME,
