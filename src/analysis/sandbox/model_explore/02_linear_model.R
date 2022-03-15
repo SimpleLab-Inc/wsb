@@ -26,7 +26,14 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 set.seed(55)
 
 # full dataset
-d <- read_csv(path(staging_path, "matched_output_clean.csv"))
+d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
+  # convert units from meters to km and log10 transform
+  # convert predictors to log10
+  mutate(
+    radius = log10(radius/1000),
+    population_served_count   = log10(population_served_count),
+    service_connections_count = log10(service_connections_count)
+  )
 
 # labeled data (dl): split into train and test with stratified random sampling
 # in each of the radius quartiles to account for the lognormal distribution

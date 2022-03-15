@@ -31,13 +31,13 @@ dt_make <- function(x){
 
 *Last updated `r Sys.time()`*
 
-<br>  
+<br>
 
 # Introduction
 
-Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report. 
+Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report.
 
-The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fidelity. 
+The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fidelity.
 
 ```{r load}
 library(tidyverse)
@@ -49,46 +49,79 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-d <- read_csv(path(staging_path, "matched_output_clean.csv"))
+# read the clean matched output and transform radius from m to km
+d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
+  mutate(radius = radius/1000)
 ```
-
 
 # Report outline
 
-
 # EDA
 
-Response variable (radius) is log-normal.
+In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and model specification.
+
+## Log-transform the response variable
+
+The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius/1000, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius/1000, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality. We log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
 ```{r}
 d %>% 
-  ggplot(aes(radius/1000)) + 
+  ggplot(aes(radius)) + 
   geom_histogram(bins = 50, col= "white") +
   labs(x = "Radius (km)")
+```
 
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^1]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+
+[^1]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
+
+```{r}
 d %>% 
-  ggplot(aes(radius/1000)) + 
+  ggplot(aes(radius)) + 
   geom_histogram(bins = 50, col= "white") + 
   scale_x_log10() +
   labs(x = "Radius (km)")
 ```
 
-Population served and service connections are highly correlated ~ 0.83
+## Correlated predictors
+
+Population served and service connections are highly correlated (\$r = \$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which changes the interpretation of the regression fit[^2].
+
+[^2]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
 ```{r}
-cor.test(d$population_served_count, d$service_connections_count)
-
 d %>% 
-  ggplot(aes(population_served_count/1e6, service_connections_count/1e3)) + 
-  geom_point(alpha = 0.3) + 
-  labs(x = "Poulation served (millions)", 
-       y = "Service connections (thousands)")
+  ggplot(aes(population_served_count, service_connections_count)) + 
+  geom_point(aes(color = is_wholesaler_ind), alpha = 0.2) +
+  rcartocolor::scale_color_carto_d() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Poulation served", 
+       y = "Service connections",
+       color = "Is Wholesaler")
 ```
 
+# Model fitting
+
+## Linear model
+
+## QDA
+
+## RF
+
+# Model evalution
+
+## CV
+
+## Variable Importance
 
 # Limitations
 
-1. We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect is.  
+No model is without limitations. In this section, we highlight key limitations and identify potential future pathways to improve the model fit through additional data collection and/or cleaning.
+
+## Missing Primacy Types
+
+We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect it.
 
 ```{r}
 d %>% 
@@ -98,8 +131,10 @@ d %>%
   dt_make()
 ```
 
+# Contributions
 
-# Recommendations and next steps
+# Recommendations for future work
 
-- Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions). 
+-   Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions).
 
+<br><br>
