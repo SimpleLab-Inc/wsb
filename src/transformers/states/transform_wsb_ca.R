@@ -14,8 +14,9 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for CA water service boundaries, clean, transform CRS
-ca_wsb <- st_read(dsn = path(data_path, "boundary/ca/SABL_Public_220207/",
-                                         "SABL_Public_220207.shp")) %>% 
+ca_wsb <- st_read(
+  dsn = path(data_path, "boundary/ca/SABL_Public_220207/", 
+             "SABL_Public_220207.shp")) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
   # transform to area weighted CRS
