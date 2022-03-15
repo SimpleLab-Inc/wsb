@@ -75,10 +75,21 @@ The main drawback of log-transformation is that model coefficient units (e.g., s
 
 [^1]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
+Moreover, to avoid overfitting a model on a training set that overrepresents the more common low-radius observations, we perform a _stratified random sample_ on the response variable, drawing an equal number of training observations from each of 4 quartiles of the radius distribution. 
+
 ```{r}
 d %>% 
+  # calculate quantiles to show stratified random sampling
+  mutate(
+    p25 = quantile(radius, 0.25, na.rm = TRUE),
+    p50 = quantile(radius, 0.50, na.rm = TRUE),
+    p75 = quantile(radius, 0.75, na.rm = TRUE)
+  ) %>% 
   ggplot(aes(radius)) + 
   geom_histogram(bins = 50, col= "white") + 
+  geom_vline(aes(xintercept = p25), linetype = "dashed", color = "red") +
+  geom_vline(aes(xintercept = p50), linetype = "dashed", color = "red") +
+  geom_vline(aes(xintercept = p75), linetype = "dashed", color = "red") +
   scale_x_log10() +
   labs(x = "Radius (km)")
 ```
