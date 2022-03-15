@@ -15,10 +15,10 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for NJ water service boundaries, clean, transform CRS
 nj_wsb <- st_read(dsn = path(data_path, "boundary/nj/nj.geojson")) %>% 
-  # transform to area weighted CRS
-  st_transform(epsg_aw) %>%
   # clean whitespace
   f_clean_whitespace_nas() %>%
+  # transform to area weighted CRS
+  st_transform(epsg_aw) %>%
   # correct invalid geometries
   st_make_valid()
 
@@ -31,18 +31,22 @@ nj_wsb <- nj_wsb %>%
     state          = "NJ",
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
-    centroid       = st_geometry(st_centroid(geometry)),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
   # transform back to standard epsg for geojson write
   st_transform(epsg) %>%
+  mutate(
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2],
+  ) %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid           = PWID,
-    ws_name         = SYS_NAME,
+    pwsid            = PWID,
+    pws_name         = SYS_NAME,
     state,
     #    county,   # county code is first 2 digits of PWID
     #    city,
@@ -50,7 +54,8 @@ nj_wsb <- nj_wsb %>%
     #    owner,
     # geospatial columns
     st_areashape,
-    centroid,
+    centroid_long,
+    centroid_lat,
     area_hull,
     radius,
     geometry
