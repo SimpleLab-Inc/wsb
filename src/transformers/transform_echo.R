@@ -1,4 +1,4 @@
-# TODO: translate transform_echo.py into R for one contained script
+# transform ECHO data  -----------------------------------
 
 library(fs)
 library(sf)
@@ -13,45 +13,43 @@ source(here::here("src/functions/f_clean_whitespace_nas.R"))
 # path to save raw data and standard projection
 data_path       <- Sys.getenv("WSB_DATA_PATH")
 echo_data_path  <- path(data_path, "echo")
+echo_file       <- path(echo_data_path, "ECHO_EXPORTER.CSV")
 staging_path    <- Sys.getenv("WSB_STAGING_PATH")
+path_out        <- path(staging_path, "echo.geojson")
 epsg            <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-echo_file            <- path(echo_data_path, "ECHO_EXPORTER.CSV")
+cols <- c('REGISTRY_ID', 'FAC_NAME', 'FAC_NAME', 'FAC_STREET',
+          'FAC_CITY', 'FAC_STATE', 'FAC_ZIP', 'FAC_COUNTY',
+          'FAC_FIPS_CODE', 'FAC_LAT', 'FAC_INDIAN_CNTRY_FLG',
+          'FAC_FEDERAL_FLG', 'FAC_LONG', 'FAC_COLLECTION_METHOD',
+          'FAC_REFERENCE_POINT', 'FAC_ACCURACY_METERS',
+          'FAC_DERIVED_HUC', 'FAC_MAJOR_FLAG', 'FAC_ACTIVE_FLAG',
+          'FAC_QTRS_WITH_NC', 'SDWIS_FLAG', 'SDWA_IDS',
+          'SDWA_SYSTEM_TYPES', 'SDWA_INFORMAL_COUNT',
+          'SDWA_FORMAL_ACTION_COUNT', 'SDWA_COMPLIANCE_STATUS',
+          'SDWA_SNC_FLAG', 'FAC_DERIVED_TRIBES', 'FAC_DERIVED_HUC',
+          'FAC_DERIVED_WBD', 'FAC_DERIVED_STCTY_FIPS',
+          'FAC_DERIVED_ZIP', 'FAC_DERIVED_CD113', 'FAC_DERIVED_CB2010',
+          'FAC_PERCENT_MINORITY', 'FAC_POP_DEN', 'EJSCREEN_FLAG_US')
 
-cols <- c('REGISTRY_ID', 'FAC_NAME', 'FAC_NAME', 'FAC_STREET', 
-              'FAC_CITY', 'FAC_STATE', 'FAC_ZIP', 'FAC_COUNTY', 
-              'FAC_FIPS_CODE', 'FAC_LAT', 'FAC_INDIAN_CNTRY_FLG', 
-              'FAC_FEDERAL_FLG', 'FAC_LONG', 'FAC_COLLECTION_METHOD',
-              'FAC_REFERENCE_POINT', 'FAC_ACCURACY_METERS', 
-              'FAC_DERIVED_HUC', 'FAC_MAJOR_FLAG', 'FAC_ACTIVE_FLAG', 
-              'FAC_QTRS_WITH_NC', 'SDWIS_FLAG', 'SDWA_IDS',
-              'SDWA_SYSTEM_TYPES', 'SDWA_INFORMAL_COUNT', 
-              'SDWA_FORMAL_ACTION_COUNT', 'SDWA_COMPLIANCE_STATUS', 
-              'SDWA_SNC_FLAG', 'FAC_DERIVED_TRIBES', 'FAC_DERIVED_HUC', 
-              'FAC_DERIVED_WBD', 'FAC_DERIVED_STCTY_FIPS', 
-              'FAC_DERIVED_ZIP', 'FAC_DERIVED_CD113', 'FAC_DERIVED_CB2010', 
-              'FAC_PERCENT_MINORITY', 'FAC_POP_DEN', 'EJSCREEN_FLAG_US')
-
-bool_cols = c('fac_major_flag', 'fac_active_flag', 'sdwis_flag', 
-              'sdwa_snc_flag', 'fac_indian_cntry_flg', 'fac_federal_flg', 
+bool_cols = c('fac_major_flag', 'fac_active_flag', 'sdwis_flag',
+              'sdwa_snc_flag', 'fac_indian_cntry_flg', 'fac_federal_flg',
               'ejscreen_flag_us')
 
 # read in ECHO data and clean
-echo <- read_csv(echo_file, col_select=cols) %>% 
+echo <- read_csv(echo_file, col_select=cols) %>%
   # make column names lowercase
-  rename_all(tolower) %>% 
+  rename_all(tolower) %>%
   # clean whitespace and nulls
-  f_clean_whitespace_nas() %>% 
+  f_clean_whitespace_nas() %>%
   # drop duplicates
-  unique() %>% 
+  unique() %>%
   # drop null SDWA_IDS
-  filter(!is.na(sdwa_ids)) %>% 
+  filter(!is.na(sdwa_ids)) %>%
   # split space-delimited pwsid's in sdwa_ids into lists
-  mutate(
-    sdwa_ids = str_split(sdwa_ids, " ")
-  ) %>% 
+  mutate(sdwa_ids = str_split(sdwa_ids, " ")) %>%
   # explode rows with multiple pwsid's
-  unnest(sdwa_ids) %>% 
+  unnest(sdwa_ids) %>%
   # rename sdwa_ids to pwsid
   rename(pwsid = sdwa_ids) %>%
   # for bool_cols, map N to 0, Y to 1, and '' to NaN
@@ -59,7 +57,7 @@ echo <- read_csv(echo_file, col_select=cols) %>%
 
 # change reported facility state colname to work with f_drop_imposters()
 echo <- echo %>% mutate(state = fac_state)
-                
+
 # render lat/long as point geometry, first dropping missing lat/long
 # unfortunately sf does not permit point formation with null coordinates
 # so we will add the rest of the data (without coordinates) back in later.
@@ -73,7 +71,7 @@ path_log <- here::here("log", paste0(Sys.Date(), "-imposter-echo.csv"))
 
 # drop imposters, sink a log file for review at the path above,
 # and keep only relevant columns for the join back to echo tabular data
-echo_sp_valid <- f_drop_imposters(echo_sp, path_log) %>% 
+echo_sp_valid <- f_drop_imposters(echo_sp, path_log) %>%
   select(registry_id, pwsid, geometry)
 
 # collect imposters
@@ -83,18 +81,17 @@ imposters <- echo_sp %>%
 # registry ids of imposter geometries
 ids_imposters <- unique(imposters$registry_id)
 
-# starting with the full, tabular echo dataset:drop imposters, 
+# starting with the full, tabular echo dataset:drop imposters,
 # join to valid geoms, and concert back into a spatial object
 echo <- echo %>%
   # remove imposters
-  filter(!registry_id %in% ids_imposters) %>% 
+  filter(!registry_id %in% ids_imposters) %>%
   # join spatially valid geometries (non-imposters)
   left_join(echo_sp_valid, by = c("registry_id", "pwsid")) %>%
   # convert back to spatial object before saving
   st_as_sf(crs = epsg)
 
 # write clean echo data to geojson
-path_out <- path(staging_path, "echo.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(echo, path_out)
