@@ -18,7 +18,7 @@ mo_wsb <- st_read(dsn = path(data_path, "boundary/mo/mo.geojson")) %>%
   # clean whitespace
   f_clean_whitespace_nas() %>%
   # drop multiple systems in one boundary, for now
-  filter(str_detect(PWSSID, "^\\d{7}")) %>%
+  filter(str_detect(IPWS, "^MO\\d{5}")) %>%
   # transform to area weighted CRS
   st_transform(epsg_aw) %>%
   # correct invalid geometries
