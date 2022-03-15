@@ -46,12 +46,18 @@ vignettes/*.pdf
 # pesky OSX
 .DS_Store
 
-
 # virtual environment
 .venv
 
 # vs code
 .vscode
 
-# pychache
+# pycache
 __pycache__
+
+# package
+package-lock.json
+package.json
+
+# node_modules
+node_modules/
