@@ -4,8 +4,9 @@ shinyServer(function(input, output) {
     output$output_leaflet <- renderLeaflet({
       
         # filter matches to user-selected pwsid (d't' for 'table')
-        dt = filter(dmatch, mk_match == input$input_pwsid) %>% 
-          # flag empty geom and geom type
+        # and add columns that indicate empty geom and geom type
+        dt = dmatch %>% 
+          filter(mk_match == input$input_pwsid) %>% 
           mutate(
             is_empty = st_is_empty(geometry),
             st_type  = st_geometry_type(geometry)
@@ -18,8 +19,10 @@ shinyServer(function(input, output) {
         #     st_type  = st_geometry_type(geometry)
         #   )
 
-        # filter out empty points for leaflet
-        dl = dt %>% filter(is_empty == FALSE) %>% 
+        # filter out empty points for leaflet and format HTML popup
+        # for remaining shapes
+        dl = dt %>% 
+          filter(is_empty == FALSE) %>% 
           mutate(popup = paste(
             source_system, name, pwsid, sep = "<br>")
           )
@@ -36,7 +39,7 @@ shinyServer(function(input, output) {
             popup = poly$popup
           ) %>%
           addCircleMarkers(
-            data = point, 
+            data  = point, 
             popup = point$popup,
             color = "red"
           )
