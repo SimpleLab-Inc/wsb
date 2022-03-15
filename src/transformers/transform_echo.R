@@ -53,12 +53,9 @@ echo <- read_csv(echo_file, col_select=cols) %>%
   # explode rows with multiple pwsid's
   unnest(sdwa_ids) %>% 
   # rename sdwa_ids to pwsid
-  rename(pwsid = sdwa_ids)
-
-#%% Sanitize booleans
-# Map `N` to `False` and `Y` to `True`.
-
-
+  rename(pwsid = sdwa_ids) %>%
+  # for bool_cols, map N to 0, Y to 1, and '' to NaN
+  mutate_at(bool_cols, recode, `N`=0, `Y`=1, .default=NaN)
 
 # change reported facility state colname to work with f_drop_imposters()
 echo <- echo %>% mutate(state = fac_state)
