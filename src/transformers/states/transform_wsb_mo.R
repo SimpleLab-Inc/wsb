@@ -17,7 +17,7 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 mo_wsb <- st_read(dsn = path(data_path, "boundary/mo/mo.geojson")) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
-  # filter for PWSSID matching pattern
+  # drop multiple systems in one boundary, for now
   filter(str_detect(PWSSID, "^\\d{7}")) %>%
   # transform to area weighted CRS
   st_transform(epsg_aw) %>%
@@ -33,15 +33,18 @@ mo_wsb <- mo_wsb %>%
     state          = "MO",
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
-    centroid       = st_geometry(st_centroid(geometry)),
-    centroid_x     = st_coordinates(centroid)[, 1],
-    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
   # transform back to standard epsg for geojson write
   st_transform(epsg) %>%
+  # compute centroid
+  mutate (
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2]
+  ) %>%
   # select columns and rename for staging
   select(
     # data source columns
@@ -54,8 +57,8 @@ mo_wsb <- mo_wsb %>%
     #    owner,
     # geospatial columns
     st_areashape,
-    centroid_x,
-    centroid_y,
+    centroid_long,
+    centroid_lat,
     area_hull,
     radius,
     geometry
