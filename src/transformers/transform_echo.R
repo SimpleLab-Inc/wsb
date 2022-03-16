@@ -39,7 +39,7 @@ bool_cols = c('fac_major_flag', 'fac_active_flag', 'sdwis_flag',
 # read in ECHO data and clean
 echo <- read_csv(echo_file, col_select=cols) %>%
   # make column names lowercase
-  rename_all(tolower) %>%
+  janitor::clean_names() %>% 
   # clean whitespace and nulls
   f_clean_whitespace_nas() %>%
   # drop duplicates
@@ -53,7 +53,7 @@ echo <- read_csv(echo_file, col_select=cols) %>%
   # rename sdwa_ids to pwsid
   rename(pwsid = sdwa_ids) %>%
   # for bool_cols, map N to 0, Y to 1, and '' to NaN
-  mutate_at(bool_cols, recode, `N`=0, `Y`=1, .default=NaN)
+  mutate_at(bool_cols, recode, `N`= 0, `Y`= 1, .default=NaN)
 
 # change reported facility state colname to work with f_drop_imposters()
 echo <- echo %>% mutate(state = fac_state)
