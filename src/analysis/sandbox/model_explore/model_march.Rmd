@@ -37,7 +37,13 @@ dt_make <- function(x){
 
 Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report.
 
-The national water service boundary layer (henceforth, **wsb**) is created in three tiers, arranged by data and model fidelity.
+The national water service boundary layer (henceforth, **wsb**) is composed of three hierarchical tiers, arranged by data and model fidelity.
+
+1.  Whenever present, we use *explicit water service boundaries* (labeled data), which are spatial polygon data typically provided at the state-level.\
+2.  In the absence of explicit water service boundary data, we use a matching algorithm that matches PWSIDs by spatial intersection to [TIGER places](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html), and explicit name matching. We validate this heuristic approach on explicit water service boundaries[^1].\
+3.  Finally, in the absence of an explicit water service boundary or TIGER place polygon match, a statistical model trained on explicit water service boundary data is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable (this issue is discussed in a later section on [Limitations](#limitations)).
+
+[^1]: In the previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching pwsids to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time.
 
 ```{r load}
 library(tidyverse)
@@ -60,7 +66,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 
 In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and model specification.
 
-## Log-transform the response variable
+## Right skewed response variable
 
 The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius/1000, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius/1000, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality. We log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
@@ -71,11 +77,11 @@ d %>%
   labs(x = "Radius (km)")
 ```
 
-The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^1]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^2]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
 
-[^1]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
+[^2]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
-Moreover, to avoid overfitting a model on a training set that overrepresents the more common low-radius observations, we perform a _stratified random sample_ on the response variable, drawing an equal number of training observations from each of 4 quartiles of the radius distribution. 
+Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
 ```{r}
 d %>% 
@@ -96,9 +102,9 @@ d %>%
 
 ## Correlated predictors
 
-Population served and service connections are highly correlated (\$r = \$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which changes the interpretation of the regression fit[^2].
+Population served and service connections are highly correlated (\$r = \$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which impacts the interpretation of the regression fit[^3].
 
-[^2]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
+[^3]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
 ```{r}
 d %>% 
@@ -112,6 +118,86 @@ d %>%
        color = "Is Wholesaler")
 ```
 
+## Interaction effects
+
+### Owner type code
+
+Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type
+
+```{r}
+d %>% 
+  ggplot(aes(population_served_count, radius)) + 
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~owner_type_code) + 
+  rcartocolor::scale_color_carto_d() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Poulation served", 
+       y = "Radius")
+```
+
+
+### Wholesaler
+
+As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it. 
+
+```{r}
+d %>% 
+  # improve labeling
+  mutate(is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
+                                    "wholesaler", 
+                                    "not wholesaler")) %>% 
+  ggplot(aes(population_served_count, radius)) + 
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~is_wholesaler_ind) + 
+  rcartocolor::scale_color_carto_d() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Poulation served", 
+       y = "Radius")
+```
+
+
+### Service area type code
+
+Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems registering as a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, and select the top 5 as features for the model, lumping everything else into an "Other" category. We include an interaction effect for service area type code. 
+
+```{r}
+# clean
+d <- d %>% 
+  mutate(
+    # split type codes in the "python list" into chr vectors
+    satc = strsplit(service_area_type_code, ", "),
+    # map over the list to remove brackets ([]) and quotes (')
+    satc = map(satc, ~str_remove_all(.x, "\\[|\\]|'")),
+    # sort the resulting chr vector
+    satc = map(satc, ~sort(.x)), 
+    # collapse the sorted chr vector
+    satc = map_chr(satc, ~paste(.x, collapse = ""))
+  ) 
+```
+
+After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations. Consider cleaning this further in a future iteration if domain knowledge suggests that this predictor may have explain the response.
+
+```{r}
+d %>% 
+  mutate(
+    satc = fct_lump_prop(satc, 0.02), 
+    satc = as.character(satc), 
+    satc = ifelse(is.na(satc), "Other", satc)
+  ) %>%
+  ggplot(aes(population_served_count, radius, color = satc)) + 
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", se = FALSE) + 
+  # facet_wrap(~fl) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x = "Population served count", y = "Radius (km)")
+```
+
+
 # Model fitting
 
 ## Linear model
@@ -120,7 +206,7 @@ d %>%
 
 ## RF
 
-# Model evalution
+# Model evaluation
 
 ## CV
 
@@ -142,10 +228,18 @@ d %>%
   dt_make()
 ```
 
+## Centroid Accuracy and the "Pancake Problem"
+
+The "pancake problem" impacts PWSIDs that lack an explicit boundary (or TIGRIS match) and that suffer from low centroid accuracy (e.g., country centroid accuracy). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. Efforts may be made to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations. One approach is to relocate low accuracy centroids to the centroids of [cities and towns](<https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true>) that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
+
+Upstream centroid accuracy issues are beyond the scope of this study, and may be addressed in coordination with federal agencies that produce FRS and ECHO databases.
+
 # Contributions
 
 # Recommendations for future work
 
+-   Explicit boundary data supersedes TIGER proxy matches and estimated water system boundaries. Moreover, it improves the statistical model prediction by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would .
 -   Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions).
+-   There are `r length((table(d$service_area_type_code)))` unique service area type code combinations, and many are combinations of different types. 
 
 <br><br>
