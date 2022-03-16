@@ -20,8 +20,8 @@ epsg            <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 cols <- c('REGISTRY_ID', 'FAC_NAME', 'FAC_NAME', 'FAC_STREET',
           'FAC_CITY', 'FAC_STATE', 'FAC_ZIP', 'FAC_COUNTY',
-          'FAC_FIPS_CODE', 'FAC_LAT', 'FAC_INDIAN_CNTRY_FLG',
-          'FAC_FEDERAL_FLG', 'FAC_LONG', 'FAC_COLLECTION_METHOD',
+          'FAC_FIPS_CODE', 'FAC_LAT', 'FAC_LONG', 'FAC_INDIAN_CNTRY_FLG',
+          'FAC_FEDERAL_FLG',  'FAC_COLLECTION_METHOD',
           'FAC_REFERENCE_POINT', 'FAC_ACCURACY_METERS',
           'FAC_DERIVED_HUC', 'FAC_MAJOR_FLAG', 'FAC_ACTIVE_FLAG',
           'FAC_QTRS_WITH_NC', 'SDWIS_FLAG', 'SDWA_IDS',
@@ -53,7 +53,9 @@ echo <- read_csv(echo_file, col_select=cols) %>%
   # rename sdwa_ids to pwsid
   rename(pwsid = sdwa_ids) %>%
   # for bool_cols, map N to 0, Y to 1, and '' to NaN
-  mutate_at(bool_cols, recode, `N`=0, `Y`=1, .default=NaN)
+  mutate_at(bool_cols, recode, `N`=0, `Y`=1, .default=NaN) %>%
+  # convert bool_cols to boolean type
+  mutate_at(bool_cols, as.logical)
 
 # change reported facility state colname to work with f_drop_imposters()
 echo <- echo %>% mutate(state = fac_state)
