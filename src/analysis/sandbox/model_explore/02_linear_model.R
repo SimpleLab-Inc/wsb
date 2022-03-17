@@ -22,9 +22,6 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-# model reproducibility 
-set.seed(55)
-
 # read full dataset 
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
   # cleaning informed by EDA
@@ -34,8 +31,8 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
     # convert units from meters to km and log10 transform
     radius = log10(radius/1000),
     # convert predictors to log10
-    population_served_count   = log10(population_served_count),
-    service_connections_count = log10(service_connections_count),
+    # population_served_count   = log10(population_served_count),
+    # service_connections_count = log10(service_connections_count),
     # split type codes in the "python list" into chr vectors
     satc = strsplit(service_area_type_code, ", "),
     # map over the list to remove brackets ([]) and quotes (')
@@ -47,63 +44,55 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
     # convert the sorted chr vector to factor with reasonable level count
     satc = fct_lump_prop(satc, 0.02), 
     satc = as.character(satc), 
-    satc = ifelse(is.na(satc), "Other", satc)
+    satc = ifelse(is.na(satc), "Other", satc),
+    # convert T/F is_wholesaler_ind to character for dummy var prep
+    is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
+                               "wholesaler", "not wholesaler")
   )
 
-# unlabeled data (du)
+# unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
+dl <- d %>% filter(!is.na(radius))
 
-# labeled data (dl): split into train and test with stratified random sampling
+# plit labeled data (dl) into train and test with stratified random sampling
 # in each of the radius quartiles to account for the lognormal distribution
 # of the response variable (radius) and avoid overfitting to small radius obs
-dl       <- d %>% filter(!is.na(radius))
+set.seed(55)
 dl_split <- initial_split(dl, prop = 0.8, strata = radius)
-train    <- training(dl_split)
+train    <- training(dl_split) 
 test     <- testing(dl_split)
 
-# formula sets
-# formulas <- list(
-#   combined =
-#     radius ~ (population_served_count + service_connections_count)^2 +
-#       is_wholesaler_ind,
-#   separate =
-#     radius ~ population_served_count + service_connections_count +
-#       is_wholesaler_ind
-# )
+# lm recipe
+lm_recipe <- 
+  recipe(
+    radius ~ 
+      population_served_count + owner_type_code + is_wholesaler_ind + satc,
+    data = train
+  ) %>% 
+  # convert predictors to log10
+  step_log(population_served_count, base = 10) %>% 
+  # encode categorical variables  
+  step_dummy(all_nominal_predictors()) %>% 
+  # set interaction effects
+  step_interact(~population_served_count:starts_with("owner_type_code")) %>%
+  step_interact(~population_served_count:starts_with("is_wholesaler_ind")) %>%
+  step_interact(~population_served_count:starts_with("satc"))
 
 # specify model and engine for linear model and rf
-lm_mod <- linear_reg() %>% 
-  set_engine("lm")
+lm_mod <- linear_reg() %>% set_engine("lm")
 
-# rf_mod <- rand_forest(trees = 500) %>% 
-#   set_engine("ranger") %>% 
-#   set_mode("regression")
-
-# multiple workflows
-# radius_models <- workflow_set(
-#   preproc = formulas, 
-#   models  = list(lm = lm_mod, rf_mod)
-# )
-
-# fit models
-# radius_models <- radius_models %>%
-#   mutate(fit = map(info, ~fit(.x$workflow[[1]], train)))
-
-# make a workflow
+# lm workflow
 lm_wflow <- 
   workflow() %>% 
   add_model(lm_mod) %>% 
-  add_formula(
-    # consider interaction effect between pop and connections because they 
-    # are highly correlated (~0.83 via cor.test())
-    radius ~ 
-      population_served_count*owner_type_code + 
-      population_served_count*is_wholesaler_ind + 
-      population_served_count*satc 
-  )
+  add_recipe(lm_recipe)
 
 # fit the linear model
 lm_fit <- fit(lm_wflow, train)
+
+
+
+
 
 # fit a random forest model
 # rf_fit <- rf_mod %>% 
@@ -133,3 +122,32 @@ du %>%
                     ymax = .pred_upper),
                 width = 0.2) +
   labs(y = "wt")
+
+
+
+
+
+# formula sets
+# formulas <- list(
+#   combined =
+#     radius ~ (population_served_count + service_connections_count)^2 +
+#       is_wholesaler_ind,
+#   separate =
+#     radius ~ population_served_count + service_connections_count +
+#       is_wholesaler_ind
+# )
+
+
+# rf_mod <- rand_forest(trees = 500) %>% 
+#   set_engine("ranger") %>% 
+#   set_mode("regression")
+
+# multiple workflows
+# radius_models <- workflow_set(
+#   preproc = formulas, 
+#   models  = list(lm = lm_mod, rf_mod)
+# )
+
+# fit models
+# radius_models <- radius_models %>%
+#   mutate(fit = map(info, ~fit(.x$workflow[[1]], train)))

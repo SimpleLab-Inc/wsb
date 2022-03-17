@@ -188,10 +188,10 @@ d %>%
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc)
   ) %>%
-  ggplot(aes(population_served_count, radius, color = satc)) + 
+  ggplot(aes(population_served_count, radius)) + 
   geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) + 
-  # facet_wrap(~fl) +
+  facet_wrap(~satc) +
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Population served count", y = "Radius (km)")
