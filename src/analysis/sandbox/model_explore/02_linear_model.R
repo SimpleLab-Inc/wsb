@@ -1,4 +1,4 @@
-# space to explore candidate models, characterize error, select features, and so on
+# linear model ------------------------------------------------------------
 
 # SWDIS water_system.csv continuous vars:
 #   - population_served_count: rescale, likely to have high leverage
@@ -28,11 +28,8 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   mutate(
     # when radius == 0, make it NA
     radius = ifelse(radius == 0, NA, radius),
-    # convert units from meters to km and log10 transform
-    radius = log10(radius/1000),
-    # convert predictors to log10
-    # population_served_count   = log10(population_served_count),
-    # service_connections_count = log10(service_connections_count),
+    # log10 transform the response
+    radius = log10(radius),
     # split type codes in the "python list" into chr vectors
     satc = strsplit(service_area_type_code, ", "),
     # map over the list to remove brackets ([]) and quotes (')
@@ -47,7 +44,9 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
     satc = ifelse(is.na(satc), "Other", satc),
     # convert T/F is_wholesaler_ind to character for dummy var prep
     is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
-                               "wholesaler", "not wholesaler")
+                               "wholesaler", "not wholesaler"),
+    # make native american owner types (only 2 present) public/private (M)
+    owner_type_code = ifelse(owner_type_code == "N", "M", owner_type_code)
   )
 
 # unlabeled data (du) and labeled data (dl)
@@ -64,6 +63,7 @@ test     <- testing(dl_split)
 
 # lm recipe
 lm_recipe <- 
+  # specify the model - interaction terms come later
   recipe(
     radius ~ 
       population_served_count + owner_type_code + is_wholesaler_ind + satc,
@@ -87,67 +87,26 @@ lm_wflow <-
   add_model(lm_mod) %>% 
   add_recipe(lm_recipe)
 
-# fit the linear model
+# fit the linear model on the training set
 lm_fit <- fit(lm_wflow, train)
 
-
-
-
-
-# fit a random forest model
-# rf_fit <- rf_mod %>% 
-#   fit(
-#     radius ~ population_served_count + 
-#       service_connections_count + 
-#       is_wholesaler_ind, 
-#     data = train
-#   )
-
-# sanity check diagnostic plots
-# lm_fit %>% extract_fit_engine() %>% plot()
-tidy(lm_fit)
-# rf_fit %>% extract_fit_engine()
-
-# predict on test set
-test %>% 
+# predict on the test set and bind mean predictions and CIs
+lm_test_res <- test %>% 
+  select(radius) %>% 
   bind_cols(predict(lm_fit, test)) %>% 
   bind_cols(predict(lm_fit, test, type = "conf_int"))
 
-du %>% 
-  bind_cols(mean_pred) %>% 
-  bind_cols(conf_int_pred) %>% 
-  ggplot(aes(x = cyl)) +
-  geom_point(aes(y = .pred)) +
-  geom_errorbar(aes(ymin = .pred_lower, 
-                    ymax = .pred_upper),
-                width = 0.2) +
-  labs(y = "wt")
+# plot residuals
+lm_test_res %>% 
+  ggplot(aes(radius, .pred)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(lty = 2, color = "red") + 
+  labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
+  # scale and size the x- and y-axis uniformly
+  coord_obs_pred()
+
+# RMSE
+lm_metrics <- metric_set(rmse, rsq, mae)
+lm_metrics(lm_test_res, truth = radius, estimate = .pred)
 
 
-
-
-
-# formula sets
-# formulas <- list(
-#   combined =
-#     radius ~ (population_served_count + service_connections_count)^2 +
-#       is_wholesaler_ind,
-#   separate =
-#     radius ~ population_served_count + service_connections_count +
-#       is_wholesaler_ind
-# )
-
-
-# rf_mod <- rand_forest(trees = 500) %>% 
-#   set_engine("ranger") %>% 
-#   set_mode("regression")
-
-# multiple workflows
-# radius_models <- workflow_set(
-#   preproc = formulas, 
-#   models  = list(lm = lm_mod, rf_mod)
-# )
-
-# fit models
-# radius_models <- radius_models %>%
-#   mutate(fit = map(info, ~fit(.x$workflow[[1]], train)))

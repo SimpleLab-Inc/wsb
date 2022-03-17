@@ -122,7 +122,7 @@ d %>%
 
 ### Owner type code
 
-Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type
+Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type. Moreover, notice the under-representation of Native American (N) systems. Most systems are owned by local governments (L) or private (P) entities. For modeling purposes, and until more data are collected, we re-classify Native American observations into the Public/Private category (M).  
 
 ```{r}
 d %>% 
