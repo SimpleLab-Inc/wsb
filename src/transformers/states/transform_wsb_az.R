@@ -14,7 +14,7 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 
 # Read layer for AZ water service boundaries, clean, transform CRS
-az_wsb <- st_read(path(data_path, "boundary/az/PWS_bnd_2021_0430.shp")) %>% 
+az_wsb <- st_read(path(data_path, "boundary/az/az.geojson")) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
   # transform to area weighted CRS
@@ -46,13 +46,13 @@ az_wsb <- az_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = FED_ID,
-    pws_name         = NAMEWCPSTA,
+    pwsid            = ADEQ_ID,
+    pws_name         = CWS_NAME,
     state,
-    #    county,
-    #    city,
+    county           = COUNTY,
+    city             = CITY_SRVD,
     #    source,
-    #    owner,
+    owner            = OWNER_NAME,
     # geospatial columns
     st_areashape,
     centroid_long,
