@@ -505,8 +505,10 @@ TODO:
     - [ ] Centroids that overlap could be bad (e.g. admin offices)
     - Possibly: Don't do spatial match rule on county centroids
 
-- [ ] Consider: Create a Dash app for visualizing and stewarding potential matches (incl. leaflet map)?
+- [x] Consider: Create a Dash app for visualizing and stewarding potential matches (incl. leaflet map)?
 
+# TODO: Add states to UCMR
+# TODO: Have a geojson file of zip code geometries and centroids. Join to that later (if needed) instead of joining in the UCMR transformer.
 
 
 - Try adding a buffer around the polygons and rerun for matching
@@ -527,4 +529,6 @@ Let's study the types of matches.
         Look for TIGER's that match many and try to pick the best match?
 - State+name match - require county
 - Analyze points that are stacked atop each other
+
+
 """

@@ -284,8 +284,7 @@ sdwis_supermodel = gpd.GeoDataFrame().assign(
     city                 = sdwis["city_name"],
     zip                  = sdwis["zip_code"],
     city_served          = sdwis["city_served"],
-    geometry             = Polygon([]),           # Empty geometry. Could replace with a zip centroid.
-    geometry_quality     = "No geometry available (yet)"
+    geometry             = Polygon([])           # Empty geometry. Could replace with a zip centroid.
 )
 
 echo_supermodel = gpd.GeoDataFrame().assign(
