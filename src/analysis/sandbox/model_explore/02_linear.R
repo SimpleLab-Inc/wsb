@@ -22,32 +22,9 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-# read full dataset 
+# read dataset and log10 transform the response - only for linear model
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
-  # cleaning informed by EDA
-  mutate(
-    # when radius == 0, make it NA
-    radius = ifelse(radius == 0, NA, radius),
-    # log10 transform the response
-    radius = log10(radius),
-    # split type codes in the "python list" into chr vectors
-    satc = strsplit(service_area_type_code, ", "),
-    # map over the list to remove brackets ([]) and quotes (')
-    satc = map(satc, ~str_remove_all(.x, "\\[|\\]|'")),
-    # sort the resulting chr vector
-    satc = map(satc, ~sort(.x)), 
-    # collapse the sorted chr vector
-    satc = map_chr(satc, ~paste(.x, collapse = "")),
-    # convert the sorted chr vector to factor with reasonable level count
-    satc = fct_lump_prop(satc, 0.02), 
-    satc = as.character(satc), 
-    satc = ifelse(is.na(satc), "Other", satc),
-    # convert T/F is_wholesaler_ind to character for dummy var prep
-    is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
-                               "wholesaler", "not wholesaler"),
-    # make native american owner types (only 2 present) public/private (M)
-    owner_type_code = ifelse(owner_type_code == "N", "M", owner_type_code)
-  )
+  mutate(radius = log10(radius))
 
 # unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
@@ -66,17 +43,17 @@ lm_recipe <-
   # specify the model - interaction terms come later
   recipe(
     radius ~ 
-      population_served_count + owner_type_code + is_wholesaler_ind + satc,
+      population_served_count + owner_type_code + satc + is_wholesaler_ind,
     data = train
   ) %>% 
   # convert predictors to log10
   step_log(population_served_count, base = 10) %>% 
   # encode categorical variables  
   step_dummy(all_nominal_predictors()) %>% 
-  # set interaction effects
+  # specify interaction effects
   step_interact(~population_served_count:starts_with("owner_type_code")) %>%
-  step_interact(~population_served_count:starts_with("is_wholesaler_ind")) %>%
-  step_interact(~population_served_count:starts_with("satc"))
+  step_interact(~population_served_count:starts_with("satc")) %>% 
+  step_interact(~population_served_count:starts_with("is_wholesaler_ind")) 
 
 # specify model and engine for linear model and rf
 lm_mod <- linear_reg() %>% set_engine("lm")
@@ -108,5 +85,3 @@ lm_test_res %>%
 # RMSE
 lm_metrics <- metric_set(rmse, rsq, mae)
 lm_metrics(lm_test_res, truth = radius, estimate = .pred)
-
-

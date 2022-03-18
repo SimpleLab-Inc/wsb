@@ -4,35 +4,14 @@ library(tidyverse)
 library(tidymodels)
 library(sf)
 library(fs)
+library(vip)
 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read full dataset 
-d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
-  # cleaning informed by EDA
-  mutate(
-    # when radius == 0, make it NA
-    radius = ifelse(radius == 0, NA, radius),
-    # split type codes in the "python list" into chr vectors
-    satc = strsplit(service_area_type_code, ", "),
-    # map over the list to remove brackets ([]) and quotes (')
-    satc = map(satc, ~str_remove_all(.x, "\\[|\\]|'")),
-    # sort the resulting chr vector
-    satc = map(satc, ~sort(.x)), 
-    # collapse the sorted chr vector
-    satc = map_chr(satc, ~paste(.x, collapse = "")),
-    # convert the sorted chr vector to factor with reasonable level count
-    satc = fct_lump_prop(satc, 0.02), 
-    satc = as.character(satc), 
-    satc = ifelse(is.na(satc), "Other", satc),
-    # convert T/F is_wholesaler_ind to character for dummy var prep
-    is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
-                               "wholesaler", "not wholesaler"),
-    # make native american owner types (only 2 present) public/private (M)
-    owner_type_code = ifelse(owner_type_code == "N", "M", owner_type_code)
-  )
+d <- read_csv(path(staging_path, "matched_output_clean.csv")) 
 
 # unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
@@ -49,7 +28,7 @@ test     <- testing(dl_split)
 # model and workflow
 rf_mod <- 
   rand_forest(trees = 1000) %>% 
-  set_engine("ranger") %>% 
+  set_engine("ranger", importance = "impurity") %>% 
   set_mode("regression")
 
 rf_wflow <- 
@@ -57,6 +36,8 @@ rf_wflow <-
   add_formula(
     radius ~ 
       population_served_count + 
+      # importantly, the RF can have correlated predictors, so we add
+      # service connections, and don't need to account for interactions
       service_connections_count + 
       owner_type_code + 
       is_wholesaler_ind + 
@@ -65,27 +46,27 @@ rf_wflow <-
   add_model(rf_mod) 
 
 # fit the random forest model
-rf_fit <- rf_wflow %>% fit(data = ames_train)
+rf_fit <- fit(rf_wflow, train)
 
-
-# sanity check diagnostic plots
-# lm_fit %>% extract_fit_engine() %>% plot()
-tidy(lm_fit)
-# rf_fit %>% extract_fit_engine()
+# show variable importance
+rf_fit %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point")
 
 # predict on test set
-test %>% 
-  select(radius) %>% 
-  bind_cols(predict(lm_fit, test)) %>% 
-  bind_cols(predict(lm_fit, test, type = "conf_int"))
+rf_test_res <- test %>% 
+  # select(radius) %>% 
+  bind_cols(predict(rf_fit, test)) 
 
-du %>% 
-  bind_cols(mean_pred) %>% 
-  bind_cols(conf_int_pred) %>% 
-  ggplot(aes(x = cyl)) +
-  geom_point(aes(y = .pred)) +
-  geom_errorbar(aes(ymin = .pred_lower, 
-                    ymax = .pred_upper),
-                width = 0.2) +
-  labs(y = "wt")
+# plot residuals
+rf_test_res %>% 
+  ggplot(aes(log10(radius), log10(.pred), color = owner_type_code)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(lty = 2, color = "red") + 
+  labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
+  # scale and size the x- and y-axis uniformly
+  coord_obs_pred()
 
+# RMSE
+rf_metrics <- metric_set(rmse, rsq, mae)
+rf_metrics(rf_test_res, truth = log10(radius), estimate = log10(.pred))
