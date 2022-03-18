@@ -42,6 +42,7 @@ vignettes/*.pdf
 # local paths to ignore: raw data and staging
 /data
 /staging
+/output
 
 # pesky OSX
 .DS_Store

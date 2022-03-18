@@ -430,3 +430,10 @@ supermodel.to_postgis(TARGET_TABLE, conn, if_exists="append")
 # %%
 # Alternative: Save to file
 #supermodel.to_csv(OUTPUT_PATH + "/supermodel.csv", index=False)
+
+
+# Superjoin todo's:
+# TODO: Add UCMR4 zip codes + centroids
+# TODO: Add MHP's
+# TODO: Add "Has WSB" flag (need to pull in all the WSB's)
+# TODO: Consider a county match (maybe in cases where there are multiple state+name matches?)
