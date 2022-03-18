@@ -94,13 +94,25 @@ def get_pwsids_of_interest():
 #     return df
 
 
-def _sql_cleanse(source_system: Optional[str]):
+def _sql_cleanse(source_system: Optional[str] = None):
 
     conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 
     PO_BOX_REGEX = r'^P[\. ]?O\M\.? *BOX +\d+$'
- 
+
     source_system_filter = "" if source_system is None else f"source_system = '{source_system}' AND"
+
+    # Upper-case columns
+    for col in ["name", "address_line_1", "address_line_2", "city", "state", "county", "city_served"]:
+        _run_cleanse_rule(conn,
+            f"Upper-case {col}",
+            f"""
+                UPDATE utility_xref
+                SET {col} = UPPER({col})
+                WHERE
+                    {source_system_filter}
+                    {col} ~ '[a-z]';
+            """)
 
     _run_cleanse_rule(conn,
         "NULL out nonexistent zip code '99999'",
@@ -147,6 +159,16 @@ def _sql_cleanse(source_system: Optional[str]):
                 {source_system_filter}
                 (address_line_1 IS NULL OR address_line_1 = '') AND
                 address_line_2 IS NOT NULL;
+        """)
+
+    _run_cleanse_rule(conn,
+        "Standardize geometry quality",
+        f"""
+            UPDATE utility_xref
+            SET geometry_quality = 'ZIP CODE CENTROID'
+            WHERE
+                {source_system_filter}
+                geometry_quality = 'ZIP CODE-CENTROID';
         """)
 
 

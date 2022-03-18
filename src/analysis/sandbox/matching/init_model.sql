@@ -25,6 +25,3 @@ CREATE TABLE utility_xref (
 CREATE INDEX ix__utility_xref__source_system ON utility_xref (source_system)
 CREATE INDEX ix__utility_xref__source_system_id ON utility_xref (source_system_id)
 CREATE INDEX ix__utility_xref__master_key ON utility_xref (master_key)
-
--- Clone the xref table to the "raw" table
-CREATE TABLE utility_raw AS TABLE utility_xref;

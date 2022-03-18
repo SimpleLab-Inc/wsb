@@ -11,6 +11,10 @@ load_dotenv()
 DATA_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
+# Bring in the FIPS -> State Abbr crosswalk
+crosswalk = (pd.read_csv("../crosswalks/state_fips_to_abbr.csv")
+    .set_index("code"))
+
 #%%
 
 tiger = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
