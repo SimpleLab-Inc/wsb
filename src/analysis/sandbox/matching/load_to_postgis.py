@@ -8,12 +8,13 @@ import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
 from dotenv import load_dotenv
+from shapely.geometry import Polygon
 
 load_dotenv()
 
 pd.options.display.max_columns = None
 
-data_path = os.environ["WSB_STAGING_PATH"]
+DATA_PATH = os.environ["WSB_STAGING_PATH"]
 SRC_EPSG = os.environ["WSB_EPSG"]
 
 # Bring in the FIPS -> State Abbr crosswalk
@@ -25,35 +26,77 @@ conn = sa.create_engine("postgresql://postgres:postgres@localhost:5434/sl_gis")
 
 TGT_EPSG = 4326
 
-# 1) SDWIS - We're not loading it up, but we use it to filter on the PWSID's of interest.
+#%%
+
+#%% ##########################################
+# 1) SDWIS
+##############################################
+
+#########
+# 1) SDWIS water_systems - PWSID is unique
+keep_columns = ["pwsid", "pws_name", "pws_activity_code", "pws_type_code", "primacy_agency_code", 
+    "address_line1", "address_line2", "city_name", "zip_code", "state_code",
+    "population_served_count", "service_connections_count", "owner_type_code",
+    "primacy_type"]
+
 sdwis = pd.read_csv(
-    data_path + "/sdwis_water_system.csv",
-    usecols=["pwsid", "pws_activity_code", "pws_type_code"],
-    dtype="str")
+    DATA_PATH + "/sdwis_water_system.csv",
+    usecols=keep_columns,
+    dtype="string")
 
-# Filter to only active community water systems (~55k)
-sdwis = (
-    sdwis.loc[
-        (sdwis["pws_activity_code"].isin(["A", "N", "P"])) &
-        (sdwis["pws_type_code"] == "CWS")]
-    )["pwsid"]
+
+# Filter to only active community water systems
+# Starts as 400k, drops to ~50k after this filter
+sdwis = sdwis.loc[
+    (sdwis["pws_activity_code"].isin(["A"])) &
+    (sdwis["pws_type_code"] == "CWS")]
+
+#########
+# Supplement with geographic_area
+
+# geographic_area - PWSID is unique, very nearly 1:1 with water_system
+# ~1k PWSID's appear in water_system but not geographic_area
+# We're trying to get city_served and county_served, but these columns aren't always populated
+sdwis_ga = pd.read_csv(
+    DATA_PATH + "/sdwis_geographic_area.csv",
+    usecols=["pwsid", "city_served", "county_served"],
+    dtype="string")
+
+sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
+
+#########
+# Map to standard model
+
+sdwis_supermodel = gpd.GeoDataFrame().assign(
+    source_system_id     = sdwis["pwsid"],
+    source_system        = "sdwis",
+    xref_id              = "sdwis." + sdwis["pwsid"],
+    master_key           = sdwis["pwsid"],
+    pwsid                = sdwis["pwsid"],
+    state                = sdwis["state_code"],
+    name                 = sdwis["pws_name"],
+    address_line_1       = sdwis["address_line1"],
+    address_line_2       = sdwis["address_line2"],
+    city                 = sdwis["city_name"],
+    zip                  = sdwis["zip_code"],
+    city_served          = sdwis["city_served"],
+    geometry             = Polygon([]) # Empty geometry. Perhaps should fill with zip centroids instead? Admin address geocodes?
+)
+
+sdwis_supermodel = sdwis_supermodel.set_crs(epsg=4326, allow_override=True)
+
+
+#%%
+print("Loading sdwis...")
+conn.execute("DELETE FROM utility_xref WHERE source_system = 'sdwis';")
+sdwis_supermodel.to_postgis("utility_xref", conn, if_exists="append")
+print("done.")
+
 
 #%% ##########################################
-# 2) FRS
+# TIGER
 ##############################################
-
-frs = gpd.read_file(
-    data_path + "/frs.geojson")
-
-frs = frs.set_crs(SRC_EPSG, allow_override=True)
-
-# Filter to only those in SDWIS
-frs = frs[frs["pwsid"].isin(sdwis)]
-
-#%% ##########################################
-# 3) TIGRIS
-##############################################
-tigris = gpd.read_file(data_path + "/tigris_places_clean.geojson")
+tigris = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
 
 tigris = tigris.set_crs(SRC_EPSG, allow_override=True)
 
@@ -72,17 +115,17 @@ tigris = tigris.join(crosswalk, on="statefp", how="inner")
 # Does this have both points and areas?
 
 #%% ##########################################
-# 5) Mobile Home Parks
+# Mobile Home Parks
 ##############################################
-mhp = gpd.read_file(data_path + "/mhp_clean.geojson")
+mhp = gpd.read_file(DATA_PATH + "/mhp_clean.geojson")
 
 
 #%% ##########################################
-# 6) Echo
+# Echo
 ##############################################
 
 echo = pd.read_csv(
-    data_path + "/echo.csv",
+    DATA_PATH + "/echo.csv",
     usecols=[
         "pwsid", "fac_lat", "fac_long", "fac_name",
         'fac_collection_method', 'fac_reference_point', 'fac_accuracy_meters'],
@@ -101,13 +144,26 @@ echo = gpd.GeoDataFrame(
 
 
 #%% ##########################################
-# 10a) Oklahoma
+# Oklahoma
 ##############################################
 
 # How to read the RDS? Why converted to diff format instead of sticking with geojson?
 # Going with raw instead.
-ok = gpd.read_file(data_path + "/../downloads/boundary/ok/ok.geojson")
+ok = gpd.read_file(DATA_PATH + "/../downloads/boundary/ok/ok.geojson")
 
+
+
+#%% ##########################################
+# FRS
+##############################################
+
+frs = gpd.read_file(
+    DATA_PATH + "/frs.geojson")
+
+frs = frs.set_crs(SRC_EPSG, allow_override=True)
+
+# Filter to only those in SDWIS
+frs = frs[frs["pwsid"].isin(sdwis)]
 
 #%% ##############################
 # Save layers to PostGIS
