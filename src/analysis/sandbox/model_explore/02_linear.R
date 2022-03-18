@@ -24,7 +24,8 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read dataset and log10 transform the response - only for linear model
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
-  mutate(radius = log10(radius))
+  mutate(radius = log10(radius),
+         density = population_served_count * service_connections_count)
 
 # unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
@@ -43,17 +44,20 @@ lm_recipe <-
   # specify the model - interaction terms come later
   recipe(
     radius ~ 
-      population_served_count + owner_type_code + satc + is_wholesaler_ind,
+      service_connections_count + 
+      owner_type_code + 
+      satc + 
+      is_wholesaler_ind,
     data = train
   ) %>% 
   # convert predictors to log10
-  step_log(population_served_count, base = 10) %>% 
+  step_log(service_connections_count, base = 10) %>% 
   # encode categorical variables  
   step_dummy(all_nominal_predictors()) %>% 
   # specify interaction effects
-  step_interact(~population_served_count:starts_with("owner_type_code")) %>%
-  step_interact(~population_served_count:starts_with("satc")) %>% 
-  step_interact(~population_served_count:starts_with("is_wholesaler_ind")) 
+  step_interact(~service_connections_count:starts_with("owner_type_code")) %>%
+  step_interact(~service_connections_count:starts_with("satc")) %>% 
+  step_interact(~service_connections_count:starts_with("is_wholesaler_ind")) 
 
 # specify model and engine for linear model and rf
 lm_mod <- linear_reg() %>% set_engine("lm")

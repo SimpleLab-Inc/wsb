@@ -62,11 +62,51 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 
 # Report outline
 
-# EDA
+Present key results and then delve into methods, like PNAS. 
+
+# Water system boundary spatial database
+
+Tiered Assimilation Model (TAM), with tiers of decreasing data fidelity. 
+
+Tier 1: labeled wsb
+Tier 2: TIGER proxy match
+Tier 3: modeled boundaries
+
+## Tier distribution per state
+
+barplot geofacet showing population served count for each tier. 
+
+## Tier 1 uncertainty
+
+Out of our hands. Depends on the state.
+
+## Tier 2 uncertainty
+
+Modified Jacard similarity, plot distribution of 0-1 area overlap per TIGER match and labeled wsb. See 93% overlap in previous EDA as starting point.
+
+## Tier 3 uncertainty
+
+Linear model CIs.
+
+
+# Tier 1: labeled wsb collection
+
+URL table. Standard downloaders/transformers. Should expand in future work.
+ 
+
+
+# Tier 2: TIGER proxy boundaries 
+
+Ryan's section with conceptual model. 
+
+
+# Tier 3: modeled boundaries
+
+## EDA 
 
 In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and model specification.
 
-## Right skewed response variable
+### Right skewed response variable
 
 The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius/1000, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius/1000, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality. We log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
@@ -100,7 +140,7 @@ d %>%
   labs(x = "Radius (km)")
 ```
 
-## Correlated predictors
+### Correlated predictors
 
 Population served and service connections are highly correlated (\$r = \$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which impacts the interpretation of the regression fit[^3].
 
@@ -118,9 +158,9 @@ d %>%
        color = "Is Wholesaler")
 ```
 
-## Interaction effects
+### Interaction effects
 
-### Owner type code
+#### Owner type code
 
 Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type. Moreover, notice the under-representation of Native American (N) systems. Most systems are owned by local governments (L) or private (P) entities. For modeling purposes, and until more data are collected, we re-classify Native American observations into the Public/Private category (M).  
 
@@ -138,7 +178,7 @@ d %>%
 ```
 
 
-### Wholesaler
+#### Wholesaler
 
 As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it. 
 
@@ -160,7 +200,7 @@ d %>%
 ```
 
 
-### Service area type code
+#### Service area type code
 
 Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems registering as a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, and select the top 5 as features for the model, lumping everything else into an "Other" category. We include an interaction effect for service area type code. 
 
@@ -198,25 +238,38 @@ d %>%
 ```
 
 
-# Model fitting
+## Models
 
-## Linear model
+We fit random forest, xgboost, and multiple linear regression models. We then evaluate model performance, discuss model uncertainty and limitations, interpret modeling results, and use the model to generate predictions.
 
-## QDA
+### Variable Importance
 
-## RF
+Variable importance can quickly indicate which variables explain the most variance in the dataset. We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability. 
 
-# Model evaluation
+### Model evaluation
 
-## CV
+#### Random Forest ()
 
-## Variable Importance
+#### Tuned xgboost ()
 
-# Limitations
+#### Linear model (connections)
+
+#### Linear model (connections, owner type)
+
+#### Linear model (connections, owner type, service area type)
+
+#### Linear model (connections, owner type, service area type, wholesaler)
+
+#### Linear model (connections, owner type, service area type, wholesaler)
+
+#### Linear model (person-connections, owner type, service area type, wholesaler)
+
+
+### Limitations
 
 No model is without limitations. In this section, we highlight key limitations and identify potential future pathways to improve the model fit through additional data collection and/or cleaning.
 
-## Missing Primacy Types
+#### Missing Primacy Types
 
 We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect it.
 
@@ -228,7 +281,7 @@ d %>%
   dt_make()
 ```
 
-## Centroid Accuracy and the "Pancake Problem"
+#### Centroid Accuracy and the "Pancake Problem"
 
 The "pancake problem" impacts PWSIDs that lack an explicit boundary (or TIGRIS match) and that suffer from low centroid accuracy (e.g., country centroid accuracy). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. Efforts may be made to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations. One approach is to relocate low accuracy centroids to the centroids of [cities and towns](<https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true>) that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
 
