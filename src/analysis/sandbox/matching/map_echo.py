@@ -11,11 +11,6 @@ load_dotenv()
 DATA_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
-# Bring in the FIPS -> State Abbr crosswalk
-crosswalk = (pd.read_csv("../crosswalks/state_fips_to_abbr.csv")
-    .set_index("code"))
-
-
 #%%
 
 echo_df = pd.read_csv(
@@ -62,6 +57,7 @@ df = gpd.GeoDataFrame().assign(
     name                    = echo["fac_name"],
     address_line_1          = echo["fac_street"],
     city                    = echo["fac_city"],
+    county                  = echo["fac_county"],
     zip                     = echo["fac_zip"],
     geometry_lat            = echo["fac_lat"],
     geometry_long           = echo["fac_long"],

@@ -17,6 +17,9 @@ EPSG = os.environ["WSB_EPSG"]
 
 ucmr = gpd.read_file(DATA_PATH + "/ucmr.geojson")
 
+# TODO: Could we get counties in this? Not currently present, but we could look it up from zip code.
+# TODO: Could we get lat/long of centroid?
+
 # Remove empty geometries
 ucmr = ucmr[(~ucmr["geometry"].is_empty) & ucmr["geometry"].notna()]
 

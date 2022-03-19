@@ -1,4 +1,6 @@
-# Start a PostGIS Docker container
+# Environment Setup
+
+## Start a PostGIS Docker container
 
 `docker run -e POSTGRES_PASSWORD=postgres -d --name postgis/postgis -p 5433:5432 -v postgres_volume:/var/lib/postgresql/data postgres`
 
@@ -7,7 +9,7 @@ Notes about this command:
 - PostGIS will be available on port 5433
 - The data will be stored in a named docker volume called `postgres_volume`. This will preserve your data even if the container is stopped and removed.
 
-## Configure the database
+### Configure the database
 
 Connect to the PostGIS server and run:
 
