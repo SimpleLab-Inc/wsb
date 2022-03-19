@@ -13,7 +13,6 @@ pd.options.display.max_columns = None
 
 DATA_PATH = os.environ["WSB_STAGING_PATH"]
 OUTPUT_PATH = os.path.join(DATA_PATH, "..", "outputs")
-EPSG = os.environ["WSB_EPSG"]
 
 # Connect to local PostGIS instance
 conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
@@ -54,14 +53,6 @@ supermodel["possible_mhp"] = (
     ))
 
 
-#%%
-
-# Just a little standardization on this column
-supermodel["geometry_quality"] = (supermodel["geometry_quality"]
-    .str.upper()
-    .replace({
-        "ZIP CODE-CENTROID": "ZIP CODE CENTROID"
-    }))
 
 #%% ##########################
 # Now on to the matching.
@@ -160,9 +151,10 @@ tokens["mhp_name_tkn"] = tokenize_mhp_name(tokens["name"])
 
 #%%
 
-# Save to the database
+# Stash the tokens WITHOUT geometry (for speed)
+# These are used in reporting later
 conn.execute("DROP TABLE IF EXISTS tokens;")
-tokens.to_sql("tokens", conn, index=False)
+tokens.drop(columns="geometry").to_sql("tokens", conn, index=False)
 
 #%%
 # Rule: Match on state + name
@@ -254,9 +246,6 @@ matches = pd.concat([matches, new_matches])
 # Rule: match MHP's by state + city + address
 # 1186 matches. Not great, but then again, not all MHP's will have water systems.
 # Match on city too?
-
-# Unfortunately, half of the "MHP" system has no names
-# But they do have addresses that we could potentially match on
 
 new_matches = run_match(
     "mhp state+address",

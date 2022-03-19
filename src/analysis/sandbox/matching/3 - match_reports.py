@@ -26,12 +26,15 @@ supermodel = gpd.GeoDataFrame.from_postgis(
 
 matches = pd.read_sql("SELECT * FROM matches;", conn)
 
-tokens = pd.read_sql("SELECT * FROM tokens;", conn)
-
+# This is helpful in a few places
+masters = supermodel[supermodel["source_system"] == "sdwis"]["master_key"]
 
 #%% ################################
 # Convert matches to MK matches.
 ####################################
+
+# The left side contains known PWS's and can be deduplicated by crosswalking to the master_key (pwsid)
+# The right side contains unknown (candidate) matches and could stay as an xref_id
 
 mk_xwalk = supermodel[["xref_id", "master_key"]].set_index("xref_id")
 
@@ -46,10 +49,15 @@ mk_matches = (mk_matches
     .apply(lambda x: list(pd.Series.unique(x)))
     .reset_index())
 
-print(f"Distinct master matches: {len(mk_matches)}")
-print(f"Distinct PWSID matches: {len(mk_matches['master_key_x'].unique())}")
+distinct_pwsid_matches = len(mk_matches['master_key_x'].unique())
+total_pwsids = len(masters)
 
-# 31k distinct pwsid matches. Interesting! 62%.
+print(f"Distinct master matches: {len(mk_matches)}")
+print(
+    f"Distinct PWSID matches: {distinct_pwsid_matches}" +
+    f" ({(distinct_pwsid_matches / total_pwsids)*100:.1f}%)")
+
+# 32,013 distinct pwsid's have matches to TIGER or MHP. Interesting! 64.7%.
 
 #%%
 # Now, finally, the stacked match report.
@@ -94,6 +102,8 @@ stacked_match.to_file(OUTPUT_PATH + "/stacked_match_report.geojson", index=False
 
 #%%
 
+tokens = pd.read_sql("SELECT * FROM tokens;", conn)
+
 # Unmatched report
 anchors = tokens[
     tokens["source_system"].isin(["sdwis"]) & 
@@ -113,66 +123,95 @@ umatched_report = umatched_report.drop(columns=["geometry"])
 #%%
 umatched_report.to_excel("unmatched_report.xlsx", index=False)
 
-#%%
+#%% ###################################
+# Match Stats
+#######################################
 
-# Stats?
-mk_matches["match_rule"].value_counts()
-#%%
-
+# Stats on match rules
 """
 Match types:
-[state+city_served]                         7931
-[state+name]                                5159
-[spatial]                                   4258
-[state+name, spatial, state+city_served]    3294
-[state+name, state+city_served]             3108
-[state+name, spatial]                       2191
-[spatial, state+city_served]                1969
-[state+name, state+mhp_name]                 358
-[state+mhp_name]                             357
+[spatial]                                          12042
+[state+city_served]                                 6707
+[state+name]                                        4698
+[state+name, spatial, state+city_served]            3728
+[spatial, state+city_served]                        3193
+[state+name, state+city_served]                     2674
+[state+name, spatial]                               2650
+[state+mhp_name]                                     339
+[state+name, state+mhp_name]                         337
+[mhp state+address]                                   37
+[state+name, state+mhp_name, mhp state+address]       21
+[state+mhp_name, mhp state+address]                   18
+[state+name, mhp state+address]                        2
 
 Rules taking shape:
 - If we have a state+name or state+city_served match, and a different spatial match, trash the spatial match.
     - Possible variation: Only do this if it's a zip or county centroid. Counterexample: There are some bad address matches.
 """
 
-#%%
-# TODO: What type of centroid was most frequent in each of the match types?
+mk_matches["match_rule"].value_counts()
 
 #%%
+# How many distinct records did each master match to?
 
-# How many distinct records did each SDWIS match to?
-# Pretty close to 1. That's good.
-# But we'll need to analyze those 1:N's.
-print("PWS matches to distinct TIGER's:")
-print("Mean: " + str(mk_matches.groupby("master_key_x").size().mean()))
-print("Median: " + str(mk_matches.groupby("master_key_x").size().median()))
-print("Min: " + str(mk_matches.groupby("master_key_x").size().min()))
-print("Max: " + str(mk_matches.groupby("master_key_x").size().max()))
-
-mk_matches.groupby("master_key_x").size().hist()
-#%%
-mk_matches.groupby("master_key_x").size().hist(log=True)
+# Join the masters to the candidate match keys + source_system
+# 49,445 masters
 
 #%%
 
-# How bout TIGER to SDWIS?
-# 2 on average. Interesting.
-print("TIGER matches to distinct SDWIS's:")
-print("Mean: " + str(mk_matches.groupby("master_key_y").size().mean()))
-print("Median: " + str(mk_matches.groupby("master_key_y").size().median()))
-print("Min: " + str(mk_matches.groupby("master_key_y").size().min()))
-print("Max: " + str(mk_matches.groupby("master_key_y").size().max()))
+matches_with_system = (mk_matches
+    .merge(supermodel[["master_key", "source_system"]], left_on="master_key_y", right_on="master_key"))
 
-# Log histogram
-mk_matches.groupby("master_key_y").size().hist(log=True, bins=100)
+# For each MK that matched, get counts of how many of each system it matched to
+match_counts = (matches_with_system
+    .groupby(["master_key_x", "source_system"])
+    .size()
+    .unstack())
 
+# Join match counts to the full set of masters (to include those that matched to nothing)
+mk_match_counts = (masters
+    .to_frame()
+    .join(match_counts, on="master_key", how="left")
+    .fillna(0))
+
+print("PWS matches to distinct TIGER's and MHP's:")
+mk_match_counts.agg(["mean", "median", "min", "max"])
 
 #%%
-stacked_match.head()
+# Plot it
+mk_match_counts.hist()
 
 #%%
+
+# How about the other way around?
+# Of the candidates that matched, how many masters did they match to?
+mhp_and_tiger_matches = (matches_with_system
+    .groupby(["master_key_y", "source_system"])
+    .size())
+
+(mhp_and_tiger_matches
+    .groupby("source_system")
+    .agg(["mean", "median", "min", "max"]))
+
+#%%
+# Histogram of MHP match counts
+mhp_and_tiger_matches.loc[:,"mhp"].hist()
+
+#%%
+# LOG histogram of tiger match counts
+mhp_and_tiger_matches.loc[:,"tiger"].hist(log=True, bins=20)
+
+# Summary:
+# Of the MHP's that matched, most matched to exactly 1, but some matched 2 or 3.
+# Of the TIGER's that matched, most matched to 1, but a few outliers skew the mean up to 2
+
+# So we might benefit by trying to refine the tigers. Or maybe it's OK that multiple PWS's match to them.
+
+
+#%% #########################################
 # Visualize specific match groups on a map
+#############################################
+
 # 055293501 - This one matched two two separate polygons, one spatially, one on name.
 # The name match is better.
 # The spatial match is because the address is an admin address (Chippewa Indians Office)
@@ -211,6 +250,9 @@ TODO:
     - [X] UCMR
     - [ ] wsb_labeled.geojson
 
+Refinements:
+- [ ] Try to get county on all data sources
+- [ ] Assign a "type" to each water system, e.g. "Mobile Home Park", "Municipal", etc. This would tell us which match system will be stronger.
 - [x] Trim "MHP", "Mobile Home Park" from name on MHP matching
 
 - [ ] Try to quantify error compared to labeled boundaries
@@ -231,6 +273,7 @@ TODO:
 
 # TODO: Add states to UCMR
 # TODO: Have a geojson file of zip code geometries and centroids. Join to that later (if needed) instead of joining in the UCMR transformer.
+# TODO: What type of centroid was most frequent in each of the match types?
 
 
 - Try adding a buffer around the polygons and rerun for matching
