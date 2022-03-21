@@ -17,6 +17,8 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 wa_wsb <- st_read(path(data_path, "boundary/wa/wa.geojson")) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
+  # filter for five-character pwsid's
+  filter(str_detect(WS_ID, "^.{5}$")) %>%
   # transform to area weighted CRS
   st_transform(epsg_aw) %>%
   # correct invalid geometries
@@ -29,6 +31,7 @@ wa_wsb <- wa_wsb %>%
   bind_rows() %>%
   mutate(
     state          = "WA",
+    WS_ID          = paste0("WA53", WS_ID),
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
