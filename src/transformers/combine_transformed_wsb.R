@@ -61,9 +61,12 @@ wsb_labeled_multi <- wsb_labeled %>%
   # compute new centroids
   # note: when multipolygons are separated by space, these are suspect
   mutate(
-    centroid_long   = st_coordinates(st_geometry(st_centroid(geometry)))[, 1],
-    centroid_lat    = st_coordinates(st_geometry(st_centroid(geometry)))[, 2]
-  )
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2],
+  ) %>% 
+  # remove centroid column
+  select(-centroid)
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 
 # view
