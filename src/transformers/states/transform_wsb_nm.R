@@ -19,8 +19,9 @@ nm_wsb <- st_read(dsn = path(data_path, "boundary/nm/nm.geojson")) %>%
   f_clean_whitespace_nas() %>%
   # drop rows where WaterSystem_ID is NA
   drop_na(Water_System_ID) %>%
-  # filter for Water_System_ID matching pattern
-  filter(str_detect(Water_System_ID, "^NM\\d{7}")) %>%
+  # filter for Water_System_ID matching: NM + seven digits + optional _C or _CC
+  # where C is a character
+  filter(str_detect(Water_System_ID, "^NM\\d{7}(_([A-Z]{1}|[A-Z]{2}))?$")) %>%
   # select first 9 characters of Water_System_ID
   mutate(Water_System_ID = substr(Water_System_ID, 1, 9)) %>%
   # transform to area weighted CRS
