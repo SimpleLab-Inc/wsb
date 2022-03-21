@@ -9,7 +9,8 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 options(timeout = 10000)
 
 # Data Source: Washington ArcGIS Geodatabase water system boundary
-url <- paste0("https://fortress.wa.gov/doh/base/gis/ServiceAreas.zip")
+url <- paste0("https://opendata.arcgis.com/datasets/",
+              "b09475f47a5a46ca90fe6a168fb22e6d_0.geojson")
 
 # create dir to store folder and download
 dir_path <- path(data_path, "boundary/wa")
