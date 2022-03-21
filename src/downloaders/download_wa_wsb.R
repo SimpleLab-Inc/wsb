@@ -12,14 +12,7 @@ options(timeout = 10000)
 url <- paste0("https://opendata.arcgis.com/datasets/",
               "b09475f47a5a46ca90fe6a168fb22e6d_0.geojson")
 
-# directory and file path
-dir_path <- path(data_path, "boundary/wa")
-file_path <- path(dir_path, "wa.zip")
-
-# create directory, download, and unzip file
-dir_create(dir_path)
-download.file(url, file_path)
-unzip(zipfile=file_path, exdir=dir_path)
-
-cat("Downloaded and unzipped WA polygon boundary data.\n")
-
+# create dir to store file and download
+dir_create(path(data_path, "boundary/wa"))
+download.file(url, path(data_path, "boundary/wa/wa.geojson"))
+cat("Downloaded WA polygon boundary data.\n")
