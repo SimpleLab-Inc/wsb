@@ -25,15 +25,15 @@ multi <- st_drop_geometry(wsb_labeled) %>%
   count(pwsid, sort = TRUE) %>% 
   filter(n > 1)
 multi
-cat("Detected", nrow(multi), "multipolygon pwsid groups.\n")
+cat("Detected", nrow(multi), "groups of rows with duplicate pwsids.\n")
 
 # add column indicating if row has a duplicated pwsid
 wsb_labeled <- wsb_labeled %>% 
-  # label multipolygon geometries
+  # label duplicated pwsid geometries
   mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE))
 cat("Added `is_multi` field to wsb labeled data.\n")
 
-# separate rows without duplicated pwsid's
+# separate rows without duplicated pwsids
 wsb_labeled_no_multi <- wsb_labeled %>% 
   filter(is_multi == FALSE)
 
@@ -47,14 +47,18 @@ wsb_labeled_multi <- wsb_labeled %>%
   st_transform(epsg_aw) %>% 
   group_by(pwsid) %>% 
   summarise(
-    # combine all fragmented geometries into multipolygons
+    # combine all fragmented geometries
     geometry     = st_union(geometry),
     # new area is the sum of the area of all polygons
     st_areashape = sum(st_areashape),
     area_hull    = sum(area_hull),
     # new radius is calculated from the new area
-    radius       = sqrt(area_hull/pi)
-  ) %>% 
+    radius       = sqrt(area_hull/pi),
+    # combine data into list-formatted strings for character columns
+    across(where(is.character), ~toString(unique(.))),
+    # keep is_multi column
+    is_multi     = TRUE
+  ) %>%
   ungroup() %>% 
   # convert back to the project standard epsg
   st_transform(epsg) %>% 
@@ -66,23 +70,24 @@ wsb_labeled_multi <- wsb_labeled %>%
     centroid_lat   = st_coordinates(centroid)[, 2],
   ) %>% 
   # remove centroid column
-  select(-centroid)
+  select(-centroid) %>% 
+  st_write(path(staging_path, "wsb_dups_cleaned.geojson"))
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
+cat("Combined string values for multipolygon pwsids.\n")
 
 # view
 # mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
 
 # combine wsb labeled data with corrected rows
-wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi) 
-cat("Joined multipolygon and no multi-polygon data into one object.\n")
+wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi)
 
 # verify that there is only one pwsid per geometry
-n <- wsb_labeled_clean %>% 
-  st_drop_geometry() %>% 
-  count(pwsid) %>% 
-  filter(n > 1) %>% 
+n <- wsb_labeled_clean %>%
+  st_drop_geometry() %>%
+  count(pwsid) %>%
+  filter(n > 1) %>%
   nrow()
-cat(n, "duplicate pwsid in labeled data following multipolygon fix.\n")
+cat(n, "duplicate pwsids in labeled data following fix.\n")
 
 # delete layer if it exists, then write to geojson
 path_out <- path(staging_path, "wsb_labeled_clean.geojson")
