@@ -46,7 +46,7 @@ cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucrm data.\n")
 
 # zip code columns to keep
 cols_keep <- c("zipcode", "geoid10", "aland10", "awater10", "st_areashape",
-               "centroid_x", "centroid_y", "area_hull", "radius")
+               "centroid_long", "centroid_lat", "area_hull", "radius")
 
 # pull usa state geometries, project to input data CRS
 zipcode_areas <- tigris::zctas()
@@ -58,16 +58,19 @@ zipcodes <- zipcode_areas %>%
     # area calculations occur in area weighted epsg
     zipcode        = zcta5ce10,
     st_areashape   = st_area(geometry),
-    centroid       = st_geometry(st_centroid(geometry)),
-    centroid_x     = st_coordinates(centroid)[, 1],
-    centroid_y     = st_coordinates(centroid)[, 2],
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
-  select(all_of(cols_keep)) %>%
-  # convert back to standard epsg
-  st_transform(epsg) 
+  # transform back to standard epsg for geojson write
+  st_transform(epsg) %>%
+  # compute centroids
+  mutate(
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2],
+  ) %>%
+  select(all_of(cols_keep))
 
 # join zipcode polygon geometries to ucmr master list 
 ucmr <- ucmr %>% 
