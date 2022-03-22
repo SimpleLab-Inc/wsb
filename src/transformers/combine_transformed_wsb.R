@@ -3,6 +3,7 @@
 library(fs)
 library(sf)
 library(tidyverse)
+library(mapview)
 
 # path to save staging data and standard projection
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
@@ -17,30 +18,29 @@ wsb_labeled <- list.files(path = staging_path,
   # remove NA pwsid
   filter(!is.na(pwsid))
 
-# recalculate area, radius for multipolygon pwsids in labeled data --------
+# combine data and merge geometries for rows with duplicate pwsids --------
 
-# show there are multipolygon pwsids
+# show there are rows with duplicate pwsids
 multi <- st_drop_geometry(wsb_labeled) %>% 
   count(pwsid, sort = TRUE) %>% 
   filter(n > 1)
 multi
 cat("Detected", nrow(multi), "multipolygon pwsid groups.\n")
 
-# add column indicating if multiple geometries are present
+# add column indicating if row has a duplicated pwsid
 wsb_labeled <- wsb_labeled %>% 
   # label multipolygon geometries
   mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE))
 cat("Added `is_multi` field to wsb labeled data.\n")
 
-# separate wsb labeled (wl) non-multi polygons 
+# separate rows without duplicated pwsid's
 wsb_labeled_no_multi <- wsb_labeled %>% 
   filter(is_multi == FALSE)
 
-# for wsb labeled with multipolygon pwsids: 
+# for rows with duplicated pwsids: 
 # union geometries, recalculate area, centroids, radius
 wsb_labeled_multi <- wsb_labeled %>% 
-  # label multipolygon geometries
-  mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE)) %>% 
+  # filter for rows with duplicated pwsid's
   filter(is_multi == TRUE) %>% 
   st_make_valid() %>% 
   # importantly, all calculations take place in AW epsg 
@@ -72,7 +72,7 @@ cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 # view
 # mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
 
-# overwrite/combine labeled data with corrected multipolygon pwsids
+# combine wsb labeled data with corrected rows
 wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi) 
 cat("Joined multipolygon and no multi-polygon data into one object.\n")
 
