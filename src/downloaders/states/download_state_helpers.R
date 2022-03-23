@@ -13,7 +13,7 @@ download_wsb <- function(url, state) {
   dir_create(dir_path)
   
   # get file extension to create outputted file name and path
-  file_ext <- sub('.*\\.', '', url)
+  file_ext  <- sub('.*\\.', '', url)
   file_name <- paste0(state, ".", file_ext)
   file_path <- path(dir_path, file_name)
   
