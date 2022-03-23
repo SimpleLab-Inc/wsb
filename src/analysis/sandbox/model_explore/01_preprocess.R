@@ -69,75 +69,10 @@ j <- j %>%
 cat("Mean imputed service connection count.\n")
 
 
-# recalculate area, radius for multipolygon pwsids in labeled data --------
+# read labeled data with recalculated area, centroid for multipolygon pwsids --
 
-# labeled boundaries - remove NA pwsid
-wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
-  filter(!is.na(pwsid))
-
-# show there are multipolygon pwsids
-multi <- st_drop_geometry(wsb_labeled) %>% 
-  count(pwsid, sort = TRUE) %>% 
-  filter(n > 1)
-multi
-cat("Detected", nrow(multi), "multipolygon pwsid groups.\n")
-
-# add column indicating if multiple geometries are present
-wsb_labeled <- wsb_labeled %>% 
-  # label multipolygon geometries
-  mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE))
-cat("Added `is_multi` field to wsb labeled data.\n")
-
-# separate wsb labeled (wl) non-multi polygons 
-wsb_labeled_no_multi <- wsb_labeled %>% 
-  filter(is_multi == FALSE)
-
-# for wsb labeled with multipolygon pwsids: 
-# union geometries, recalculate area, centroids, radius
-wsb_labeled_multi <- wsb_labeled %>% 
-  # label multipolygon geometries
-  mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE)) %>% 
-  filter(is_multi == TRUE) %>% 
-  st_make_valid() %>% 
-  # importantly, all calculations take place in AW epsg 
-  st_transform(epsg_aw) %>% 
-  group_by(pwsid) %>% 
-  summarise(
-    # combine all fragmented geometries into multipolygons
-    geometry     = st_union(geometry),
-    # new area is the sum of the area of all polygons
-    st_areashape = sum(st_areashape),
-    area_hull    = sum(area_hull),
-    # new radius is calculated from the new area
-    radius       = sqrt(area_hull/pi),
-    # new centroids are calculated from the new geometries - bear in mind
-    # that when multipolygons are separated by space, these are suspect
-    centroid_x   = st_coordinates(st_geometry(st_centroid(geometry)))[, 1],
-    centroid_y   = st_coordinates(st_geometry(st_centroid(geometry)))[, 2]
-  ) %>% 
-  ungroup() %>% 
-  # convert back to the project standard epsg
-  st_transform(epsg)
-cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
-
-# view
-# mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
-
-# overwrite/combine labeled data with corrected multipolygon pwsids
-wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi) 
-cat("Joined multipolygon and no multi-polygon data into one object.\n")
-
-# verify that there is only one pwsid per geometry
-n <- wsb_labeled_clean %>% 
-  st_drop_geometry() %>% 
-  count(pwsid) %>% 
-  filter(n > 1) %>% 
-  nrow()
-cat(n, "duplicate pwsid in labeled data following multipolygon fix.\n")
-
-# write to staging path
-st_write(wsb_labeled_clean, path(staging_path, "wsb_labeled_clean.geojson"))
-cat("Wrote clean labeled data to staging path.\n")
+# read wsb_labeled_clean
+wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson")) 
 
 # rm geometry and other unnecessary (for model) cols from clean wsb labels
 vars_keep <- c("pwsid", "radius")
