@@ -70,8 +70,7 @@ wsb_labeled_multi <- wsb_labeled %>%
     centroid_lat   = st_coordinates(centroid)[, 2],
   ) %>% 
   # remove centroid column
-  select(-centroid) %>% 
-  st_write(path(staging_path, "wsb_dups_cleaned.geojson"))
+  select(-centroid)
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
 
