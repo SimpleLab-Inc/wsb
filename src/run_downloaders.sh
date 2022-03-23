@@ -8,7 +8,7 @@ SECONDS=0
 echo -e "\n\n--------------------------------------\n\n"
 echo -e "Downloading water system boundary data for states"
 echo -e "\n\n--------------------------------------\n\n"
-find src/downloaders/states -type f -name "*.R" -exec Rscript {} \;
+find src/downloaders/states -type f -name "download_*_wsb.R" -exec Rscript {} \;
 
 echo -e "\n\n--------------------------------------\n\n"
 echo -e "Downloading ECHO admin data"
