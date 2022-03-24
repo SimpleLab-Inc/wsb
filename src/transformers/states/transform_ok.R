@@ -1,5 +1,7 @@
 # Transform OK water service areas ----------------------------------------
 
+cat("Preparing to transform OK polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -12,7 +14,7 @@ source(here::here("src/functions/f_clean_whitespace_nas.R"))
 # path to save raw data, staging data, and standard projection
 data_path    <- Sys.getenv("WSB_DATA_PATH")
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg         <- Sys.getenv("WSB_EPSG")
+epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # Read layer for OK water service boundaries, clean names, transform to standard epsg
 ok_sp <- st_read(dsn = path(data_path, "boundary/ok/ok.geojson")) %>% 
@@ -46,4 +48,4 @@ if(file_exists(path_out)) file_delete(path_out)
 
 write_rds(ok_sp, path_out)
 
-cat("Wrote clean OK boundaries to staging.\n")
+cat("Wrote clean OK boundaries to staging.\n\n\n")
