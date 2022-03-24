@@ -1,6 +1,6 @@
 # transform KS water system data to standard model -------------------
 
-cat("Starting transformation for KS.\n\n")
+cat("Preparing to transform KS polygon boundary data.\n\n")
 
 library(fs)
 library(sf)
@@ -74,4 +74,5 @@ path_out <- path(staging_path, "ks/ks_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ks_wsb, path_out)
+
 cat("Wrote clean, labeled data to geojson.\n\n\n") 

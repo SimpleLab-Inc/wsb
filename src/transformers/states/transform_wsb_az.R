@@ -1,6 +1,6 @@
 # transform AZ water system data to standard model -------------------
 
-cat("Starting transformation for AZ.\n\n")
+cat("Preparing to transform AZ polygon boundary data.\n\n")
 
 library(fs)
 library(sf)

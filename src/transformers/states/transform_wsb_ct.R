@@ -1,6 +1,6 @@
 # transform CT water system data to standard model -------------------
 
-cat("Starting transformation for CT.\n\n")
+cat("Preparing to transform CT polygon boundary data.\n\n")
 
 library(fs)
 library(sf)
@@ -75,4 +75,5 @@ path_out <- path(staging_path, "ct/ct_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ct_wsb, path_out)
+
 cat("Wrote clean, labeled data to geojson.\n\n\n") 
