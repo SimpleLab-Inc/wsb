@@ -1,7 +1,6 @@
 # Download NC water service boundaries ------------------------------------
 
-setwd("src/downloaders/states/")
-source("download_state_helpers.R")
+source(here::here("src/downloaders/states/download_state_helpers.R"))
 
 # Data Source: North Carolina ArcGIS geojson water system boundary
 url <- paste0("https://opendata.arcgis.com/datasets/",

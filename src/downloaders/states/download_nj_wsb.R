@@ -1,7 +1,6 @@
 # Download NJ water system data -------------------------------------------
 
-setwd("src/downloaders/states/")
-source("download_state_helpers.R")
+source(here::here("src/downloaders/states/download_state_helpers.R"))
 
 # Data Source: New Jersey ArcGIS geojson water system boundary
 url <- paste0("https://opendata.arcgis.com/datasets/",
