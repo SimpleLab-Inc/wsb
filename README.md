@@ -1,16 +1,16 @@
 # USA Water Service Boundary Proxy 
 
-_Last updated 2022-01-18_  
+_Last updated 2022-03-24_  
 
 ## Project Background  
 
-Water service boundaries (spatial polygons) delineate areas over which water is delivered from water systems to customers. Across the USA, some states (e.g., CA, TX, PA) maintain centralized water system boundary (henceforth, **wsb**) databases and make these accessible to the public. Publicly-accessible wsb data is not easily discoverable or cataloged for all states. In this work, we build a reproducible pipeline to assimilate existing wsb data in the USA (labeled data). We then engineer features that predict the approximate spatial extent of these boundaries and train statistical and machine learning models on these features to produce proxy water system boundaries for states without centralized wsb data.  
+Water service boundaries (spatial polygons) delineate areas over which water is delivered from water systems to customers. Across the USA, some states (e.g., CA, TX, PA) maintain centralized water system boundary (henceforth, **wsb**) databases and make these accessible to the public. Publicly-accessible wsb data is not easily discoverable or cataloged for all states. In this work, we build a reproducible pipeline to assimilate existing wsb data in the USA (labeled data). We then match water system names, cities served, and facility centroids with spatial boundaries for Census places. We also engineer features that predict the approximate spatial extent of these boundaries and train statistical and machine learning models on these features to produce proxy water system boundaries for states without centralized wsb data. The result is a dataset of all potential geographic boundaries or features associated with each water system. We then apply a hierarchical selection, assigning the highest integrity spatial boundary (labeled water service area shapefile being the highest integrity; modeled boundary being the lowest integrity) to each water system. The result is a provisional water system boundary layer for active, community water systems across the US.    
 
 ## Project Organization
 
 The main function of the project is an ETM (extract-transform-model) **pipeline** that chains a set of modular programs which can be flexibly modified over time to accommodate changes in input data and required output results. The main output in `/proxywsb` is a filesystem of various spatial formats (e.g., shp, geojson, csv, rds) that makes results of the proxy wsb model and labeled wsb data available for download and use. 
 
-Download and transform data processing steps are modularized into separate processes in the `/src/downloaders` and `src/transformers` directories that can be modified and run in parallel, with no dependencies on one another. Downloaders pull raw data from the web to a local filesystem, transformers clean, standardize and join that data, and then write it to `data/staging`. Finally, a model reads the staged and standardized data and outputs a wsb proxy layer to `/proxywsb`. All data in this project is quite small and should easily fit into memory and on a PC.   
+Download and transform data processing steps are modularized into separate processes in the `/src/downloaders` and `src/transformers` directories that can be modified and run in parallel, with no dependencies on one another. Downloaders pull raw data from the web to a local filesystem, transformers clean, standardize and join that data, and then write it to `data/staging`. The staged and standardized data is pulled into a matching model that joins all data sources together and assigns TIGER/Line places to water systems. Finally, a model reads the output of the matched data and outputs a wsb proxy layer to `/proxywsb`. All data in this project is quite small and should easily fit into memory and on a PC.   
 
 Exploratory data analysis (EDA), sanity checks, and feature engineering experimentation occur in the **sandbox** (`src/analysis`) and are modularized into iterative notebooks and scripts that can serve multiple objectives without interfering with the functionality of the main ETM pipeline (i.e., `src/run.py`). This makes it easy to create and archive new analyses that serve a purpose, but that may never become productionized.  
 
@@ -51,14 +51,11 @@ WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
-
-
 ```
 Don't forget to leave a blank line at the end of `.Renviron` before saving.
 
 To associate `.Renviron` with the `R` project, open `R`, run `usethis::edit_r_environ(scope = "project")`. 
   
-
 `WSB_DATA_PATH` is where we save raw data from the downloaders, which may grow sizable and be better placed off disk.  
 
 `WSB_STAGING_PATH` is where we stage post-transformed for EDA and modeling.  
@@ -79,7 +76,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Install `aria` for downloading files. Preferred method is to use the [chocolatey package manager](https://chocolatey.org/):  
+Install `aria` for downloading large files. Preferred method is to use the [chocolatey package manager](https://chocolatey.org/):  
 
 ```
 choco install aria2
@@ -125,4 +122,4 @@ When a developer updates or installs new packages to the R project, the lockfile
 
 ## Contributing 
 
-To contribute to the project, please branch from `develop` or a subbrach of `develop` and submit a pull request. To be considered as a maintainer, please contact Jess Goddard <jess at gosimplelab dot com>. 
+To contribute to the project, please branch from `develop` or a subbranch of `develop` and submit a pull request. To be considered as a maintainer, please contact Jess Goddard <jess at gosimplelab dot com>. 
