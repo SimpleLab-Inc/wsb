@@ -1,5 +1,7 @@
 # transform NM water system data to standard model -------------------
 
+cat("Preparing to transform NM polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -78,4 +80,4 @@ path_out <- path(staging_path, "nm/nm_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(nm_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")
