@@ -11,10 +11,10 @@ epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # list, read, and combine all staged state wsb files
-wsb_labeled <- list.files(path = staging_path, 
-                          pattern = "_wsb_labeled.geojson$", 
-                          recursive = TRUE) %>% 
-  map_df(~st_read(path(staging_path, .))) %>% 
+wsb_labeled <- dir_ls(staging_path, 
+                      regex = "_wsb_labeled.geojson$", 
+                      recursive = TRUE) %>% 
+  map_df(~st_read(.)) %>% 
   # remove NA pwsid
   filter(!is.na(pwsid))
 
