@@ -1,6 +1,5 @@
 # download ECHO admin data -----------------------------------------------
 
-library(tidyverse)
 library(glue)
 library(fs)
 
