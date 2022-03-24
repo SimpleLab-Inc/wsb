@@ -24,7 +24,9 @@ shinyServer(function(input, output) {
         dl = dt %>% 
           filter(is_empty == FALSE) %>% 
           mutate(popup = paste(
-            source_system, name, pwsid, sep = "<br>")
+            '<b>', source_system, '</b><br>',
+            'pwsid: ', pwsid, '<br>',
+            'name: ', name, '<br>')
           )
         
         # separate point and polygon geoms
