@@ -8,6 +8,9 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 
 # function to download url
 download_wsb <- function(url, state) {
+
+  cat("Starting download for", toupper(state), "boundary data...\n\n")
+  
   # create outputted file directory
   dir_path <- path(data_path, paste0("boundary/", state))
   dir_create(dir_path)
@@ -20,11 +23,11 @@ download_wsb <- function(url, state) {
   # download url
   download.file(url, file_path)
   
-  # unzip if has zip extension
+  # unzip if the downloaded file has a zip extension
   if (file_ext == "zip") {
     unzip_wsb(file_path, dir_path, state) 
   } else {
-    cat("Downloaded", toupper(state), "boundary data.\n")
+    cat("Downloaded", toupper(state), "boundary data.\n\n\n")
   }
 }
 
@@ -32,5 +35,5 @@ download_wsb <- function(url, state) {
 unzip_wsb <- function(file_path, dir_path, state) {
   # unzip file
   unzip(zipfile = file_path, exdir = dir_path)
-  cat("Downloaded and unzipped", toupper(state), "boundary data.\n")
+  cat("Downloaded and unzipped", toupper(state), "boundary data.\n\n\n")
 }
