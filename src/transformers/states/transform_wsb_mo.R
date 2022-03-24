@@ -50,10 +50,10 @@ mo_wsb <- mo_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = IPWS,
-    pws_name         = PWSSNAME,
+    pwsid          = IPWS,
+    pws_name       = PWSSNAME,
     state,
-    county           = COUNTY,
+    county         = COUNTY,
     #    city,
     #    source,
     #    owner,

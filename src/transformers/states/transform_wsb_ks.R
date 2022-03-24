@@ -48,8 +48,8 @@ ks_wsb <- ks_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = FED_ID,
-    pws_name         = NAMEWCPSTA,
+    pwsid          = FED_ID,
+    pws_name       = NAMEWCPSTA,
     state,
     #    county,
     #    city,

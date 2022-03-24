@@ -1,5 +1,7 @@
 # transform OK water system data to standard model -------------------
 
+cat("Preparing to transform OK polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -47,7 +49,7 @@ ok_wsb <- ok_wsb %>%
   select(
     # data source columns
     pwsid,
-    pws_name         = name,
+    pws_name       = name,
     state,
     county,
     #    city,
@@ -72,4 +74,4 @@ path_out <- path(staging_path, "ok/ok_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ok_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n") 
+cat("Wrote clean, labeled data to geojson.\n\n\n") 

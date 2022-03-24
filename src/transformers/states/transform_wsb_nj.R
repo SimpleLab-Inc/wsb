@@ -47,8 +47,8 @@ nj_wsb <- nj_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = PWID,
-    pws_name         = SYS_NAME,
+    pwsid          = PWID,
+    pws_name       = SYS_NAME,
     state,
     #    county,   # county code is first 2 digits of PWID
     #    city,

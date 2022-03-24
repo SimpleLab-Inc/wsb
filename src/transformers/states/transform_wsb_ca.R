@@ -50,10 +50,10 @@ ca_wsb <- ca_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = WATER_SYST,
-    pws_name         = WATER_SY_1,
+    pwsid          = WATER_SYST,
+    pws_name       = WATER_SY_1,
     state,
-    county           = COUNTY,
+    county         = COUNTY,
     #    city,
     #    source,
     #    owner,

@@ -49,8 +49,8 @@ ct_wsb <- ct_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = pwsid,
-    pws_name         = pws_name,
+    pwsid          = pwsid,
+    pws_name       = pws_name,
     state,
     #    county,
     #    city,

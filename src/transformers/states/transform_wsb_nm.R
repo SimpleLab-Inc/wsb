@@ -54,11 +54,11 @@ nm_wsb <- nm_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = Water_System_ID,
-    pws_name         = PublicSystemName,
+    pwsid          = Water_System_ID,
+    pws_name       = PublicSystemName,
     state,
-    county          = CN, 
-    city            = City,
+    county         = CN, 
+    city           = City,
     #    source,
     #    owner,
     # geospatial columns

@@ -49,10 +49,10 @@ nc_wsb <- nc_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = WASYID,
-    pws_name         = WASYNAME,
+    pwsid          = WASYID,
+    pws_name       = WASYNAME,
     state,
-    county          = WAPCS,
+    county         = WAPCS,
 #    city,
 #    source,
 #    owner,

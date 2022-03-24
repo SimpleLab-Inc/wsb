@@ -24,7 +24,7 @@ az_wsb <- st_read(path(data_path, "boundary/az/az.geojson")) %>%
   # correct invalid geometries
   st_make_valid()
 
-cat("Read AZ boundary layer; cleaned whitespace; corrected geometries.\n ")
+cat("Read AZ boundary layer; cleaned whitespace; corrected geometries.\n")
 
 # Compute centroids, convex hulls, and radius assuming circular
 az_wsb <- az_wsb %>%
@@ -48,13 +48,13 @@ az_wsb <- az_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = ADEQ_ID,
-    pws_name         = CWS_NAME,
+    pwsid          = ADEQ_ID,
+    pws_name       = CWS_NAME,
     state,
-    county           = COUNTY,
-    city             = CITY_SRVD,
+    county         = COUNTY,
+    city           = CITY_SRVD,
     #    source,
-    owner            = OWNER_NAME,
+    owner          = OWNER_NAME,
     # geospatial columns
     st_areashape,
     centroid_long,
