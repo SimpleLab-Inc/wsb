@@ -1,6 +1,6 @@
 # transform WA water system data to standard model -------------------
 
-cat("Starting transformation for WA.\n\n")
+cat("Preparing to transform WA polygon boundary data.\n\n")
 
 library(fs)
 library(sf)

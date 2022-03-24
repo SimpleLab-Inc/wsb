@@ -1,6 +1,6 @@
 # transform OK water system data to standard model -------------------
 
-cat("Starting transformation for OK.\n\n")
+cat("Preparing to transform OK polygon boundary data.\n\n")
 
 library(fs)
 library(sf)

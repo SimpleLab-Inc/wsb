@@ -74,5 +74,4 @@ path_out <- path(staging_path, "ks/ks_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ks_wsb, path_out)
-
 cat("Wrote clean, labeled data to geojson.\n\n\n") 
