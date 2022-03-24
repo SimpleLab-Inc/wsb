@@ -13,7 +13,7 @@ download_wsb <- function(url, state) {
   dir_create(dir_path)
   
   # get file extension to create outputted file name and path
-  file_ext  <- sub('.*\\.', '', url)
+  file_ext  <- sub(".*\\.", "", url)
   file_name <- paste0(state, ".", file_ext)
   file_path <- path(dir_path, file_name)
   
@@ -31,6 +31,6 @@ download_wsb <- function(url, state) {
 # function to unzip file
 unzip_wsb <- function(file_path, dir_path, state) {
   # unzip file
-  unzip(zipfile=file_path, exdir=dir_path)
+  unzip(zipfile = file_path, exdir = dir_path)
   cat("Downloaded and unzipped", toupper(state), "boundary data.\n")
 }
