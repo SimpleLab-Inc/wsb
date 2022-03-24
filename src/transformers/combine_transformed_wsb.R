@@ -24,7 +24,6 @@ wsb_labeled <- dir_ls(staging_path,
 multi <- st_drop_geometry(wsb_labeled) %>% 
   count(pwsid, sort = TRUE) %>% 
   filter(n > 1)
-multi
 cat("Detected", nrow(multi), "groups of rows with duplicate pwsids.\n")
 
 # add column indicating if row has a duplicated pwsid
@@ -46,32 +45,33 @@ wsb_labeled_multi <- wsb_labeled %>%
   # importantly, all calculations take place in AW epsg 
   st_transform(epsg_aw) %>% 
   group_by(pwsid) %>% 
-  summarise(
-    # combine all fragmented geometries
-    geometry     = st_union(geometry),
-    # new area is the sum of the area of all polygons
-    st_areashape = sum(st_areashape),
-    area_hull    = sum(area_hull),
-    # new radius is calculated from the new area
-    radius       = sqrt(area_hull/pi),
-    # combine data into list-formatted strings for character columns
-    across(where(is.character), ~toString(unique(.))),
-    # keep is_multi column
-    is_multi     = TRUE
-  ) %>%
-  ungroup() %>% 
-  # convert back to the project standard epsg
-  st_transform(epsg) %>% 
-  st_make_valid() %>% 
-  # compute new centroids
-  # note: when multipolygons are separated by space, these are suspect
+  # mutate these new columns, knowing full well that duplicate rows
+  # will be created, but that they will be dropped in the next step
   mutate(
+    # combine all fragmented geometries
+    geometry       = st_union(geometry),
+    # new area is the sum of the area of all polygons
+    st_areashape   = sum(st_areashape),
+    area_hull      = sum(area_hull),
+    # new radius is calculated from the new area
+    radius         = sqrt(area_hull/pi),
+    # compute new centroids and note that when multipolygons are separated
+    # by space, these are suspect and should not be used
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_long  = st_coordinates(centroid)[, 1],
-    centroid_lat   = st_coordinates(centroid)[, 2],
-  ) %>% 
+    centroid_lat   = st_coordinates(centroid)[, 2]
+  ) %>%
+  # only take the first result from each group. The only loss here is in 
+  # potentially different names, although review of unique names per group
+  # indicates little variation in names per pwsid group
+  slice(1) %>% 
+  ungroup() %>% 
   # remove centroid column
-  select(-centroid)
+  select(-centroid) %>% 
+  # convert back to the project standard epsg
+  st_transform(epsg) %>% 
+  st_make_valid() 
+  
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
 
