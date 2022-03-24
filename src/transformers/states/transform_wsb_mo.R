@@ -1,5 +1,7 @@
 # transform MO water system data to standard model -------------------
 
+cat("Preparing to transform MO polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -48,10 +50,10 @@ mo_wsb <- mo_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = IPWS,
-    pws_name         = PWSSNAME,
+    pwsid          = IPWS,
+    pws_name       = PWSSNAME,
     state,
-    county           = COUNTY,
+    county         = COUNTY,
     #    city,
     #    source,
     #    owner,
@@ -74,4 +76,4 @@ path_out <- path(staging_path, "mo/mo_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(mo_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")

@@ -1,5 +1,7 @@
 # transform AZ water system data to standard model -------------------
 
+cat("Preparing to transform AZ polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -22,7 +24,7 @@ az_wsb <- st_read(path(data_path, "boundary/az/az.geojson")) %>%
   # correct invalid geometries
   st_make_valid()
 
-cat("Read AZ boundary layer; cleaned whitespace; corrected geometries.\n ")
+cat("Read AZ boundary layer; cleaned whitespace; corrected geometries.\n")
 
 # Compute centroids, convex hulls, and radius assuming circular
 az_wsb <- az_wsb %>%
@@ -46,13 +48,13 @@ az_wsb <- az_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = ADEQ_ID,
-    pws_name         = CWS_NAME,
+    pwsid          = ADEQ_ID,
+    pws_name       = CWS_NAME,
     state,
-    county           = COUNTY,
-    city             = CITY_SRVD,
+    county         = COUNTY,
+    city           = CITY_SRVD,
     #    source,
-    owner            = OWNER_NAME,
+    owner          = OWNER_NAME,
     # geospatial columns
     st_areashape,
     centroid_long,
@@ -72,4 +74,4 @@ path_out <- path(staging_path, "az/az_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(az_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n") 
+cat("Wrote clean, labeled data to geojson.\n\n\n") 
