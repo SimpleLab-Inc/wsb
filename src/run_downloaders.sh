@@ -36,11 +36,6 @@ echo -e "\n\n--------------------------------------\n\n"
 Rscript -e "source('src/downloaders/download_tigris_ne.R');"
 
 echo -e "\n\n--------------------------------------\n\n"
-echo -e "Downloading SDWIS data ( delete this !!!! )"
-echo -e "\n\n--------------------------------------\n\n"
-python src/downloaders/download_sdwis.py
-
-echo -e "\n\n--------------------------------------\n\n"
 echo -e "Downloading UCMR occurrence data"
 echo -e "\n\n--------------------------------------\n\n"
 Rscript -e "source('src/downloaders/download_ucmr.R');"
