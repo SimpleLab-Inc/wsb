@@ -72,8 +72,8 @@ wsb_labeled_multi <- wsb_labeled %>%
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2]
   ) %>% 
-  # remove centroid column
-  select(-centroid)
+  # remove centroid and area_hull columns
+  select(-c(centroid, area_hull))
 
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
