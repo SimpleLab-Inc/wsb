@@ -54,9 +54,9 @@ wsb_labeled_multi <- wsb_labeled %>%
     st_areashape   = sum(st_areashape),
     area_hull      = sum(area_hull),
     # new radius is calculated from the new area
-    radius         = sqrt(area_hull/pi)
+    radius         = sqrt(area_hull/pi),
     # combine data into list-formatted strings for character columns
-    across(where(is.character), ~toString(unique(.))),
+    across(where(is.character), ~toString(unique(.)))
   ) %>%
   # only take the first result from each group
   slice(1) %>% 
