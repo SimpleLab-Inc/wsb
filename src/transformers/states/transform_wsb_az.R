@@ -59,7 +59,6 @@ az_wsb <- az_wsb %>%
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
