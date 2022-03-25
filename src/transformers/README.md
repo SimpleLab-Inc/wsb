@@ -50,7 +50,7 @@ The geometry column is transformed to a CRS optimal for area calculations before
 
 #### Data source transformations
 
-Each state transformer cleans excess white space, assigns a state column, and selects data that fits in the standard schema. Selected columns are those matching `pwsid` and `pws_name`, as well as the `county`, `city`, `source`, and `owner` of the water system, if available. The column `owner` may be removed in a future refactor due to the fact that it is rarely populated and its data are easily retrievable from other data sources.
+Each state transformer cleans excess white space, assigns a state column, and selects data that fits in the standard schema. Selected columns are those matching `pwsid` and `pws_name`, as well as the `county`, `city`, and `owner` of the water system, if available. The column `owner` may be removed in a future refactor due to the fact that it is rarely populated and its data are easily retrievable from other data sources.
 
 If a `pwsid` is not in the standard format, that `pwsid` is reformatted. This includes operations like adding the state abbreviation (and a state code if necessary; see [WA](https://github.com/SimpleLab-Inc/wsb/blob/develop/src/transformers/states/transform_wsb_wa.R) to the front of the `pwsid` or removing invalid `pwsids`. Invalid `pwsids` are filtered out for the states MO, NM, and WA.
 
