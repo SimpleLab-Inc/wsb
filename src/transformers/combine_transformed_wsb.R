@@ -54,24 +54,27 @@ wsb_labeled_multi <- wsb_labeled %>%
     st_areashape   = sum(st_areashape),
     area_hull      = sum(area_hull),
     # new radius is calculated from the new area
-    radius         = sqrt(area_hull/pi),
-    # compute new centroids and note that when multipolygons are separated
-    # by space, these are suspect and should not be used
-    centroid       = st_geometry(st_centroid(geometry)),
-    centroid_long  = st_coordinates(centroid)[, 1],
-    centroid_lat   = st_coordinates(centroid)[, 2]
+    radius         = sqrt(area_hull/pi)
   ) %>%
   # only take the first result from each group. The only loss here is in 
   # potentially different names, although review of unique names per group
   # indicates little variation in names per pwsid group
   slice(1) %>% 
   ungroup() %>% 
-  # remove centroid column
-  select(-centroid) %>% 
   # convert back to the project standard epsg
   st_transform(epsg) %>% 
-  st_make_valid() 
-  
+  st_make_valid() %>% 
+  # compute new centroids and note that when multipolygons are separated
+  # by space, these are suspect and should not be used. Importantly, this
+  # calculation occurs in the EPSG consistent with other staged data!
+  mutate(
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2]
+  ) %>% 
+  # remove centroid column
+  select(-centroid)
+
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
 
