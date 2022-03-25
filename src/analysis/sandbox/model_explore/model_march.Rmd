@@ -5,16 +5,17 @@ output:
     highlight: zenburn
     code_folding: hide
     toc: true
-    # toc_float: true
-    toc_depth: 3
-    number_sections: true
+    toc_float: true
+    toc_depth: 4
+    # number_sections: true
 ---
 
+```{=html}
 <style type="text/css">
   /* Whole document: */
   body{
     font-family: Helvetica;
-    font-size: 14pt;
+    font-size: 13pt;
   }
   /* Headers */
   h1{
@@ -33,8 +34,9 @@ output:
     font-size: 14pt;
   }
 }
-</style>
 
+</style>
+```
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
 
@@ -52,9 +54,9 @@ dt_make <- function(x){
 }
 ```
 
-*Jess Goddard, Rich Pauloo, Ryan Shepherd, Noor Brody*  
+*Jess Goddard, Rich Pauloo, Ryan Shepherd, Noor Brody*
 
-*Last updated `r Sys.time()`*  
+*Last updated `r Sys.time()`*
 
 <br>
 
@@ -65,67 +67,64 @@ In this report, we present a nationwide water service spatial boundary layer for
 The resulting national water service boundary layer is the product of a "Tiered Assimilation, Match, and Model" (henceforth, **TAMM**) approach. The TAMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
 1.  Whenever present, we use *explicit water service boundaries* (labeled data). These are spatial polygon data, typically provided at the state-level.\
-2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with independent validation of the approach by [Patterson et al. (2019) ](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.\
+2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with independent validation of the approach by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.\
 3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable at this point in time (centroid accuracy is discussed in the [Limitations](#limitations) section with recommendations for future work).
 
-[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". 
+[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap".
 
-Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place. 
+Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
 ```{r conceptual-model, echo = FALSE}
 knitr::include_graphics(here::here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
 ```
 
-In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, there is uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.   
+In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.
 
-Finally, we encourage the reader to consider the TAMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 data, improvements to the Tier 2 matching algorithm, and refinement of the Tier 3 model. Ultimately, this entire workflow may be superseded by nationwide Tier 1 data, which would reduce the problem we address in the scope of work to one of simple Tier 1 data assimilation and cleaning. 
+Finally, we encourage the reader to consider the TAMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 data, improvements to the Tier 2 matching algorithm, and refinement of the Tier 3 model. Ultimately, this entire workflow may be superseded by nationwide Tier 1 data, which would reduce the problem we address in the scope of work to one of simple Tier 1 data assimilation and cleaning.
 
 <br>
 
 # Report outline
 
-The following outline reflects a summary of key findings, followed by a description of each Tier in the TAMM approach. Notably, the TAMM may be refined and re-run as new data sources are ingested or improvements are made to matching and modeling algorithms:  
+The following outline reflects a summary of key findings, followed by a description of each Tier in the TAMM approach. Notably, the TAMM may be refined and re-run as new data sources are ingested or improvements are made to matching and modeling algorithms.
 
-_Key Results_
+*Key Results*
 
-- A nationwide water service boundary layer is provided for X community water systems covering Y population  
-- Coverage rates per Tier: 
-    - Tier 1: X% (count in millions)  
-    - Tier 2: Y% (count in millions)  
-    - Tier 3: Z% (count in millions)  
-- Unequal Tier distribution across states suggests that the confidence in water service boundary location and extent varies by state and system.  
-- Uncertainty metrics for Tier 2 and 3 estimates suggest that the TAMM approach provides a reasonable preliminary water service boundary layer.  
+-   A nationwide water service boundary layer is provided for X community water systems covering Y population\
+-   Coverage rates per Tier:
+    -   Tier 1: X% (count in millions)\
+    -   Tier 2: Y% (count in millions)\
+    -   Tier 3: Z% (count in millions)\
+-   Unequal Tier distribution across states suggests that the confidence in water service boundary location and extent varies by state and system.\
+-   Uncertainty metrics for Tier 2 and 3 estimates suggest that the TAMM approach provides a reasonable preliminary water service boundary layer.
 
+*Tier 1: Assimilated explicit boundaries*
 
-_Tier 1_  
+-   Data discovered for X states.\
+-   We consider these data as "high quality" and use them to model Tier 3 boundaries.
 
-- Data discovered for X states.  
-- We consider these data as "high quality" and use them to model Tier 3 boundaries.  
+*Tier 2: Matched TIGER proxy boundaries*
 
-_Tier 2_  
+-   X% of water systems match a TIGER place by spatial intersection or name match.\
+-   Spatial and name matching is constrained within the reported state to prevent out-of-state mismatches.\
+-   For multiple spatial or name matches, minimum distance between the reported centroid of the PWSID and the TIGER place centroid is used to break ties.
 
-- X% of water systems match a TIGER place by spatial intersection or name match.  
-- Spatial and name matching is constrained within the reported state to prevent out-of-state mismatches.  
-- For multiple spatial or name matches, minimum distance between the reported centroid of the PWSID and the TIGER place centroid is used to break ties.  
+*Tier 3: Modeled boundaries*
 
+-   Circular water service boundary estimates are calculated for all water systems; median, 5% and 95% confidence intervals are provided to reflect medium, low, and high water service boundary estimates.
+-   The the multiple linear regression fit has an impressive $R^2 = 0.67$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area.
 
-_Tier 3_  
-
-- Circular water service boundary estimates are calculated for all water systems; median, 5% and 95% confidence intervals are provided to reflect medium, low, and high water service boundary estimates. 
-- The the multiple linear regression fit has an impressive $R^2 = 0.67$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area.  
-
-
-<br>  
+<br>
 
 # Key Results
 
-The key result of this study is a nationwide water service boundary layer. Here we show the proportion of state population served by each TAMM Tier. 
+The key result of this study is a nationwide water service boundary layer. Here we show the proportion of state population served by each TAMM Tier.
 
 <br>
 
 ## Tier distribution per state
 
-Interpret barplot below. 
+Interpret barplot below.
 
 ```{r load}
 library(tidyverse)
@@ -139,7 +138,10 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read the clean matched output and transform radius from m to km
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
-  mutate(radius = radius/1000)
+  mutate(radius = radius/1000) %>% 
+  # filter to CWS and assume each connection must serve at least 1 person
+  # this drop 267 rows (0.5% of data)
+  filter(service_connections_count >= 15 & population_served_count >= 15)
 ```
 
 ```{r geofacet tamm tier distribution per state}
@@ -152,73 +154,70 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 # datatable of the above geofacet
 ```
 
-<br> 
+<br>
 
-# Tier 1: _Assimilated_ explicit boundaries
+# Tier 1: *Assimilated* boundaries
 
-Tier 1 explicit spatial boundary data is obtained from the following web addresses.  
-
+Tier 1 explicit spatial boundary data is obtained from the following web addresses.
 
 URL table. Standard downloaders/transformers. Should expand in future work.
- 
-Uncertainty out of our hands - depends on the state.  
 
+Uncertainty out of our hands - depends on the state.
 
-<br> 
+<br>
 
-# Tier 2: _Matched_ TIGER proxy boundaries 
+# Tier 2: *Matched* boundaries
 
-Ryan's section with conceptual model. 
+Ryan's section with conceptual model.
 
+<br>
 
-<br> 
+## Uncertainty
 
-## Tier 2 uncertainty
-
-We estimate the range of uncertainty in the Tier 2 approach with a _Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}_, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary, which we can calculate by comparing Tier 2 matches to all Tier 2 data:
+We estimate the range of uncertainty in the Tier 2 approach with a *Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}*, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary, which we can calculate by comparing Tier 2 matches to all Tier 2 data:
 
 $$
 J = \frac{A_T \cap A_E }{A_E}
-$$
-where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J | 0 \le J \le  1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$. 
+$$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space  0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
 
 ```
 
-Interpret plot above. 
+Interpret plot above.
 
 See 93% overlap in previous EDA as starting point.
 
+<br>
 
-<br> 
+# Tier 3: *Modeled* boundaries
 
-# Tier 3: _Modeled_ boundaries
+We experimented with 3 different models: random forest, xgboost, and multiple linear regression. Model specification hinges on the correlation between the radius of Tier 1 convex hulls[^2] (the response variable), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Moreover, different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
 
-We experimented with 3 different models: random forest, xgboost, and multiple linear regression. The model specification hinges on the correlation between the radius of convex hulls (response) calculated at each Tier 1 water service boundary (labeled data), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
+[^2]: Labeled radii are calculated from the convex hull area of Tier 1 systems instead of simple water system area because they better represent calculated Tier 3 circular buffers.
 
-Ultimately, we select a multiple linear regression model because it is computationally efficient, easily interpretable, avoids overfitting (it actually results in the lowest error of the models tested), and provides confidence intervals that characterize uncertainty in the modeled boundary and may be useful depending on the application of the model results.  
+Ultimately, we select a multiple linear regression model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary which may be useful depending on the application of the model results, and finally because it avoids overfitting (the linear model actually results in the lowest error of the models tested).
 
-<br> 
+<br>
 
-## EDA 
+## EDA
 
-In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and model specification.
+In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and developed models.
 
-### Right skewed response variable
+### Right skewed response
 
-The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius/1000, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius/1000, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality. We log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
+The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality, thus we log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
 ```{r}
 d %>% 
   ggplot(aes(radius)) + 
-  geom_histogram(bins = 50, col= "white") +
+  geom_histogram(bins = 100, col= "white") +
   labs(x = "Radius (km)")
 ```
 
-The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^2]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^3]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
 
-[^2]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
+[^3]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
 Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
@@ -231,7 +230,7 @@ d %>%
     p75 = quantile(radius, 0.75, na.rm = TRUE)
   ) %>% 
   ggplot(aes(radius)) + 
-  geom_histogram(bins = 50, col= "white") + 
+  geom_histogram(bins = 100, col= "white") + 
   geom_vline(aes(xintercept = p25), linetype = "dashed", color = "red") +
   geom_vline(aes(xintercept = p50), linetype = "dashed", color = "red") +
   geom_vline(aes(xintercept = p75), linetype = "dashed", color = "red") +
@@ -241,9 +240,9 @@ d %>%
 
 ### Correlated predictors
 
-Population served and service connections are highly correlated (\$r = \$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which impacts the interpretation of the regression fit[^3].
+Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which impacts the interpretation of the regression fit[^4].
 
-[^3]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
+[^4]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
 ```{r}
 d %>% 
@@ -261,7 +260,7 @@ d %>%
 
 #### Owner type code
 
-Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type. Moreover, notice the under-representation of Native American (N) systems. Most systems are owned by local governments (L) or private (P) entities. For modeling purposes, and until more data are collected, we re-classify Native American observations into the Public/Private category (M).  
+Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type. Moreover, notice the under-representation of Native American (N) systems. Most systems are owned by local governments (L) or private (P) entities. For modeling purposes, and until more data are collected, we re-classify Native American observations into the Public/Private category (M).
 
 ```{r}
 d %>% 
@@ -276,10 +275,9 @@ d %>%
        y = "Radius")
 ```
 
-
 #### Wholesaler
 
-As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it. 
+As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it.
 
 ```{r}
 d %>% 
@@ -298,10 +296,9 @@ d %>%
        y = "Radius")
 ```
 
-
 #### Service area type code
 
-Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems registering as a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, and select the top 5 as features for the model, lumping everything else into an "Other" category. We include an interaction effect for service area type code. 
+Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems registering as a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, and select the top 5 as features for the model, lumping everything else into an "Other" category. We include an interaction effect for service area type code.
 
 ```{r}
 # clean
@@ -336,14 +333,13 @@ d %>%
   labs(x = "Population served count", y = "Radius (km)")
 ```
 
-
 ## Models
 
 We fit random forest, xgboost, and multiple linear regression models. We then evaluate model performance, discuss model uncertainty and limitations, interpret modeling results, and use the model to generate predictions.
 
 ### Variable Importance
 
-Variable importance can quickly indicate which variables explain the most variance in the dataset. We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability. 
+Variable importance can quickly indicate which variables explain the most variance in the dataset. We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability.
 
 ### Model evaluation
 
@@ -363,12 +359,11 @@ Variable importance can quickly indicate which variables explain the most varian
 
 #### Linear model (person-connections, owner type, service area type, wholesaler)
 
-
-## Tier 3 uncertainty
+## Uncertainty
 
 Linear model CIs.
 
-### Limitations
+### Limitations {#limitations}
 
 No model is without limitations. In this section, we highlight key limitations and identify potential future pathways to improve the model fit through additional data collection and/or cleaning.
 
@@ -386,16 +381,16 @@ d %>%
 
 #### Centroid Accuracy and the "Pancake Problem"
 
-The "pancake problem" impacts PWSIDs that lack an explicit boundary (or TIGRIS match) and that suffer from low centroid accuracy (e.g., country centroid accuracy). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. Efforts may be made to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations. One approach is to relocate low accuracy centroids to the centroids of [cities and towns](<https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true>) that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
+The "pancake problem" impacts PWSIDs that lack an explicit boundary (or TIGRIS match) and that suffer from low centroid accuracy (e.g., country centroid accuracy). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. Efforts may be made to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations. One approach is to relocate low accuracy centroids to the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
 
 Upstream centroid accuracy issues are beyond the scope of this study, and may be addressed in coordination with federal agencies that produce FRS and ECHO databases.
 
 # Contributions
 
-# Recommendations for future work
+# Recommendations
 
 -   Explicit boundary data supersedes TIGER proxy matches and estimated water system boundaries. Moreover, it improves the statistical model prediction by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would .
 -   Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions).
--   There are `r length((table(d$service_area_type_code)))` unique service area type code combinations, and many are combinations of different types. 
+-   There are `r length((table(d$service_area_type_code)))` unique service area type code combinations, and many are combinations of different types.
 
 <br><br>
