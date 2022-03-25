@@ -53,7 +53,6 @@ pa_wsb <- pa_wsb %>%
     state,
     county         = CNTY_NAME,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
