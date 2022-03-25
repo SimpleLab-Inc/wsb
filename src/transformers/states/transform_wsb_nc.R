@@ -60,7 +60,6 @@ nc_wsb <- nc_wsb %>%
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
