@@ -1,5 +1,5 @@
 ---
-title: "Preliminary wsb layer"
+title: "A tiered assimilation, matching, and modeling (TAMM) approach to nationwide water system boundaries"
 output: 
   html_document:
     highlight: zenburn
@@ -27,23 +27,34 @@ dt_make <- function(x){
 }
 ```
 
-*Jess Goddard & Rich Pauloo*
+*Jess Goddard, Rich Pauloo, Ryan Shepherd, Noor Brody*  
 
-*Last updated `r Sys.time()`*
+*Last updated `r Sys.time()`*  
 
 <br>
 
 # Introduction
 
-Herein, we present a preliminary approach to create a nationwide water service spatial boundary layer for community water systems. Importantly, this report builds on a previous report `eda_february.html` that should be read first for background, context, and exploratory data analysis (EDA) that informs the approach taken in the work described in this report.
+In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum ([`eda_february.html`](#)) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informed the approach taken herein.
 
-The national water service boundary layer (henceforth, **wsb**) is composed of three hierarchical tiers, arranged by data and model fidelity.
+The resulting national water service boundary layer is the product of a "tiered assimilation, matching, and modeling" (henceforth, **TAMM**) approach. The TAMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
-1.  Whenever present, we use *explicit water service boundaries* (labeled data), which are spatial polygon data typically provided at the state-level.\
-2.  In the absence of explicit water service boundary data, we use a matching algorithm that matches PWSIDs by spatial intersection to [TIGER places](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html), and explicit name matching. We validate this heuristic approach on explicit water service boundaries[^1].\
-3.  Finally, in the absence of an explicit water service boundary or TIGER place polygon match, a statistical model trained on explicit water service boundary data is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable (this issue is discussed in a later section on [Limitations](#limitations)).
+1.  Whenever present, we use *explicit water service boundaries* (labeled data), which are spatial polygon data, typically provided at the state-level.\
+2.  In the absence of explicit water service boundary data, we use a matching algorithm that matches PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html). We validate this heuristic approach on explicit water service boundaries[^1], and note additional independent validation of this approach by [Patterson et al. (2019) ](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when).\
+3.  Finally, in the absence of an explicit water service boundary or a TIGER place polygon match, a statistical model trained on explicit water service boundary data (1 above) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable (this issue is discussed in the [Limitations](#limitations) section).
 
-[^1]: In the previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching pwsids to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time.
+[^1]: In the previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching pwsids to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". 
+
+Below is a conceptual diagram of the three tiers. Tier 1 data always supersedes Tier 2 data, which in turn always supersedes Tier 3 data. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, depending on data availability for the water system, and whether or not it matches to a TIGER place. 
+
+```{r conceptual-model, echo = FALSE}
+knitr::include_graphics(here::here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
+```
+
+In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, there is increasingly more uncertainty, hence, we describe each Tier with increasing detail. Validation and uncertainty associated with Tier 2 and 3 estimates are provided. 
+
+Finally, we encourage the reader to consider the TAMM water service boundary layer composite not as a final product, but rather, one that may be improved with the assimilation of more Tier 1 data, improvements to the Tier 2 matching algorithm, and improvements to the Tier 3 model. Ultimately, this entire workflow may be superseded by Tier 1 data for all water service boundaries nationwide, which would reduce the problem to one of simple data assimilation. 
+
 
 ```{r load}
 library(tidyverse)
