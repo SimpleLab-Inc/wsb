@@ -26,6 +26,8 @@ supermodel = gpd.GeoDataFrame.from_postgis(
 
 matches = pd.read_sql("SELECT * FROM matches;", conn)
 
+#%%
+
 # This is helpful in a few places
 masters = supermodel[supermodel["source_system"] == "sdwis"]["master_key"]
 
@@ -49,15 +51,27 @@ mk_matches = (mk_matches
     .apply(lambda x: list(pd.Series.unique(x)))
     .reset_index())
 
-distinct_pwsid_matches = len(mk_matches['master_key_x'].unique())
-total_pwsids = len(masters)
+distinct_pwsid_matches = mk_matches['master_key_x'].drop_duplicates()
+total_pwsid_count = len(masters)
+labeled_pwsids = supermodel[supermodel["source_system"] == "labeled"]["pwsid"]
 
-print(f"Distinct master matches: {len(mk_matches)}")
 print(
-    f"Distinct PWSID matches: {distinct_pwsid_matches}" +
-    f" ({(distinct_pwsid_matches / total_pwsids)*100:.1f}%)")
+    f"Distinct PWSID's with candidate matches: {len(distinct_pwsid_matches):,}" +
+    f" ({(len(distinct_pwsid_matches) / total_pwsid_count)*100:.1f}%)")
 
 # 32,013 distinct pwsid's have matches to TIGER or MHP. Interesting! 64.7%.
+
+# Distinct PWSID's with labeled matches
+print(
+    f"Distinct PWSID's with labeled data: {len(labeled_pwsids):,}" +
+    f" ({(len(labeled_pwsids) / total_pwsid_count)*100:.1f}%)")
+
+# Total coverage across known labels and match candidates
+total_coverage_count = len(pd.concat([distinct_pwsid_matches, labeled_pwsids]).drop_duplicates())
+print(
+    f"Total coverage:  {total_coverage_count:,}" +
+    f" ({(total_coverage_count / total_pwsid_count)*100:.1f}%)")
+
 
 #%%
 # Now, finally, the stacked match report.
@@ -98,6 +112,7 @@ stacked_match["match_rule"] = stacked_match["match_rule"].astype(str)
     .to_excel(OUTPUT_PATH + "/stacked_match_report.xlsx", index=False))
 
 #%%
+# This geojson file supports the R Shiny app
 stacked_match.to_file(OUTPUT_PATH + "/stacked_match_report.geojson", index=False)
 
 #%%
@@ -239,61 +254,3 @@ subset[
     ~subset["geometry"].is_empty &
     subset["geometry"].notna()
     ].explore(tooltip=False, popup=True)
-
-#%%
-
-"""
-
-TODO:
-- [ ] Pull in more data
-    - [X] MHP
-    - [X] UCMR
-    - [ ] wsb_labeled.geojson
-
-Refinements:
-- [ ] Try to get county on all data sources
-- [ ] Assign a "type" to each water system, e.g. "Mobile Home Park", "Municipal", etc. This would tell us which match system will be stronger.
-- [x] Trim "MHP", "Mobile Home Park" from name on MHP matching
-
-- [ ] Try to quantify error compared to labeled boundaries
-- [ ] Spend a little time in the rabbit hole, then try to gen a new match output
-
-- [ ] Do we have a summary of data sources, studies, etc
-- [x] Plot some points
-- [ ] Rate the quality of matches
-    - [ ] Which matches are best quality? Review
-    - [ ] Why is there so little overlap between spatial and name matches? Research.
-    - [ ] Assign match scores based on match type. Try to get population covered.
-- [ ] Rate the quality of geocodes
-    - [ ] Zip and county centroids are not great.
-    - [ ] Centroids that overlap could be bad (e.g. admin offices)
-    - Possibly: Don't do spatial match rule on county centroids
-
-- [x] Consider: Create a Dash app for visualizing and stewarding potential matches (incl. leaflet map)?
-
-# TODO: Add states to UCMR
-# TODO: Have a geojson file of zip code geometries and centroids. Join to that later (if needed) instead of joining in the UCMR transformer.
-# TODO: What type of centroid was most frequent in each of the match types?
-
-
-- Try adding a buffer around the polygons and rerun for matching
-- If multiple spatial matches, use a min distance to "win"
-- Do we want looser spatial matches? Even if we know it's not exact? N:1 Tiger:SDWIS is OK?
-- Could we come up with some kind of "accuracy score" - involving spatial distance, # match rules, 
-
-"""
-
-#%%
-"""
-
-Let's study the types of matches. 
-- Spatial:
-    I suspect we'll want to filter out county and zip centroid matches on the spatial.
-    There are lots of bad spatial matches for small utilities within the major region. How to fix these?
-        Require name matches too?
-        Look for TIGER's that match many and try to pick the best match?
-- State+name match - require county
-- Analyze points that are stacked atop each other
-
-
-"""
