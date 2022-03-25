@@ -117,7 +117,7 @@ xgb_test_res <- test %>%
 
 # plot residuals
 xgb_test_res %>% 
-  ggplot(aes(log10(radius), log10(.pred))) + 
+  ggplot(aes(log10(radius), .pred)) + 
   geom_point(alpha = 0.4) + 
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
