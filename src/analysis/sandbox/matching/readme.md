@@ -2,7 +2,7 @@
 
 ## Start a PostGIS Docker container
 
-`docker run -e POSTGRES_PASSWORD=postgres -d --name postgis/postgis -p 5433:5432 -v postgres_volume:/var/lib/postgresql/data postgres`
+`docker run -e POSTGRES_PASSWORD=postgres -d --name postgis -p 5433:5432 -v postgis_volume:/var/lib/postgresql/data postgis/postgis`
 
 Notes about this command:
 - The database password will be "postgres". This is safe when run locally, but never use this on a server exposed to the internet.
@@ -11,10 +11,30 @@ Notes about this command:
 
 ### Configure the database
 
-Connect to the PostGIS server and run:
+Log into the container:
+
+`docker exec -it postgis bash`
+
+Connect to the PostGIS server using psql:
+
+`psql -U postgres`
+
+Create a new database:
 
 `create database wsb;`
 
-Connect to the database and run:
+Connect to the database:
+
+`\c wsb`
+
+Add the postgis extension:
 
 `CREATE EXTENSION postgis;`
+
+Exit out of psql:
+
+`exit`
+
+Exit out of the docker container:
+
+`exit`
