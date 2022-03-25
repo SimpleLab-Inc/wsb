@@ -55,10 +55,10 @@ wsb_labeled_multi <- wsb_labeled %>%
     area_hull      = sum(area_hull),
     # new radius is calculated from the new area
     radius         = sqrt(area_hull/pi)
+    # combine data into list-formatted strings for character columns
+    across(where(is.character), ~toString(unique(.))),
   ) %>%
-  # only take the first result from each group. The only loss here is in 
-  # potentially different names, although review of unique names per group
-  # indicates little variation in names per pwsid group
+  # only take the first result from each group
   slice(1) %>% 
   ungroup() %>% 
   # convert back to the project standard epsg
