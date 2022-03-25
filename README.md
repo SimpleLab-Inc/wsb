@@ -12,9 +12,9 @@ The main function of the project is an ETM (extract-transform-model) **pipeline*
 
 Download and transform data processing steps are modularized into separate processes in the `/src/downloaders` and `src/transformers` directories that can be modified and run in parallel, with no dependencies on one another. Downloaders pull raw data from the web to a local filesystem. See downloaders [README.md](https://github.com/SimpleLab-Inc/wsb/tree/develop/src/downloaders). transformers clean, standardize and join that data, and then write it to `data/staging`. See transformers [README.md](https://github.com/SimpleLab-Inc/wsb/tree/develop/src/transformers).
 
-The staged and standardized data is pulled into a matching model that joins all data sources together and assigns TIGER/Line places to water systems. 
+The staged and standardized data is pulled into a matching model that joins all data sources together and assigns TIGER/Line places to water systems. See matching [README.md](https://github.com/SimpleLab-Inc/wsb/tree/develop/src/analysis/sandbox/matching). 
 
-Finally, a model reads the output of the matched data and outputs a wsb proxy layer to `/proxywsb`. All data in this project is quite small and should easily fit into memory and on a PC.   
+Finally, a model reads the output of the matched data and outputs a wsb proxy layer to `/proxywsb`. All data in this project is quite small and should easily fit into memory and on a PC. See model [README.md](https://github.com/SimpleLab-Inc/wsb/tree/develop/src/analysis/sandbox/model_explore). 
 
 Exploratory data analysis (EDA), sanity checks, and feature engineering experimentation occur in the **sandbox** (`src/analysis`) and are modularized into iterative notebooks and scripts that can serve multiple objectives without interfering with the functionality of the main ETM pipeline (i.e., `src/run.py`). This makes it easy to create and archive new analyses that serve a purpose, but that may never become productionized.  
 
