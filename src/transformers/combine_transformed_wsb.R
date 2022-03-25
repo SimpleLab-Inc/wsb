@@ -55,32 +55,28 @@ wsb_labeled_multi <- wsb_labeled %>%
     area_hull      = sum(area_hull),
     # new radius is calculated from the new area
     radius         = sqrt(area_hull/pi),
-    # compute new centroids and note that when multipolygons are separated
-    # by space, these are suspect and should not be used
+    # combine data into list-formatted strings for character columns
+    across(where(is.character), ~toString(unique(.)))
+  ) %>%
+  # only take the first result from each group
+  slice(1) %>% 
+  ungroup() %>% 
+  # convert back to the project standard epsg
+  st_transform(epsg) %>% 
+  st_make_valid() %>% 
+  # compute new centroids and note that when multipolygons are separated
+  # by space, these are suspect and should not be used. Importantly, this
+  # calculation occurs in the EPSG consistent with other staged data!
+  mutate(
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2]
-  ) %>%
-  # only take the first result from each group. The only loss here is in 
-  # potentially different names, although review of unique names per group
-  # indicates little variation in names per pwsid group
-  slice(1) %>% 
-  ungroup() %>% 
-  # remove centroid column
-  select(-centroid) %>% 
-  # convert back to the project standard epsg
-  st_transform(epsg) %>% 
-  st_make_valid() 
-  
+  ) %>% 
+  # remove centroid and area_hull columns
+  select(-c(centroid, area_hull))
+
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
-
-# write cleaned dupes to staging
-path_out <- path(staging_path, "wsb_dups_cleaned.geojson")
-if(file_exists(path_out)) file_delete(path_out)
-
-st_write(wsb_labeled_multi, path_out)
-cat("Wrote clean, dupes data to geojson.\n")
 
 # view
 # mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
