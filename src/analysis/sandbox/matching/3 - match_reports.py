@@ -24,7 +24,7 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 supermodel = gpd.GeoDataFrame.from_postgis(
     "SELECT * FROM utility_xref;", conn, geom_col="geometry")
 
-matches = pd.read_sql("SELECT * FROM matches;", conn)
+mk_matches = pd.read_sql("SELECT * FROM matches;", conn)
 
 #%%
 
@@ -32,24 +32,8 @@ matches = pd.read_sql("SELECT * FROM matches;", conn)
 masters = supermodel[supermodel["source_system"] == "sdwis"]["master_key"]
 
 #%% ################################
-# Convert matches to MK matches.
+# Report some stats
 ####################################
-
-# The left side contains known PWS's and can be deduplicated by crosswalking to the master_key (pwsid)
-# The right side contains unknown (candidate) matches and could stay as an xref_id
-
-mk_xwalk = supermodel[["xref_id", "master_key"]].set_index("xref_id")
-
-mk_matches = (matches
-    .join(mk_xwalk, on="xref_id_x").rename(columns={"master_key": "master_key_x"})
-    .join(mk_xwalk, on="xref_id_y").rename(columns={"master_key": "master_key_y"})
-    [["master_key_x", "master_key_y", "match_rule"]])
-
-# Deduplicate
-mk_matches = (mk_matches
-    .groupby(["master_key_x", "master_key_y"])["match_rule"]
-    .apply(lambda x: list(pd.Series.unique(x)))
-    .reset_index())
 
 distinct_pwsid_matches = mk_matches['master_key_x'].drop_duplicates()
 total_pwsid_count = len(masters)

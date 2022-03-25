@@ -279,8 +279,33 @@ matches = pd.concat([matches, new_matches])
 # # Sorting by state + address
 # tokens[tokens["likely_mhp"]].sort_values(["state", "city", "address_line_1"])
 
+#%% ################################
+# Convert matches to MK matches.
+####################################
+
+# The left side contains known PWS's and can be deduplicated by crosswalking to the master_key (pwsid)
+# The right side contains unknown (candidate) matches and could stay as an xref_id
+
+mk_xwalk = supermodel[["xref_id", "master_key"]].set_index("xref_id")
+
+
+mk_matches = (matches
+    .join(mk_xwalk, on="xref_id_x").rename(columns={"master_key": "master_key_x"})
+    .join(mk_xwalk, on="xref_id_y").rename(columns={"master_key": "master_key_y"})
+    [["master_key_x", "master_key_y", "match_rule"]])
+
+# Deduplicate
+mk_matches = (mk_matches
+    .groupby(["master_key_x", "master_key_y"])["match_rule"]
+    .apply(lambda x: list(pd.Series.unique(x)))
+    .reset_index())
+
 #%%
 
 # Save the matches back to the database
 conn.execute("DROP TABLE IF EXISTS matches;")
-matches.to_sql("matches", conn, index=False)
+matches.to_sql("match_xref", conn, index=False)
+
+# Save the matches back to the database
+conn.execute("DROP TABLE IF EXISTS matches;")
+mk_matches.to_sql("matches", conn, index=False)
