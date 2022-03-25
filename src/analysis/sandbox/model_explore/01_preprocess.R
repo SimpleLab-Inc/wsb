@@ -8,6 +8,14 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
+# this is the critical service connection count below which (inclusive) we
+# assume that the value is nonsensical, and impute it based on population. 
+# We also assume that population counts less than n_max are unreasonable, 
+# and only work with populations >= 15 (at least one per service connection)
+n_max <- 15
+cat("Preparing to mean impute service connection count", 
+    "for all values >=", n_max, ".\n")
+
 # j stands for joined data, read and rm rownumber column, then drop
 # observations without a centroid or with nonsensical service connections
 j <- read_csv(path(staging_path, "matched_output.csv"), 
@@ -15,9 +23,9 @@ j <- read_csv(path(staging_path, "matched_output.csv"),
   filter(!is.na(echo_latitude) | !is.na(echo_longitude)) %>% 
   # we also filter out 0 service connection count systems - 267 (0.4%), 
   # this should be cleaned/imputed in the transformer
-  filter(population_served_count > 0) 
-cat("Read", nrow(j), 
-    "matched outputs with nonzero service connection count.\n")
+  filter(population_served_count > n_max) 
+cat("Read", nrow(j), "matched outputs with >=", 
+    n_max, "connection & population count.\n")
 
 
 # mean impute service connections == 0 with linear model ------------------
@@ -30,12 +38,6 @@ cat("Read", nrow(j),
 # typically occupy urban areas and do not contain smaller pwsids. Thus, we 
 # retain all observations and mean impute suspect (between 0 and N) service
 # connections.
-
-# this is the critical service connection count below which (inclusive) we
-# assume that the value is nonsensical, and impute it based on population
-n_max <- 15
-cat("Preparing to mean impute service connection count", 
-    "for all values >=", n_max, ".\n")
 
 # we learned in the Feb 2022 EDA (sandbox/eda/eda_february.Rmd) that
 # population served and service connection count had outliers that were 
@@ -52,7 +54,8 @@ cat("Preparing to mean impute service connection count",
 
 # linear model for imputing service connections from population served
 # Only train on population served >= n_max (community water systems)
-jm <- j %>% filter(service_connections_count >= n_max)
+jm <- j %>% filter(service_connections_count >= n_max,
+                   population_served_count   >= n_max)
 
 # simple linear model for imputing service connection count and b1 slope
 m  <- lm(service_connections_count ~ population_served_count, data = jm)
@@ -62,7 +65,7 @@ b1 <- coefficients(m)["population_served_count"]
 j <- j %>%
   mutate(
     service_connections_count = ifelse(
-      service_connections_count %in% 0:10,
+      service_connections_count < n_max,
       ceiling(population_served_count * b1),
       service_connections_count)
   )
