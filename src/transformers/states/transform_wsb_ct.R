@@ -1,5 +1,7 @@
 # transform CT water system data to standard model -------------------
 
+cat("Preparing to transform CT polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -47,8 +49,8 @@ ct_wsb <- ct_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = pwsid,
-    pws_name         = pws_name,
+    pwsid          = pwsid,
+    pws_name       = pws_name,
     state,
     #    county,
     #    city,
@@ -58,7 +60,6 @@ ct_wsb <- ct_wsb %>%
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
@@ -73,4 +74,4 @@ path_out <- path(staging_path, "ct/ct_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ct_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n") 
+cat("Wrote clean, labeled data to geojson.\n\n\n") 

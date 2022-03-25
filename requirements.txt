@@ -5,6 +5,7 @@ openpyxl==3.0.9
 sqlalchemy==1.4.31
 psycopg2==2.9.3
 geoalchemy2==0.6.3
+tabulate==0.8.9
 
 # Optional
 ipykernel==6.9.0

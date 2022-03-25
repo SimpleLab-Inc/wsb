@@ -1,6 +1,5 @@
 # download UCMR occurrence data -----------------------------------------------
 
-library(tidyverse)
 library(glue)
 library(fs)
 

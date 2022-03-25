@@ -1,5 +1,7 @@
 # transform NC water system data to standard model -------------------
 
+cat("Preparing to transform NC polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -47,10 +49,10 @@ nc_wsb <- nc_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = WASYID,
-    pws_name         = WASYNAME,
+    pwsid          = WASYID,
+    pws_name       = WASYNAME,
     state,
-    county          = WAPCS,
+    county         = WAPCS,
 #    city,
 #    source,
 #    owner,
@@ -58,7 +60,6 @@ nc_wsb <- nc_wsb %>%
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
@@ -73,4 +74,4 @@ path_out <- path(staging_path, "nc/nc_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(nc_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")
