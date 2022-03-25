@@ -78,13 +78,6 @@ wsb_labeled_multi <- wsb_labeled %>%
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
 
-# write cleaned dupes to staging
-path_out <- path(staging_path, "wsb_dups_cleaned.geojson")
-if(file_exists(path_out)) file_delete(path_out)
-
-st_write(wsb_labeled_multi, path_out)
-cat("Wrote clean, dupes data to geojson.\n")
-
 # view
 # mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
 
