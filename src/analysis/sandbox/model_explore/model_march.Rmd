@@ -1,5 +1,5 @@
 ---
-title: "A tiered assimilation, matching, and modeling (TAMM) approach to nationwide water system boundaries"
+title: 'A "Tiered Assimilation, Match, and Model" (**TAMM**) approach for nationwide water system boundary estimation'
 output: 
   html_document:
     highlight: zenburn
@@ -9,6 +9,31 @@ output:
     toc_depth: 3
     number_sections: true
 ---
+
+<style type="text/css">
+  /* Whole document: */
+  body{
+    font-family: Helvetica;
+    font-size: 14pt;
+  }
+  /* Headers */
+  h1{
+    font-size: 36pt;
+  }
+  h2{
+    font-size: 30pt;
+  }
+  h3{
+    font-size: 24pt;
+  }
+  h4{
+    font-size: 18pt;
+  }
+  h5{
+    font-size: 14pt;
+  }
+}
+</style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
@@ -35,32 +60,72 @@ dt_make <- function(x){
 
 # Introduction
 
-In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum ([`eda_february.html`](#)) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informed the approach taken herein.
+In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum ([`eda_february.html`](#)) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informs the approach taken herein.
 
-The resulting national water service boundary layer is the product of a "tiered assimilation, matching, and modeling" (henceforth, **TAMM**) approach. The TAMM is composed of three hierarchical tiers, arranged by data and model fidelity.
+The resulting national water service boundary layer is the product of a "Tiered Assimilation, Match, and Model" (henceforth, **TAMM**) approach. The TAMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
-1.  Whenever present, we use *explicit water service boundaries* (labeled data), which are spatial polygon data, typically provided at the state-level.\
-2.  In the absence of explicit water service boundary data, we use a matching algorithm that matches PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html). We validate this heuristic approach on explicit water service boundaries[^1], and note additional independent validation of this approach by [Patterson et al. (2019) ](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when).\
-3.  Finally, in the absence of an explicit water service boundary or a TIGER place polygon match, a statistical model trained on explicit water service boundary data (1 above) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable (this issue is discussed in the [Limitations](#limitations) section).
+1.  Whenever present, we use *explicit water service boundaries* (labeled data). These are spatial polygon data, typically provided at the state-level.\
+2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with independent validation of the approach by [Patterson et al. (2019) ](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.\
+3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable at this point in time (centroid accuracy is discussed in the [Limitations](#limitations) section with recommendations for future work).
 
-[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching pwsids to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". 
+[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". 
 
-Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 data always supersedes Tier 2, which in turn always supersedes Tier 3 Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, depending on data availability for the water system, and whether or not it matches to a TIGER place. 
+Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place. 
 
 ```{r conceptual-model, echo = FALSE}
 knitr::include_graphics(here::here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
 ```
 
-In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, there is increasingly more uncertainty, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.   
+In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, there is uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.   
 
-Finally, we encourage the reader to consider the TAMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 data, improvements to the Tier 2 matching algorithm, and improvements to the Tier 3 model. Ultimately, this entire workflow may be superseded by Tier 1 data for all water service boundaries nationwide, which would reduce the problem to one of simple data assimilation. 
+Finally, we encourage the reader to consider the TAMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 data, improvements to the Tier 2 matching algorithm, and refinement of the Tier 3 model. Ultimately, this entire workflow may be superseded by nationwide Tier 1 data, which would reduce the problem we address in the scope of work to one of simple Tier 1 data assimilation and cleaning. 
 
+<br>
 
 # Report outline
 
-Present key results and then delve into methods, like PNAS. 
+The following outline reflects a summary of key findings, followed by a description of each Tier in the TAMM approach. Notably, the TAMM may be refined and re-run as new data sources are ingested or improvements are made to matching and modeling algorithms:  
 
-# Water system boundary spatial database
+_Key Results_
+
+- A nationwide water service boundary layer is provided for X community water systems covering Y population  
+- Coverage rates per Tier: 
+    - Tier 1: X% (count in millions)  
+    - Tier 2: Y% (count in millions)  
+    - Tier 3: Z% (count in millions)  
+- Unequal Tier distribution across states suggests that the confidence in water service boundary location and extent varies by state and system.  
+- Uncertainty metrics for Tier 2 and 3 estimates suggest that the TAMM approach provides a reasonable preliminary water service boundary layer.  
+
+
+_Tier 1_  
+
+- Data discovered for X states.  
+- We consider these data as "high quality" and use them to model Tier 3 boundaries.  
+
+_Tier 2_  
+
+- X% of water systems match a TIGER place by spatial intersection or name match.  
+- Spatial and name matching is constrained within the reported state to prevent out-of-state mismatches.  
+- For multiple spatial or name matches, minimum distance between the reported centroid of the PWSID and the TIGER place centroid is used to break ties.  
+
+
+_Tier 3_  
+
+- Circular water service boundary estimates are calculated for all water systems; median, 5% and 95% confidence intervals are provided to reflect medium, low, and high water service boundary estimates. 
+- The the multiple linear regression fit has an impressive $R^2 = 0.67$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area.  
+
+
+<br>  
+
+# Key Results
+
+The key result of this study is a nationwide water service boundary layer. Here we show the proportion of state population served by each TAMM Tier. 
+
+<br>
+
+## Tier distribution per state
+
+Interpret barplot below. 
 
 ```{r load}
 library(tidyverse)
@@ -77,41 +142,64 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   mutate(radius = radius/1000)
 ```
 
-Tiered Assimilation Model (TAM), with tiers of decreasing data fidelity. 
+```{r geofacet tamm tier distribution per state}
+# read the final wsb layer
 
-Tier 1: labeled wsb
-Tier 2: TIGER proxy match
-Tier 3: modeled boundaries
+# barplot geofacet that shows prop of population served by each tier
+```
 
-## Tier distribution per state
+```{r datatable tamm tier distribution per state}
+# datatable of the above geofacet
+```
 
-barplot geofacet showing population served count for each tier. 
+<br> 
 
-## Tier 1 uncertainty
+# Tier 1: _Assimilated_ explicit boundaries
 
-Out of our hands. Depends on the state.
+Tier 1 explicit spatial boundary data is obtained from the following web addresses.  
 
-## Tier 2 uncertainty
-
-Modified Jacard similarity, plot distribution of 0-1 area overlap per TIGER match and labeled wsb. See 93% overlap in previous EDA as starting point.
-
-## Tier 3 uncertainty
-
-Linear model CIs.
-
-
-# Tier 1: labeled wsb collection
 
 URL table. Standard downloaders/transformers. Should expand in future work.
  
+Uncertainty out of our hands - depends on the state.  
 
 
-# Tier 2: TIGER proxy boundaries 
+<br> 
+
+# Tier 2: _Matched_ TIGER proxy boundaries 
 
 Ryan's section with conceptual model. 
 
 
-# Tier 3: modeled boundaries
+<br> 
+
+## Tier 2 uncertainty
+
+We estimate the range of uncertainty in the Tier 2 approach with a _Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}_, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary, which we can calculate by comparing Tier 2 matches to all Tier 2 data:
+
+$$
+J = \frac{A_T \cap A_E }{A_E}
+$$
+where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J | 0 \le J \le  1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$. 
+
+```{r modified jacard similarity on tiger place match and labeled wsb}
+
+```
+
+Interpret plot above. 
+
+See 93% overlap in previous EDA as starting point.
+
+
+<br> 
+
+# Tier 3: _Modeled_ boundaries
+
+We experimented with 3 different models: random forest, xgboost, and multiple linear regression. The model specification hinges on the correlation between the radius of convex hulls (response) calculated at each Tier 1 water service boundary (labeled data), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
+
+Ultimately, we select a multiple linear regression model because it is computationally efficient, easily interpretable, avoids overfitting (it actually results in the lowest error of the models tested), and provides confidence intervals that characterize uncertainty in the modeled boundary and may be useful depending on the application of the model results.  
+
+<br> 
 
 ## EDA 
 
@@ -275,6 +363,10 @@ Variable importance can quickly indicate which variables explain the most varian
 
 #### Linear model (person-connections, owner type, service area type, wholesaler)
 
+
+## Tier 3 uncertainty
+
+Linear model CIs.
 
 ### Limitations
 
