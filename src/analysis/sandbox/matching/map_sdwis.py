@@ -79,30 +79,30 @@ if not sdwis_ga["pwsid"].is_unique:
 
 sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
 
-# #########
-# # Supplement with service_area
+#########
+# Supplement with service_area
 
-# # This is N:1 with sdwis, which is annoying
-# # (each pws has on average 1.2 service_area_type_codes)
+# This is N:1 with sdwis, which is annoying
+# (each pws has on average 1.2 service_area_type_codes)
 
-# # service_area - PWSID + service_area_type_code is unique
-# # ~1k PWSID's appear in water_system but not service_area
-# sdwis_sa = pd.read_csv(
-#     DATA_PATH + "/sdwis_service_area.csv",
-#     usecols=["pwsid", "service_area_type_code"])
+# service_area - PWSID + service_area_type_code is unique
+# ~1k PWSID's appear in water_system but not service_area
+sdwis_sa = pd.read_csv(
+    DATA_PATH + "/sdwis_service_area.csv",
+    usecols=["pwsid", "service_area_type_code"])
 
-# # Filter to the pws's we're interested in
-# sdwis_sa = sdwis_sa.loc[sdwis_sa["pwsid"].isin(sdwis["pwsid"])]
+# Filter to the pws's we're interested in
+sdwis_sa = sdwis_sa.loc[sdwis_sa["pwsid"].isin(sdwis["pwsid"])]
 
-# # Supplement sdwis. I'll group it into a python list to avoid denormalized
-# # Could also do a comma-delimited string. We'll see what seems more useful in practice.
-# sdwis_sa = sdwis_sa.groupby("pwsid")["service_area_type_code"].apply(list)
+# Supplement sdwis. I'll group it into a python list to avoid denormalized
+# Could also do a comma-delimited string. We'll see what seems more useful in practice.
+sdwis_sa = sdwis_sa.groupby("pwsid")["service_area_type_code"].apply(list)
 
-# sdwis = sdwis.merge(sdwis_sa, on="pwsid", how="left")
+sdwis = sdwis.merge(sdwis_sa, on="pwsid", how="left")
 
-# # Verification
-# if not sdwis["pwsid"].is_unique:
-#     raise Exception("Expected sdwis pwsid to be unique")
+# Verification
+if not sdwis["pwsid"].is_unique:
+    raise Exception("Expected sdwis pwsid to be unique")
 
 sdwis.head()
 
@@ -122,7 +122,13 @@ df = gpd.GeoDataFrame().assign(
     zip                  = sdwis["zip_code"],
     county               = sdwis["county_served"],
     city_served          = sdwis["city_served"],
-    geometry             = Polygon([])           # Empty geometry. Could replace with a zip centroid.
+    geometry             = Polygon([]),                     # Empty geometry.
+    primacy_agency_code        = sdwis["primacy_agency_code"],
+    primacy_type               = sdwis["primacy_type"],
+    population_served_count    = sdwis["population_served_count"],
+    service_connections_count  = sdwis["service_connections_count"],
+    owner_type_code            = sdwis["owner_type_code"],
+    service_area_type_code     = sdwis["service_area_type_code"].astype("str"),
 )
 
 df = df.set_crs(epsg=EPSG, allow_override=True)
