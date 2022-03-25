@@ -33,9 +33,9 @@ cat("Read", nrow(j),
 
 # this is the critical service connection count below which (inclusive) we
 # assume that the value is nonsensical, and impute it based on population
-n_max <- 10
+n_max <- 15
 cat("Preparing to mean impute service connection count", 
-    "for all values <=", n_max, ".\n")
+    "for all values >=", n_max, ".\n")
 
 # we learned in the Feb 2022 EDA (sandbox/eda/eda_february.Rmd) that
 # population served and service connection count had outliers that were 
@@ -50,9 +50,9 @@ cat("Preparing to mean impute service connection count",
 #   geom_point(aes(color = grp), alpha = 0.5) +
 #   geom_smooth(method = "lm") 
 
-# linear model for imputing population served from service connections.
-# Only train on population served not in 0:n_max (nonsensical)
-jm <- j %>% filter(! service_connections_count %in% 0:n_max)
+# linear model for imputing service connections from population served
+# Only train on population served >= n_max (community water systems)
+jm <- j %>% filter(service_connections_count >= n_max)
 
 # simple linear model for imputing service connection count and b1 slope
 m  <- lm(service_connections_count ~ population_served_count, data = jm)
