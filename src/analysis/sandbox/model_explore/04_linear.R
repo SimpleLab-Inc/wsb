@@ -111,11 +111,7 @@ path_t3m_med <- path(staging_path, "tier3_median.geojson")
 path_t3m_cil <- path(staging_path, "tier3_ci_upper_95.geojson")
 path_t3m_ciu <- path(staging_path, "tier3_ci_lower_05.geojson")
 
-# delete files if they exist because we can't overwrite geojson
-walk(c(path_t3m_med, path_t3m_cil, path_t3m_ciu), 
-     ~if(file_exists(.x)) file_delete(.x))
-
-# write
-st_write(t3m_med, path_t3m_med)
-st_write(t3m_cil, path_t3m_cil)
-st_write(t3m_ciu, path_t3m_ciu)
+# write and delete layer if it already exists
+st_write(t3m_med, path_t3m_med, delete_dsn = TRUE)
+st_write(t3m_cil, path_t3m_cil, delete_dsn = TRUE)
+st_write(t3m_ciu, path_t3m_ciu, delete_dsn = TRUE)
