@@ -140,6 +140,9 @@ library(geofacet)
 # load environmental variable for staging path 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 
+# labeled data
+wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson"))
+
 # service connection count cutoff for community water systems
 n_max <- 15
 
@@ -158,7 +161,10 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   # filter to CWS and assume each connection must serve at least 1 person
   # this drop 267 rows (0.5% of data)
   filter(service_connections_count >= n_max,
-         population_served_count   >= n_max)
+         population_served_count   >= n_max) %>% 
+  # remove another 472 rows (1% of data) that are not in the contiguous 
+  # USA, mostly from Puerto Rico
+  filter(state_code %in% state.abb)
 
 # popultion served by all water systems
 pop_total <- sum(d$population_served_count)
@@ -185,11 +191,46 @@ pop %>%
   kable(col.names = c("Tier", "Population count", "Population proportion"))
 ```
 
+Below, we show the Proportion of population coverage per TAMM Tier on a state-by-state basis. Notably:
+
+- When Tier 1 data (orange bars below) is present, it tends to cover the vast majority of population in the state.  
+- Tier 2 covers more population than Tier 3 across all states.  
+- Tier 3 coverage is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal). 
 
 ```{r datatable tamm tier distribution per state}
-# barplot geofacet that shows prop of population served by each tier
+# dataframe for barplot geofacet: population prop served by each tier
+dg <- d %>% 
+  group_by(state_code) %>%
+  # population per state
+  mutate(state_pop = sum(population_served_count)) %>%
+  ungroup() %>% 
+  group_by(state_code, tier) %>% 
+  # calculate the proportion of population served per state and tier
+  summarise(prop = sum(population_served_count)/state_pop) %>% 
+  ungroup() %>% 
+  distinct() %>% 
+  # add missing NA values per state code and tier group
+  complete(state_code, tier) %>% 
+  mutate(tier = factor(tier, levels = paste("Tier", 3:1)))
 
-# datatable of the above geofacet
+# sanity check the grouped summary above: this should return all 1
+# group_by(dg, state_code) %>% 
+#   summarise(s = sum(prop, na.rm = TRUE)) %>% 
+#   pull(s) 
+
+# geofacet of TAMM tier coverage per state in terms of population proportion
+dg %>% 
+  ggplot(aes(tier, prop, fill = tier)) + 
+  geom_col() + 
+  coord_flip() +
+  scale_fill_carto_d(direction = -1) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25), 
+                     labels = seq(0, 1, 0.25)) +
+  geofacet::facet_geo(~state_code) +
+  labs(x = "", y = "Population proportion") +
+  guides(fill = "none") +
+  theme_minimal(base_size = 6) +
+  theme(panel.grid.minor = element_blank())
 ```
 
 <br>
@@ -198,7 +239,7 @@ pop %>%
 
 
 ```{r}
-wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson")) 
+# wsb_labeled_clean 
 ```
 
 Tier 1 explicit spatial boundary data is obtained from the following web addresses.
