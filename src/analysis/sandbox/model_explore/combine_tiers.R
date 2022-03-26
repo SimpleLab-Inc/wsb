@@ -86,9 +86,9 @@ tamm <- bind_rows(dt1, dt2, dt3)
 # paths to write to
 path_geojson  <- here("tamm_layer",     glue("{Sys.Date()}_tamm.geojson"))
 path_shp      <- here("tamm_layer/shp", glue("{Sys.Date()}_tamm.shp"))
-path_metadata <- here("tamm_layer/metadata.csv")
+path_csv      <- here("tamm_layer",     glue("{Sys.Date()}_tamm.csv"))
 
 # write geojson, shp, and csv
 st_write(tamm, path_geojson, delete_dsn = TRUE)
 st_write(tamm, path_shp,     delete_layer = TRUE)
-tamm %>% st_drop_geometry() %>% write_csv(path_metadata)
+tamm %>% st_drop_geometry() %>% write_csv(path_csv)
