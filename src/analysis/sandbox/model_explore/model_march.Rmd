@@ -78,7 +78,7 @@ The resulting national water service boundary layer is the product of a "Tiered 
 
 Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
-```{r conceptual-model, echo = FALSE}
+```{r conceptual model, echo = FALSE}
 knitr::include_graphics(here::here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
 ```
 
@@ -122,11 +122,11 @@ The following outline reflects a summary of key findings, followed by a descript
 
 # Key Results
 
-The key result of this study is a nationwide water service boundary layer. Here we show the proportion of state population served by each TAMM Tier.
+The key result of this study is a nationwide water service boundary layer. Here we show the proportion of population served by each TAMM Tier at nationwide and statewide scales.
 
 <br>
 
-## Tier distribution per state
+## Tier coverage - nationwide 
 
 ```{r load}
 library(tidyverse)
@@ -141,7 +141,8 @@ library(geofacet)
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 
 # labeled data
-wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson"))
+wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.geojson") %>% 
+  st_read(quiet = TRUE)
 
 # service connection count cutoff for community water systems
 n_max <- 15
@@ -170,9 +171,9 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 pop_total <- sum(d$population_served_count)
 ```
 
-In total, the TAMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by the `r nrow(d)` water systems. 
+In total, the TAMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by the `r format_bign(nrow(d))` water systems. 
 
-```{r geofacet tamm tier distribution per state}
+```{r tamm nationwide coverage count and prop}
 # calculate count and proportion of people served by each tier
 pop <- d %>% 
   group_by(tier) %>% 
@@ -182,22 +183,27 @@ pop <- d %>%
   )
 ```
 
-`r str_sub(pop$count, 1, 3)[1]` million people are served by a Tier 1 explicit data layer, which is impressive for only `r wsb_labeled_clean$state %>% unique() %>% length()` states that provided explicit boundary data. However, these states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`) include notable high-population states like CA, TX, and PA. 
+About `r str_sub(pop$count, 1, 3)[1]` million people are covered by Tier 1 spatial data, impressive given that only `r wsb_labeled_clean$state %>% unique() %>% length()` states that provided explicit boundary data. However, this relatively high coverage rate is unsurprising because these states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`) include notable centers of high-population like CA, TX, and PA. 
 
-Together, `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are served by either a Tier 1 or a Tier 2 spatial boundary. The remaining ~`r str_split(pop$count[3], ",", simplify = TRUE)[1]` million people (`r pop$prop[3]`%) are served by a Tier 3 system. These results indicate high confidence in the spatial accuracy of the resulting TAMM water boundary layer for community water systems. 
+Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by either a Tier 1 or a Tier 2 spatial boundary. The remaining approximately `r str_split(pop$count[3], ",", simplify = TRUE)[1]` million people (`r pop$prop[3]`%) are covered by a Tier 3 boundary. These results indicate high confidence in the spatial accuracy of the resulting TAMM water boundary layer for community water systems. 
 
-```{r}
+```{r tamm nationwide kable}
 pop %>% 
-  kable(col.names = c("Tier", "Population count", "Population proportion"))
+  kable(col.names = c("Tier", "Population count", "Population proportion (%)")) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
 ```
 
-Below, we show the Proportion of population coverage per TAMM Tier on a state-by-state basis. Notably:
+<br> 
 
-- When Tier 1 data (orange bars below) is present, it tends to cover the vast majority of population in the state.  
-- Tier 2 covers more population than Tier 3 across all states.  
-- Tier 3 coverage is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal). 
+## Tier coverage - statewide 
 
-```{r datatable tamm tier distribution per state}
+Next, we show the proportion of population covered per TAMM Tier on a state-by-state basis. Notably:
+
+- When Tier 1 data is present (orange bars below), it tends to cover a majority of the population.  
+- Tier 2 (blue bars below) covers more population than Tier 3 across all states.  
+- Tier 3 coverage (grey bars below) is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal). 
+
+```{r geofacet tamm tier distribution per state}
 # dataframe for barplot geofacet: population prop served by each tier
 dg <- d %>% 
   group_by(state_code) %>%
@@ -205,8 +211,11 @@ dg <- d %>%
   mutate(state_pop = sum(population_served_count)) %>%
   ungroup() %>% 
   group_by(state_code, tier) %>% 
-  # calculate the proportion of population served per state and tier
-  summarise(prop = sum(population_served_count)/state_pop) %>% 
+  # calculate count/proportion of population served per state and tier
+  summarise(
+    count = sum(population_served_count),
+    prop  = count/state_pop
+  ) %>% 
   ungroup() %>% 
   distinct() %>% 
   # add missing NA values per state code and tier group
@@ -224,19 +233,45 @@ dg %>%
   geom_col() + 
   coord_flip() +
   scale_fill_carto_d(direction = -1) +
-  scale_y_continuous(breaks = seq(0, 1, 0.25), 
-                     labels = seq(0, 1, 0.25)) +
+  scale_y_continuous(breaks = c(0, 1, 0.5), 
+                     labels = c(0, 1, 0.5)) +
   geofacet::facet_geo(~state_code) +
   labs(x = "", y = "Population proportion") +
   guides(fill = "none") +
   theme_minimal(base_size = 6) +
-  theme(panel.grid.minor = element_blank())
+  theme(panel.grid.minor.x = element_blank())
 ```
+
+A data table of the the above plot is provided below.
+
+```{r datatable tamm tier distribution per state}
+dg %>% 
+  mutate(
+    count = ifelse(is.na(count), 0, count),
+    count = format_bign(count),
+    prop  = ifelse(is.na(prop), 0, prop),
+    prop  = round(prop, 3)
+  ) %>% 
+  dt_make()
+```
+
+<br> 
+
+## National boundary layer
+
+The national water service boundary layer is too large to plot in this interactive report. We show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above.  
+
+```{r tamm nationwide wsb}
+
+```
+
+Next, we review the construction of each tier in increasing detail. 
 
 <br>
 
 # Tier 1: *Assimilated* boundaries
 
+Tier 1 boundaries are the most straightforward to understand, but their "missingness" at 
 
 ```{r}
 # wsb_labeled_clean 
