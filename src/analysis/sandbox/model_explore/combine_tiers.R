@@ -6,7 +6,7 @@ library(fs)
 library(here)
 library(glue)
 
-# load environmental variable for staging path 
+# load environmental variables 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
@@ -38,8 +38,7 @@ cols_select <- c(
   "service_area_type_code", "owner_type_code", "geometry_lat", 
   "geometry_long", "geometry_quality", "tiger_match_geoid", 
   "has_labeled_bound", "is_wholesaler_ind", "primacy_type",
-  "primary_source_code", "tier"
-)
+  "primary_source_code", "tier")
 
 # service connection count cutoff for community water systems
 n_max <- 15
@@ -58,8 +57,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   # this drop 267 rows (0.5% of data)
   filter(service_connections_count >= n_max,
          population_served_count   >= n_max) %>% 
-  # remove another 834 rows (1% of data) that are not in the contiguous 
-  # USA, mostly from Puerto Rico
+  # remove 834 rows (1.5% of data) not in contiguous US, mostly Puerto Rico
   filter(primacy_agency_code %in% state.abb) %>% 
   # select only relevant cols
   select(all_of(cols_select))
@@ -68,10 +66,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 # combine tiers -----------------------------------------------------------
 
 # Tier 1
-dt1 <- d %>% 
-  filter(tier == "Tier 1") %>% 
-  left_join(t1) %>% 
-  st_as_sf()
+dt1 <- d %>% filter(tier == "Tier 1") %>% left_join(t1) %>% st_as_sf()
 
 # Tier 2
 dt2 <- d %>% 
@@ -80,18 +75,10 @@ dt2 <- d %>%
   st_as_sf() 
 
 # Tier 3
-dt3 <- d %>% 
-  filter(tier == "Tier 3") %>% 
-  left_join(t3) %>% 
-  st_as_sf()
+dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
 # TAMM Tiered layer
 tamm <- bind_rows(dt1, dt2, dt3)
-
-# sanity check
-# tamm %>% 
-#   filter(primacy_agency_code %in% c("CA", "NV", "OR")) %>% 
-#   mapview::mapview(zcol = "tier", burst = TRUE)
 
 
 # write to multiple output formats ----------------------------------------
@@ -101,9 +88,7 @@ path_geojson  <- here("tamm_layer",     glue("{Sys.Date()}_tamm.geojson"))
 path_shp      <- here("tamm_layer/shp", glue("{Sys.Date()}_tamm.shp"))
 path_metadata <- here("tamm_layer/metadata.csv")
 
-# write spatial data
+# write geojson, shp, and csv
 st_write(tamm, path_geojson, delete_dsn = TRUE)
 st_write(tamm, path_shp,     delete_layer = TRUE)
-
-# write csv without geometry
 tamm %>% st_drop_geometry() %>% write_csv(path_metadata)
