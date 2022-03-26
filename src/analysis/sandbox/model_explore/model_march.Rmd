@@ -39,9 +39,13 @@ output:
 ```
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
+library(knitr)
+library(here)
 
-# function to output customized HTML datatable with buttons
+# global chunk options
+opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
+
+# outputs a customized HTML datatable with buttons
 dt_make <- function(x){
   x %>% 
     DT::datatable(
@@ -79,7 +83,7 @@ The resulting national water service boundary layer is the product of a "Tiered 
 Below is a conceptual diagram of the three tiers in the TAMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
 ```{r conceptual model, echo = FALSE}
-knitr::include_graphics(here::here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
+include_graphics(here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
 ```
 
 In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.
@@ -133,7 +137,6 @@ library(tidyverse)
 library(tidymodels)
 library(sf)
 library(fs)
-library(knitr)
 library(rcartocolor)
 library(geofacet)
 
@@ -259,10 +262,22 @@ dg %>%
 
 ## National boundary layer
 
-The national water service boundary layer is too large to plot in this interactive report. We show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above.  
+The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above.  
 
 ```{r tamm nationwide wsb}
+include_graphics(here("src/analysis/sandbox/model_explore/etc/tamm-nation.png"))
+```
 
+Now, we zoom into California, Nevada, and Oregon three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. 
+
+```{r tamm zoom ca nv or}
+# read TAMM output
+tamm <- here("tamm_layer/2022-03-26_tamm.rds") %>% read_rds()
+
+# plot CA, NV, OR
+tamm %>% 
+  filter(primacy_agency_code %in% c("CA", "NV", "OR")) %>% 
+  mapview::mapview(zcol = "tier", burst = TRUE)
 ```
 
 Next, we review the construction of each tier in increasing detail. 
@@ -455,6 +470,30 @@ We fit random forest, xgboost, and multiple linear regression models to a traini
 ### Random Forest
 
 We first fit a random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models. 
+
+### xgboost
+
+### Linear Regression
+
+#### Residuals
+
+```{r}
+# Tier 3: Modeled boundaries: read and construct geometry
+t3 <- path(staging_path, "tier3_median.geojson") %>% st_read()
+
+# examine residuals
+t3 <- t3 %>% filter(!is.na(radius)) %>% mutate(r = .pred - radius)
+
+# plot
+t3 %>% 
+  mutate(state = str_sub(pwsid, 1, 2)) %>% 
+  ggplot() +
+  geom_vline(xintercept = 1, color = "black", linetype = "dashed") +
+  geom_line(aes(r, color = state), stat = "density") + 
+  rcartocolor::scale_color_carto_d() +
+  facet_wrap(~state, scales = "free_y")
+```
+
 
 ### Model evaluation
 
