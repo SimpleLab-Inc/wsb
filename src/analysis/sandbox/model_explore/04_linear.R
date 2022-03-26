@@ -9,7 +9,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
-# read dataset and log10 transform the response - only for linear model
+# read dataset and log transform the response - only for linear model
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
   mutate(radius  = log10(radius),
          # multiply correlated predictors
@@ -77,3 +77,45 @@ lm_test_res %>%
 # RMSE
 lm_metrics <- metric_set(rmse, rsq, mae)
 lm_metrics(lm_test_res, truth = radius, estimate = .pred)
+
+
+# apply modeled radii to centroids for all data and write -----------------
+
+# read matched output for centroid lat/lng
+matched_output_clean <- path(staging_path, "matched_output_clean.csv") %>% 
+  read_csv(col_select = c("pwsid", "geometry_lat", "geometry_long")) %>% 
+  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg)
+
+# fit the model on all data, apply the spatial buffer, and write
+t3m <- d %>% 
+  select(pwsid, radius) %>% 
+  bind_cols(predict(lm_fit, d)) %>% 
+  bind_cols(predict(lm_fit, d, type = "conf_int", level = 0.95)) %>% 
+  # exponentiate results back to median (unbiased), and 5/95 CIs
+  mutate(across(where(is.numeric), ~10^(.x))) %>% 
+  # add matched output lat/lng centroids and make spatial
+  left_join(matched_output_clean, by = "pwsid") %>% 
+  st_as_sf() %>% 
+  # convert to projected metric CRS for accurate, efficient buffer. 
+  # The project CRS (4326) is inappropriate because units are degrees.
+  st_transform(3310)
+
+# create buffers for median, CI lower, and CI upper (5/95) predictions
+# (in units meters) and then transform back into projet CRS
+t3m_med <- st_buffer(t3m, t3m$.pred      ) %>% st_transform(epsg)
+t3m_cil <- st_buffer(t3m, t3m$.pred_lower) %>% st_transform(epsg)
+t3m_ciu <- st_buffer(t3m, t3m$.pred_upper) %>% st_transform(epsg)
+
+# paths to write modeled data
+path_t3m_med <- path(staging_path, "tier3_median.geojson")
+path_t3m_cil <- path(staging_path, "tier3_ci_upper_95.geojson")
+path_t3m_ciu <- path(staging_path, "tier3_ci_lower_05.geojson")
+
+# delete files if they exist because we can't overwrite geojson
+walk(c(path_t3m_med, path_t3m_cil, path_t3m_ciu), 
+     ~if(file_exists(.x)) file_delete(.x))
+
+# write
+st_write(t3m_med, path_t3m_med)
+st_write(t3m_cil, path_t3m_cil)
+st_write(t3m_ciu, path_t3m_ciu)
