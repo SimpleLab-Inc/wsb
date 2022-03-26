@@ -132,16 +132,19 @@ library(tidymodels)
 library(sf)
 library(fs)
 
+# load environmental variable for staging path 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
-epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
+
+# service connection count cutoff for community water systems
+n_max <- 15
 
 # read the clean matched output and transform radius from m to km
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   mutate(radius = radius/1000) %>% 
   # filter to CWS and assume each connection must serve at least 1 person
   # this drop 267 rows (0.5% of data)
-  filter(service_connections_count >= 15 & population_served_count >= 15)
+  filter(service_connections_count >= n_max,
+         population_served_count   >= n_max)
 ```
 
 ```{r geofacet tamm tier distribution per state}
@@ -178,7 +181,7 @@ We estimate the range of uncertainty in the Tier 2 approach with a *Modified [Ja
 
 $$
 J = \frac{A_T \cap A_E }{A_E}
-$$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space  0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
+$$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
 
@@ -196,17 +199,17 @@ We experimented with 3 different models: random forest, xgboost, and multiple li
 
 [^2]: Labeled radii are calculated from the convex hull area of Tier 1 systems instead of simple water system area because they better represent calculated Tier 3 circular buffers.
 
-Ultimately, we select a multiple linear regression model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary which may be useful depending on the application of the model results, and finally because it avoids overfitting (the linear model actually results in the lowest error of the models tested).
+Ultimately, we selected the multiple linear regression model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary which may be useful depending on the application of the model results, and finally because it avoids overfitting (the linear model actually results in the lowest error of the models tested).
 
 <br>
 
 ## EDA
 
-In this section of the report, we note and expand on important data pre-processing steps, feature selection/engineering, and developed models.
+In this section of the report, we expand on important data pre-processing steps, feature selection/engineering, and developed models.
 
 ### Right skewed response
 
-The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear modeling assumes constant variance and normality, thus we log-transform the response in order to [stabilize the variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation), enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
+The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
 ```{r}
 d %>% 
@@ -215,7 +218,7 @@ d %>%
   labs(x = "Radius (km)")
 ```
 
-The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/) for handling this interpretation[^3]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/){target="_blank"} to handle this interpretation[^3]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
 
 [^3]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
@@ -240,7 +243,7 @@ d %>%
 
 ### Correlated predictors
 
-Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which impacts the interpretation of the regression fit[^4].
+Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^4].
 
 [^4]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
@@ -258,9 +261,9 @@ d %>%
 
 ### Interaction effects
 
-#### Owner type code
+#### Owner type code {#owner-type-code}
 
-Regression slopes differ for the population served based on **owner type**. This suggests an interaction term between population served and the owner type. Moreover, notice the under-representation of Native American (N) systems. Most systems are owned by local governments (L) or private (P) entities. For modeling purposes, and until more data are collected, we re-classify Native American observations into the Public/Private category (M).
+Regression slopes differ for the population served based on **owner type code**. This suggests an interaction term between population served and the owner type. Most systems are owned by local governments (L) or private (P) entities. Moreover, Native American (N) systems ($n$ $=$ 2) are poorly represented -- this should be addressed in future work. For modeling purposes and until more data are collected, we re-classify Native American observations into the Public/Private category (M).
 
 ```{r}
 d %>% 
@@ -277,31 +280,26 @@ d %>%
 
 #### Wholesaler
 
-As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it.
+As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it in the linear model.
 
 ```{r}
 d %>% 
-  # improve labeling
-  mutate(is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
-                                    "wholesaler", 
-                                    "not wholesaler")) %>% 
   ggplot(aes(population_served_count, radius)) + 
   geom_point(alpha = 0.2) + 
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~is_wholesaler_ind) + 
-  rcartocolor::scale_color_carto_d() +
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Poulation served", 
-       y = "Radius")
+       y = "Radius (km)")
 ```
 
 #### Service area type code
 
-Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems registering as a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, and select the top 5 as features for the model, lumping everything else into an "Other" category. We include an interaction effect for service area type code.
+Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems that show a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, select the top 5 as features for the model, lump everything else into an "Other" category, and train on this feature. We include an interaction effect for service area type code.
 
 ```{r}
-# clean
+# clean service area type code column
 d <- d %>% 
   mutate(
     # split type codes in the "python list" into chr vectors
@@ -315,12 +313,13 @@ d <- d %>%
   ) 
 ```
 
-After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations. Consider cleaning this further in a future iteration if domain knowledge suggests that this predictor may have explain the response.
+After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal population. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power. 
 
 ```{r}
+# plot population v radius and facet by top 5 service area type code
 d %>% 
   mutate(
-    satc = fct_lump_prop(satc, 0.02), 
+    satc = fct_lump_n(satc, 5), 
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc)
   ) %>%
@@ -335,11 +334,11 @@ d %>%
 
 ## Models
 
-We fit random forest, xgboost, and multiple linear regression models. We then evaluate model performance, discuss model uncertainty and limitations, interpret modeling results, and use the model to generate predictions.
+We fit random forest, xgboost, and multiple linear regression models to a training set of 80% of the data selected by [stratified random sampling to avoid overfitting to low-radius observations](#right-skewed-response). We then evaluate model performance on the 20% holdout test set, discuss model uncertainty and limitations, interpret model results, and use the model to generate Tier 3 predictions on unlabeled data not covered by Tier 1 or 2 boundaries. 
 
-### Variable Importance
+### Random Forest
 
-Variable importance can quickly indicate which variables explain the most variance in the dataset. We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability.
+We first fit a random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models. 
 
 ### Model evaluation
 
@@ -348,6 +347,9 @@ Variable importance can quickly indicate which variables explain the most varian
 #### Tuned xgboost ()
 
 #### Linear model (connections)
+
+We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability.
+
 
 #### Linear model (connections, owner type)
 
@@ -369,7 +371,7 @@ No model is without limitations. In this section, we highlight key limitations a
 
 #### Missing Primacy Types
 
-We lack labeled data and hence radii for tribal primacy types (and territories), and can't improve the model based on this information until we collect it.
+We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. Thus, Tier 3 tribal community water system boundaries are fit by models trained on state primacy types, which may introduce error in modeled boundaries. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
 
 ```{r}
 d %>% 
