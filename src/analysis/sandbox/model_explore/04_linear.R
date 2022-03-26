@@ -1,18 +1,5 @@
 # linear model ------------------------------------------------------------
 
-# SWDIS water_system.csv continuous vars:
-#   - population_served_count: rescale, likely to have high leverage
-#   - service_connections_count
-#   - we have zip code: perhaps we use this to pull census vars
-#     or other vars like road density, population density, but we
-#     are unsure of data quality of zip
-
-# SDWIS water_system.csv categorical vars:
-#   - is_wholesaler_ind: complete and can use
-#   - primacy_type (state, territory, tribal): can't use because only 
-#     "state" observations have labeled radii (not territory or tribal)
-#   - primary_source_code: SW, GW, etc.
-
 library(tidyverse)
 library(tidymodels)
 library(sf)
@@ -24,7 +11,8 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read dataset and log10 transform the response - only for linear model
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
-  mutate(radius = log10(radius),
+  mutate(radius  = log10(radius),
+         # multiply correlated predictors
          density = population_served_count * service_connections_count)
 
 # unlabeled data (du) and labeled data (dl)
