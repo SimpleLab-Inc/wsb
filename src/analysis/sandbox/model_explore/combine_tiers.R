@@ -82,7 +82,7 @@ dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
 tamm <- bind_rows(dt1, dt2, dt3)
 
-cat("Combined spatial data using best available tiered data.\n")
+cat("Combined a spatial layer using best available tiered data.\n")
 
 
 # write to multiple output formats ----------------------------------------
