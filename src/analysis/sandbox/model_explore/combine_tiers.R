@@ -1,6 +1,6 @@
-# combine tamm tiers into one spatial layer and write ---------------------
+# combine temm tiers into one spatial layer and write ---------------------
 
-cat("\n\nPreparing to combine/write spatial output for TAMM Tiers 1-3.\n")
+cat("\n\nPreparing to combine/write spatial output for TEMM Tiers 1-3.\n")
 
 library(tidyverse)
 library(sf)
@@ -80,7 +80,7 @@ dt1 <- d %>% filter(tier == "Tier 1") %>% left_join(t1) %>% st_as_sf()
 dt2 <- d %>% filter(tier == "Tier 2") %>% left_join(t2) %>% st_as_sf() 
 dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
-tamm <- bind_rows(dt1, dt2, dt3)
+temm <- bind_rows(dt1, dt2, dt3)
 
 cat("Combined a spatial layer using best available tiered data.\n")
 
@@ -88,13 +88,13 @@ cat("Combined a spatial layer using best available tiered data.\n")
 # write to multiple output formats ----------------------------------------
 
 # paths to write
-path_geojson  <- here("tamm_layer",     glue("{Sys.Date()}_tamm.geojson"))
-path_shp      <- here("tamm_layer/shp", glue("{Sys.Date()}_tamm.shp"))
-path_csv      <- here("tamm_layer",     glue("{Sys.Date()}_tamm.csv"))
+path_geojson  <- here("temm_layer",     glue("{Sys.Date()}_temm.geojson"))
+path_shp      <- here("temm_layer/shp", glue("{Sys.Date()}_temm.shp"))
+path_csv      <- here("temm_layer",     glue("{Sys.Date()}_temm.csv"))
 
 # write geojson, shp, and csv
-st_write(tamm, path_geojson, delete_dsn   = TRUE)
-st_write(tamm, path_shp,     delete_layer = TRUE)
-tamm %>% st_drop_geometry() %>% write_csv(path_csv)
+st_write(temm, path_geojson, delete_dsn   = TRUE)
+st_write(temm, path_shp,     delete_layer = TRUE)
+temm %>% st_drop_geometry() %>% write_csv(path_csv)
 
 cat("Wrote data to geojson, shp, csv.\n\n\n")
