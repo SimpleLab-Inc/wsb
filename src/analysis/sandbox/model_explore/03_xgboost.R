@@ -29,9 +29,9 @@ xgb_mod <-
     trees = 1000,
     tree_depth = tune(), 
     min_n = tune(), 
-    loss_reduction = tune(),                     
-    sample_size = tune(),
-    mtry = tune(),    
+    # loss_reduction = tune(),                     
+    # sample_size = tune(),
+    # mtry = tune(),    
     learn_rate = tune()
   ) %>% 
   set_engine("xgboost") %>% 
@@ -41,9 +41,9 @@ xgb_mod <-
 xgb_grid <- grid_latin_hypercube(
   tree_depth(),
   min_n(),
-  loss_reduction(),
-  sample_size = sample_prop(),
-  finalize(mtry(), train),
+  # loss_reduction(),
+  # sample_size = sample_prop(),
+  # finalize(mtry(), train),
   learn_rate(),
   size = 30
 )
@@ -77,12 +77,15 @@ xgb_res <- tune_grid(
   control = control_grid(save_pred = TRUE)
 )
 
+# save for use in report
+# write_rds(xgb_res, here("src/analysis/sandbox/model_explore/etc/xgb_res.rds"))
+
 # visualize model performance across tuning grid
 xgb_res %>%
   collect_metrics() %>%
   filter(.metric == "rsq") %>%
-  select(mean, mtry:sample_size) %>%
-  pivot_longer(mtry:sample_size,
+  select(mean, min_n:learn_rate) %>%
+  pivot_longer(min_n:learn_rate,
                values_to = "value",
                names_to = "parameter"
   ) %>%
@@ -100,6 +103,9 @@ final_xgb <- finalize_workflow(
 
 final_xgb
 
+# save for later use in report
+# write_rds(final_xgb, here("src/analysis/sandbox/model_explore/etc/final_xgb.rds"))
+
 # fit the final xgboost model on training data
 xgb_fit <- fit(final_xgb, train)
 
@@ -115,7 +121,7 @@ xgb_test_res <- test %>%
 
 # plot residuals
 xgb_test_res %>% 
-  ggplot(aes(log10(radius), .pred)) + 
+  ggplot(aes(log10(radius), log10(.pred))) + 
   geom_point(alpha = 0.4) + 
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
