@@ -7,8 +7,6 @@ library(fs)
 library(vip)
 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
-epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read full dataset 
 d <- read_csv(path(staging_path, "matched_output_clean.csv")) 
