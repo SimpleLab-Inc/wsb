@@ -56,7 +56,6 @@ wa_wsb <- wa_wsb %>%
     state,
     county         = County,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,

@@ -55,7 +55,6 @@ mo_wsb <- mo_wsb %>%
     state,
     county         = COUNTY,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
