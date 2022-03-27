@@ -37,7 +37,6 @@ output:
 
 </style>
 ```
-
 ```{r setup, echo=FALSE, message = FALSE}
 library(knitr)
 library(here)
@@ -85,9 +84,9 @@ The resulting national water service boundary layer is the product of a "Tiered 
 2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with independent validation of the approach by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.\
 3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable at this point in time (centroid accuracy is discussed in the [Limitations](#limitations) section with recommendations for future work).
 
-[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap".
+[^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we add more states, modify the matching algorithm, and further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". Thus, this older metric should be disregarded in light of new developments described herein.
 
-Below is a conceptual diagram of the three tiers in the TEMM approach. Tier 1 boundary data always supersedes Tier 2 proxy boundaries, which in turn always supersedes Tier 3 modeled boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
+Below is a conceptual diagram of the three tiers in the TEMM approach. Tier 1 **explicit** boundaries always supersede Tier 2 **matched** proxy boundaries, which in turn always supersede Tier 3 **modeled** boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
 ```{r conceptual model, echo = FALSE}
 include_graphics(here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
@@ -95,7 +94,7 @@ include_graphics(here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"
 
 In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.
 
-Finally, we encourage the reader to consider the TEMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 data, improvements to the Tier 2 matching algorithm, and refinement of the Tier 3 model. Ultimately, this entire workflow may be superseded by nationwide Tier 1 data, which would reduce the problem we address in the scope of work to one of simple Tier 1 data assimilation and cleaning.
+Finally, we encourage the reader to consider the TEMM water service boundary layer not as a final product, but rather, one that may be improved with the assimilation of additional Tier 1 explicit data, improvements to the Tier 2 matching algorithm, and refinement of the Tier 3 model. Ultimately, this entire workflow may be superseded by nationwide Tier 1 data, which would reduce the problem we address in the scope of work to one of simple Tier 1 data assimilation and cleaning.
 
 <br>
 
@@ -103,13 +102,13 @@ Finally, we encourage the reader to consider the TEMM water service boundary lay
 
 ```{r read temm}
 library(tidyverse)
-library(tidymodels)
 library(sf)
 library(fs)
 library(rcartocolor)
 library(geofacet)
 library(mapview)
 
+# don't allow fgb streaming: delivers self-contained html
 mapviewOptions(fgb = FALSE)
 
 # load environmental variable for staging path 
@@ -160,34 +159,45 @@ pop <- d %>%
   )
 ```
 
-
 The following outline reflects a summary of key findings, followed by a description of each Tier in the TEMM approach. Notably, the TEMM may be refined and re-run as new data sources are ingested or improvements are made to matching and modeling algorithms.
 
-*Key Results*
+***Key Results***
 
--   A nationwide water service boundary layer is provided for `r nrow(d)` community water systems covering a total population of `r format_bign(pop_total)`.\
+-   A nationwide water service boundary layer is provided for `r format_bign(nrow(d))` community water systems covering a total population of `r format_bign(pop_total)`.\
 -   Population coverage rates per Tier:
-    -   Tier 1: `r pop$prop[1]`% population covered (`r pop$count[1]` people)\
-    -   Tier 2: `r pop$prop[2]`% population covered (`r pop$count[2]` people)\
-    -   Tier 3: `r pop$prop[3]`% population covered (`r pop$count[3]` people)\
+    -   *Tier 1*: `r pop$prop[1]`% population covered (`r pop$count[1]` people)\
+    -   *Tier 2*: `r pop$prop[2]`% population covered (`r pop$count[2]` people)\
+    -   *Tier 3*: `r pop$prop[3]`% population covered (`r pop$count[3]` people)\
 -   Unequal Tier distribution across states suggests that the confidence in water service boundary location and extent varies by state and system.\
--   Uncertainty metrics for Tier 2 and 3 estimates suggest that the TEMM approach provides a reasonable preliminary water service boundary layer.
+-   Favorable uncertainty metrics for Tier 2 and 3 estimates suggest that the TEMM approach provides a reasonable preliminary water service boundary layer.
 
-*Tier 1: Explicit boundaries*
+***Tier 1: Explicit boundaries***
 
 -   Data discovered for **`r length(unique(wsb_labeled_clean$state))`** states (`r paste(unique(wsb_labeled_clean$state), collapse = ", ")`).\
--   We consider these data as "high quality" and use them to model Tier 3 boundaries.
+-   These data are considered "high quality" and used to model Tier 3 boundaries.
 
-*Tier 2: Matched TIGER proxy boundaries*
+***Tier 2: Matched TIGER proxy boundaries***
 
--   `r round(100*(nrow(filter(temm, !is.na(tiger_match_geoid))) / nrow(temm)), 2)`% of water systems match a TIGER place by spatial intersection or name match.\
+-   `r round(100*(nrow(filter(temm, !is.na(tiger_match_geoid))) / nrow(temm)), 2)`% of water systems (`r format_bign(nrow(filter(temm, !is.na(tiger_match_geoid))))` / `r format_bign(nrow(temm))`) match a TIGER place by spatial intersection or name match.\
 -   Spatial and name matching is constrained within the reported state to prevent out-of-state mismatches.\
--   For multiple spatial or name matches, minimum distance between the reported centroid of the PWSID and the TIGER place centroid is used to break ties.
+-   When a system has multiple spatial or name matches, minimum spatial distance between the reported PWSID centroid and the matched TIGER Place centroid is used to break ties and assign a single proxy boundary.
 
-*Tier 3: Modeled boundaries*
+***Tier 3: Modeled boundaries***
 
--   Circular water service boundary estimates are calculated for all water systems; median, 5% and 95% confidence intervals are provided to reflect medium, low, and high water service boundary estimates.
--   The the multiple linear regression fit has an impressive $R^2 = 0.67$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area.
+-   Random Forest, xgboost, and multiple linear regression models were fit to Tier 1 labeled boundaries to develop a model that estimates water system boundaries at all systems nationwide.\
+-   Circular water service boundary estimates were then calculated for all water systems; median, 5% and 95% confidence intervals reflect medium, low, and high water service boundary estimates.
+-   The the multiple linear regression fit has an impressive $R^2 = 0.67$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area. EDA, Random Forest, and xgboost models confirm the importance of service connection count as an explanatory variable.
+
+***Contributions***
+
+-   The significance and broader impact of the TEMM open source, nationwide water service boundary later is briefly discussed.\
+-   The reader is oriented towards contributor guides and a vision for the continual development of the project is outlined.
+
+***Recommendations***
+
+-   Directions for future work to address the limitations of the TEMM approach are briefly discussed, in particular:
+    -   Centroid accuracy and the "pancake problem" may be solved by "re-centering" low-accuracy centroids with city/town spatial databases.\
+    -   Some primacy agency codes and state codes report conflicting information: for example, a water system may be spatially located (via spatial coordinates) in state A, but have primacy agency or state codes for state B. This may be resolved by
 
 <br>
 
@@ -282,7 +292,7 @@ dg %>%
 
 ## National boundary layer
 
-The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.
+The national water service boundary layer is too large (i.e., around 400 MB) to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.
 
 ```{r temm nationwide wsb}
 include_graphics(here("src/analysis/sandbox/model_explore/etc/temm-nation.png"))
@@ -294,6 +304,7 @@ Here, we zoom into California, Nevada, and Oregon -- three states with high prop
 # plot CA, NV, OR
 temm %>% 
   filter(primacy_agency_code %in% c("CA", "NV", "OR")) %>% 
+  select(pwsid, service_connections_count, tier) %>% 
   mapview::mapview(zcol = "tier", burst = TRUE)
 ```
 
@@ -399,7 +410,7 @@ f_intersection <- function(x){
 }
 
 # perform the intersection - needs to be pairwise, hence the func above
-# t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x))
+# t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x)) # slow
 
 # calculate modified jacard
 # t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
@@ -451,7 +462,7 @@ f_distance <- function(x){
   res = st_distance(t1_zero[x, ], t2_zero[x, ])
   return(as.numeric(res)/1000)
 }
-zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x))
+# zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x)) # slow
 
 # load pre-computed result from above because it takes a while to run
 # write_rds(zjd, here("staging/zero_dist_non_intersects.rds"))
@@ -488,11 +499,13 @@ Ultimately, we selected the multiple linear regression model as our final model 
 
 In this section of the report, we expand on important data pre-processing steps, feature selection/engineering, and developed models.
 
+<br>
+
 ### Right skewed response {#right-skewed-response}
 
 The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
-```{r}
+```{r radius tier 1 distribution}
 d %>% 
   ggplot(aes(radius)) + 
   geom_histogram(bins = 100, col = "white") +
@@ -506,7 +519,7 @@ The main drawback of log-transformation is that model coefficient units (e.g., s
 
 Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
-```{r}
+```{r stratified random sampling}
 d %>% 
   # calculate quantiles to show stratified random sampling
   mutate(
@@ -524,61 +537,72 @@ d %>%
   theme_report
 ```
 
+<br>
+
 ### Correlated predictors
 
-Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^6].
+Population served and service connections are highly correlated ($r$ $=$ `r round(broom::tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`), even across different variables like owner type code. They also both exhibit log-normality, thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^6]. Moreover, these two correlated predictors should not be used together in a linear model (i.e., to avoid multicollinearity which reduces the precision of estimated model coefficients), so we will only use one, and try a model that multiplies both predictors to see if combining them improves the model (albeit at the loss of some interpretability). We can however, use both variables in tree-based methods.
 
 [^6]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
-```{r}
+```{r correlation of service connections and pop served}
 d %>% 
   ggplot(aes(population_served_count, service_connections_count)) + 
-  geom_point(aes(color = is_wholesaler_ind), alpha = 0.2) +
+  geom_point(aes(color = owner_type_code), alpha = 0.2) +
   rcartocolor::scale_color_carto_d() +
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Poulation served", 
        y = "Service connections",
-       color = "Is Wholesaler") +
+       color = "Owner Type Code") +
   theme_report
 ```
+
+<br>
 
 ### Interaction effects
 
+<br>
+
 #### Owner type code {#owner-type-code}
 
-Regression slopes differ for the population served based on **owner type code**. This suggests an interaction term between population served and the owner type. Most systems are owned by local governments (L) or private (P) entities. Moreover, Native American (N) systems ($n$ $=$ 2) are poorly represented -- this should be addressed in future work. For modeling purposes and until more data are collected, we re-classify Native American observations into the Public/Private category (M).
+Regression slopes differ for the service connections based on **owner type code**. This suggests an interaction term between service connection (and population by correlation) and the owner type. Most systems are owned by local governments (L) or private (P) entities. Moreover, Native American (N) systems are poorly represented -- this should be addressed in future work[^7].
+
+[^7]: For modeling purposes and until more data are collected, we re-classify Native American observations ($n$ $=$ 2) into the Public/Private category (M).
 
 ```{r}
 d %>% 
-  ggplot(aes(population_served_count, radius)) + 
+  ggplot(aes(service_connections_count, radius)) + 
   geom_point(alpha = 0.2) + 
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~owner_type_code) + 
-  rcartocolor::scale_color_carto_d() +
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Poulation served", 
-       y = "Radius") +
+  labs(x = "Service Connections", 
+       y = "Radius (km)") +
   theme_report
 ```
 
+<br>
+
 #### Wholesaler
 
-As before with owner type code, wholesaler status interacts with population served, thus we include an interaction effect for it in the linear model.
+As before with owner type code, wholesaler status interacts with service connections, thus we include an interaction effect for it in the linear model.
 
 ```{r}
 d %>% 
-  ggplot(aes(population_served_count, radius)) + 
+  ggplot(aes(service_connections_count, radius)) + 
   geom_point(alpha = 0.2) + 
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~is_wholesaler_ind) + 
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Poulation served", 
+  labs(x = "Service Connections", 
        y = "Radius (km)") +
   theme_report
 ```
+
+<br>
 
 #### Service area type code
 
@@ -599,7 +623,7 @@ d <- d %>%
   ) 
 ```
 
-After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal population. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
+After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal service connection count. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
 
 ```{r}
 # plot population v radius and facet by top 5 service area type code
@@ -609,31 +633,243 @@ d %>%
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc)
   ) %>%
-  ggplot(aes(population_served_count, radius)) + 
+  ggplot(aes(service_connections_count, radius)) + 
   geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) + 
   facet_wrap(~satc) +
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Population served count", y = "Radius (km)")
+  labs(x = "Service connections", y = "Radius (km)") +
+  theme_report
 ```
+
+<br>
 
 ## Models
 
 We fit random forest, xgboost, and multiple linear regression models to a training set of 80% of the data selected by [stratified random sampling to avoid overfitting to low-radius observations](#right-skewed-response). We then evaluate model performance on the 20% holdout test set, discuss model uncertainty and limitations, interpret model results, and use the model to generate Tier 3 predictions on unlabeled data not covered by Tier 1 or 2 boundaries.
 
+<br>
+
 ### Random Forest
 
-We first fit a random forest to the Tier 1 labeled data because the algorithm has less strict assumptions compared to regression, it can handle correlated predictors, and because the variable importance output quickly indicates which variables explain the most variance in the dataset. This can confirm our understanding of the relationships in the data explored in the EDA above and direct what to focus on with more interpretable linear models.
+We first fit a random forest to the Tier 1 labeled data because the algorithm has less strict assumptions compared to regression, it can handle correlated predictors, and because the variable importance output quickly indicates which variables explain the most variance in the dataset. This can confirm our understanding of the relationships in the data explored in the EDA above and inform how to specify subsequent, more interpretable linear models.
+
+We fit the rand forest regression to predict radius from service connections, population, owner type, service area type code, and wholesaler status. Service connections, population served, and owner type code appear important in segmenting the feature space, and service area type code and wholesaler status appear less predictive.  
+
+```{r rf vip}
+library(tidymodels)
+library(vip)
+
+# read full dataset 
+d <- read_csv(path(staging_path, "matched_output_clean.csv")) 
+
+# unlabeled data (du) and labeled data (dl)
+du <- d %>% filter(is.na(radius))
+dl <- d %>% filter(!is.na(radius))
+
+# plit labeled data (dl) into train and test with stratified random sampling
+# in each of the radius quartiles to account for the lognormal distribution
+# of the response variable (radius) and avoid overfitting to small radius obs
+set.seed(55)
+dl_split <- initial_split(dl, prop = 0.8, strata = radius)
+train    <- training(dl_split) 
+test     <- testing(dl_split)
+
+# model and workflow
+rf_mod <- 
+  rand_forest(trees = 1000) %>% 
+  set_engine("ranger", importance = "impurity") %>% 
+  set_mode("regression")
+
+rf_wflow <- 
+  workflow() %>% 
+  add_formula(
+    radius ~ 
+      population_served_count + 
+      # importantly, the RF can have correlated predictors, so we add
+      # service connections, and don't need to account for interactions
+      service_connections_count + 
+      owner_type_code + 
+      is_wholesaler_ind + 
+      satc
+  ) %>% 
+  add_model(rf_mod) 
+
+# fit the random forest model
+rf_fit <- fit(rf_wflow, train)
+
+# show variable importance
+rf_fit %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point") +
+  theme_report
+```
+
+Next we fit the model on the test set, plot residuals and calculate an $R^2$ goodness of fit metric and two standard metrics of error, the RMSE and MAE. For our purposes, the MAE is likely more important because it doesn't penalize outliers as much as RMSE, and we care more about the overall appropriateness of the boundary than we do about preventing large outlying errors. 
+
+```{r rf fit test residuals and error}
+# predict on test set
+rf_test_res <- test %>% 
+  # select(radius) %>% 
+  bind_cols(predict(rf_fit, test)) 
+
+# plot residuals
+rf_test_res %>% 
+  ggplot(aes(log10(radius), log10(.pred), color = owner_type_code)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(lty = 2, color = "red") + 
+  labs(y = "Predicted radius (log10)", x = "Radius (log10)",
+       color = "Owner Type") +
+  # scale and size the x- and y-axis uniformly
+  coord_obs_pred() +
+  theme_report
+
+# calculate goodness of it and error metrics
+rf_metrics <- metric_set(rsq, rmse, mae)
+rf_metrics(rf_test_res, truth = log10(radius), estimate = log10(.pred)) %>% 
+  select(-.estimator) %>% 
+  knitr::kable(col.names = c("Metric", "Estimate")) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
+```
+
+
+<br>
 
 ### xgboost
 
-Like random forest, xgboost is a tree-based method that is relatively easy to fit, not constrained by the same assumptions of linear models, 
+Like random forest, xgboost is a tree-based method that is relatively easy to fit, and unconstrained by linear model assumptions. Variable importance metrics were consistent with those examined in the random forest model. We tuned xgboost hyperparamaters across a grid of inputs (see plot below, used to select the best xgboost model) and actually found that -- on the holdout test set -- it performed worse than the random forest in terms of goodness of fit and error. At first surprising, this result makes sense given the nature of the more flexible xgboost model, the lack of adequate data that a more flexible model like xgboost would benefit from, and the underlying functional form of the relationship we aim to model. 
+
+```{r xgboost hyperparameter}
+# load hyperparameter tune space
+xgb_res <- read_rds(here("src/analysis/sandbox/model_explore/etc/xgb_res.rds"))
+
+# visualize model performance across tuning grid
+xgb_res %>%
+  collect_metrics() %>%
+  filter(.metric == "rsq") %>%
+  select(mean, min_n:learn_rate) %>%
+  pivot_longer(min_n:learn_rate,
+               values_to = "value",
+               names_to = "parameter"
+  ) %>%
+  ggplot(aes(value, mean, color = parameter)) +
+  geom_point(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~parameter, scales = "free_x") +
+  labs(x = NULL, y = "rsq") +
+  theme_report
+```
+
+xgboost is a flexble machine learning model: it tends to outperform random forest when there is sufficient data to segment the feature space and learn from residuals. However, in our example, we lack substantial data with only a few tens of thousands of water systems, and only 3 high importance predictors, 2 of which are highly correlated. Thus, the similar performance of xgboost and random forest may be explained by not being able to improve on random forest, and slightly overfitting to the training set, which a less flexible model like linear regression will not suffer from. In statistical terms, low flexibility models also tend to maintain low variance, meaning they perform similarly across new test sets (i.e., less bias). Finally, because the underlying functional form of the relationship being modeled is strongly linear (see the section on [Interaction Effects](#interaction-effects)), there is not a great advantage in straying from linear methods. 
+
+```{r xgboost vip and residuals and performance}
+# load the best fit model
+final_xgb <- read_rds(here("src/analysis/sandbox/model_explore/etc/final_xgb.rds"))
+
+# fit the final xgboost model on training data
+xgb_fit <- fit(final_xgb, train)
+
+# show variable importance
+xgb_fit %>%
+  extract_fit_parsnip() %>%
+  vip(geom = "point") +
+  theme_report
+
+# predict on test set
+xgb_test_res <- test %>% 
+  select(radius) %>% 
+  bind_cols(predict(xgb_fit, test)) 
+
+# plot residuals
+xgb_test_res %>% 
+  ggplot(aes(log10(radius), log10(.pred))) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(lty = 2, color = "red") + 
+  labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
+  # scale and size the x- and y-axis uniformly
+  coord_obs_pred()
+
+# calculate goodness of it and error metrics
+xgb_metrics <- metric_set(rsq, rmse, mae)
+xgb_metrics(xgb_test_res, truth = log10(radius), estimate = log10(.pred)) %>% 
+  select(-.estimator) %>% 
+  knitr::kable(col.names = c("Metric", "Estimate")) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
+```
+
 
 
 ### Linear Regression
 
+As explained in the review of random forest and xgboost models above, there is sound rationale for linear regression in the context of this problem. A strong (and intuitive) linear relationship is observed between Tier 1 water system radii and service connections. The linear model fit outperforms other models, is easily interpretable, and provides standard error metrics. The underlying data do not have a high number of observations that machine learning models would benefit from, and the parameter space is also not high in dimensionality. For these reasons, we select the linear model to estimate Tier 3 boundaries. 
+
+Unlike the random forest and xgboost models, we are careful to log transform log-normal predictors and response, and specify interaction terms where present. 
+
+```{r lm fit}
+# lm recipe
+lm_recipe <- 
+  # specify the model - interaction terms come later
+  recipe(
+    radius ~ 
+      service_connections_count + 
+      owner_type_code + 
+      satc + 
+      is_wholesaler_ind,
+    data = train
+  ) %>% 
+  # convert predictors to log10
+  step_log(service_connections_count, base = 10) %>% 
+  # encode categorical variables  
+  step_dummy(all_nominal_predictors()) %>% 
+  # specify interaction effects
+  step_interact(~service_connections_count:starts_with("owner_type_code")) %>%
+  step_interact(~service_connections_count:starts_with("satc")) %>% 
+  step_interact(~service_connections_count:starts_with("is_wholesaler_ind")) 
+
+# specify model and engine for linear model and rf
+lm_mod <- linear_reg() %>% set_engine("lm")
+
+# lm workflow
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_mod) %>% 
+  add_recipe(lm_recipe)
+
+# fit the linear model on the training set
+lm_fit <- fit(lm_wflow, train)
+
+# predict on the test set and bind mean predictions and CIs
+lm_test_res <- test %>% 
+  select(radius) %>% 
+  bind_cols(predict(lm_fit, test)) %>% 
+  bind_cols(predict(lm_fit, test, type = "conf_int"))
+
+# plot residuals
+lm_test_res %>% 
+  ggplot(aes(radius, .pred)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(lty = 2, color = "red") + 
+  labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
+  # scale and size the x- and y-axis uniformly
+  coord_obs_pred()
+```
+
+On the test set, linear model goodness of fit is comparable to random forest, but error metrics are notably lower. 
+
+```{r}
+# calculate goodness of it and error metrics
+lm_metrics <- metric_set(rmse, rsq, mae)
+lm_metrics(lm_test_res, truth = radius, estimate = .pred) %>% 
+  select(-.estimator) %>% 
+  knitr::kable(col.names = c("Metric", "Estimate")) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
+```
+
+
 #### Residuals
+
+We examine model residuals across space to determine if 
+
 
 ```{r}
 # Tier 3: Modeled boundaries: read and construct geometry
@@ -709,4 +945,6 @@ Upstream centroid accuracy issues are beyond the scope of this study, and may be
 -   Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions).
 -   There are `r length((table(d$service_area_type_code)))` unique service area type code combinations, and many are combinations of different types.
 
-<br><br>
+<br>
+
+# Footnotes
