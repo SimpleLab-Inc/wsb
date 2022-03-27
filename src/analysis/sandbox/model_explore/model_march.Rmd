@@ -37,7 +37,6 @@ output:
 
 </style>
 ```
-
 ```{r setup, echo=FALSE, message = FALSE}
 library(knitr)
 library(here)
@@ -275,13 +274,13 @@ dg %>%
 
 ## National boundary layer
 
-The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.  
+The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.
 
 ```{r temm nationwide wsb}
 include_graphics(here("src/analysis/sandbox/model_explore/etc/temm-nation.png"))
 ```
 
-Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Note that when clicking on polygons in the map below, only Tier 2 and 3 data 
+Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Note that when clicking on polygons in the map below, only Tier 2 and 3 data
 
 ```{r temm zoom ca nv or}
 # read TEMM output
@@ -333,8 +332,7 @@ ggplot() +
        subtitle = paste("Last updated:", Sys.Date()))
 ```
 
-We assume that data provided by states is correct, and do not clean Tier 1 data beyond assimilating the data across states into a single layer. 
-
+We assume that data provided by states is correct, and do not clean Tier 1 data beyond assimilating the data across states into a single layer.
 
 <br>
 
@@ -346,7 +344,7 @@ Ryan's section with conceptual model.
 
 ## Uncertainty
 
-We estimate the uncertainty in the Tier 2 matching approach with a *Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}*, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary. We calculate the Modified Jacard Index $J$ by comparing Tier 2 matched TIGER geometries to explicit Tier 1 geometries. 
+We estimate the uncertainty in the Tier 2 matching approach with a *Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}*, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary. We calculate the Modified Jacard Index $J$ by comparing Tier 2 matched TIGER geometries to explicit Tier 1 geometries.
 
 $$
 J = \frac{A_T \cap A_E }{A_E}
@@ -412,7 +410,7 @@ t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
 # t1$jacard[j]
 ```
 
-We calculate that `r round(100*(nrow(filter(t1, jacard > 0))/nrow(t1)), 2)`% of Tier 2 matched Tiger Place boundaries spatially intersect their assigned explicit Tier 1 boundary (when present). The proportion of overlap (Modified Jacard) for the `r round(100*(nrow(filter(t1, jacard != 0))/nrow(t1)), 2)`% of intersecting Tier 1 and 2 geometries is generally left-skewed, which indicates high overlap. A Jacard of 1 indicates complete overlap (i.e., the TIGER Place sufficient covers the explicit water system boundary), a Jacard of 0.1 indicates that only 10% of the Tier 1 explicit boundary is covered by the Tier 2 boundary, and a Jacard of 0 indicates zero percent overlap (i.e., non-intersection).  
+We calculate that `r round(100*(nrow(filter(t1, jacard > 0))/nrow(t1)), 2)`% of Tier 2 matched Tiger Place boundaries spatially intersect their assigned explicit Tier 1 boundary (when present). The proportion of overlap (Modified Jacard) for the `r round(100*(nrow(filter(t1, jacard != 0))/nrow(t1)), 2)`% of intersecting Tier 1 and 2 geometries is generally left-skewed, which indicates high overlap. A Jacard of 1 indicates complete overlap (i.e., the TIGER Place sufficient covers the explicit water system boundary), a Jacard of 0.1 indicates that only 10% of the Tier 1 explicit boundary is covered by the Tier 2 boundary, and a Jacard of 0 indicates zero percent overlap (i.e., non-intersection).
 
 ```{r jacard histogram}
 t1 %>% 
@@ -423,7 +421,7 @@ t1 %>%
   theme_report
 ```
 
-`r round(100*(nrow(filter(t1, jacard == 0))/nrow(t1)), 2)`% of Tier 1 and 2 boundaries do not intersect, however we show that the vast majority of these geometries are very close to one another, which is unsurprising, as matches are constrained within state. The distribution of distance between centroids of non-intersecting matches is shown below. 
+`r round(100*(nrow(filter(t1, jacard == 0))/nrow(t1)), 2)`% of Tier 1 and 2 boundaries do not intersect, however we show that the vast majority of these geometries are very close to one another, which is unsurprising, as matches are constrained within state. The distribution of distance between centroids of non-intersecting matches is shown below.
 
 ```{r jacard zeros how far from one another}
 # a substantial portion (almost half) of matched tier 2 geoms don't intersect
@@ -457,20 +455,21 @@ tibble(dist = zd) %>%
   theme_report 
 ```
 
-The median distance between matching Tier 1 and 2 geometries is `r round(median(zd), 2)` km and the interquartile range is `r round(quantile(zd, 0.25), 2)` - `r round(quantile(zd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are _still very close together_ and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid. 
-
+The median distance between matching Tier 1 and 2 geometries is `r round(median(zd), 2)` km and the interquartile range is `r round(quantile(zd, 0.25), 2)` - `r round(quantile(zd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid.
 
 <br>
 
 # Tier 3: *Modeled* boundaries
 
-In the absence of explicit spatial boundaries (Tier 1) and matched TIGER proxy boundaries (Tier 2), we use statistics to model an estimated boundary (Tier 3).
-
-We experimented with 3 different models: random forest, xgboost, and multiple linear regression. Model specification hinges on the correlation between the radius of Tier 1 convex hulls[^3] (the response variable), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Moreover, different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
+In the absence of explicit spatial boundaries (Tier 1) and matched TIGER proxy boundaries (Tier 2), we statistically model an estimated boundary (Tier 3). Model specification hinges on the correlation between the radius of Tier 1 convex hulls[^3] (the response variable), and predictors that explain this response, such as service connection count, population served, ownership type and so on.
 
 [^3]: Labeled radii are calculated from the convex hull area of Tier 1 systems instead of simple water system area because they better represent calculated Tier 3 circular buffers.
 
-Ultimately, we selected the multiple linear regression model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary which may be useful depending on the application of the model results, and finally because it avoids overfitting (the linear model actually results in the lowest error of the models tested).
+We experimented with 3 different models: random forest, xgboost, and multiple linear regression. These different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
+
+Ultimately, we selected the multiple linear regression model as our final model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary (this may be useful depending on the application of the model results), and finally because it avoids overfitting[^4].
+
+[^4]: "Overfitting" is the tendency of a statistical or machine learning model to fit well to "seen" training data, but generalize poorly to "unseen" testing data. We need the model to generalize well to unseen water systems. The linear model actually results in the lowest error of the models tested, which may at first seem surprising, but is actually not considering the strong linear relationship between water system radius and service connections. One might expect machine learning approaches like Random Forest and xgboost to outperform the linear model. In fact, they do on training sets, but tend to overfit the training set and not not generalize as well to test sets. Simply put, we to not have enough of the high-dimensional data that machine learning models require to outperform classical approaches like linear regression in the context of this problem.
 
 <br>
 
@@ -485,14 +484,14 @@ The response variable (radius) is right-skewed. The median radius is `r round(me
 ```{r}
 d %>% 
   ggplot(aes(radius)) + 
-  geom_histogram(bins = 100, col= "white") +
+  geom_histogram(bins = 100, col = "white") +
   labs(x = "Radius (km)") +
   theme_report
 ```
 
-The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/){target="_blank"} to handle this interpretation[^4]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/){target="_blank"} to handle this interpretation[^5]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
 
-[^4]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
+[^5]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
 Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
@@ -516,9 +515,9 @@ d %>%
 
 ### Correlated predictors
 
-Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^5].
+Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^6].
 
-[^5]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
+[^6]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
 ```{r}
 d %>% 
