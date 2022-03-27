@@ -92,6 +92,9 @@ path_geojson  <- here("temm_layer",     glue("{Sys.Date()}_temm.geojson"))
 path_shp      <- here("temm_layer/shp", glue("{Sys.Date()}_temm.shp"))
 path_csv      <- here("temm_layer",     glue("{Sys.Date()}_temm.csv"))
 
+# create dirs
+dir_create(here("temm_layer")); dir_create(here("temm_layer/shp"))
+
 # write geojson, shp, and csv
 st_write(temm, path_geojson, delete_dsn   = TRUE)
 st_write(temm, path_shp,     delete_layer = TRUE)
