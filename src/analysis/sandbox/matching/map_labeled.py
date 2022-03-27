@@ -28,6 +28,17 @@ print("Retrieved PWSID's of interest.")
 labeled = labeled[labeled["pwsid"].isin(pwsids)]
 
 #%%
+# Null out a few bad lat/long
+mask = (
+    (labeled["centroid_lat"] < -90) | (labeled["centroid_lat"] > 90) |
+    (labeled["centroid_long"] < -180) | (labeled["centroid_long"] > 180))
+
+labeled.loc[mask, "centroid_lat"] = pd.NA
+labeled.loc[mask, "centroid_long"] = pd.NA
+
+print(f"Nulled out {mask.sum()} bad lat/long.")
+
+#%%
 
 df = gpd.GeoDataFrame().assign(
     source_system_id        = labeled["pwsid"],
@@ -42,8 +53,8 @@ df = gpd.GeoDataFrame().assign(
 #    zip                     = labeled["postal_code"],
     county                  = labeled["county"],
     # Need to convert these to EPSG:4326 before we can save them
-    # geometry_lat            = labeled["centroid_lat"],
-    # geometry_long           = labeled["centroid_long"],
+    geometry_lat            = labeled["centroid_lat"],
+    geometry_long           = labeled["centroid_long"],
     geometry                = labeled["geometry"],
     geometry_quality        = "Labeled",
 )
