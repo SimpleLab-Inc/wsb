@@ -21,7 +21,7 @@ t1 <- path(staging_path, "wsb_labeled_clean.geojson") %>%
 # Tier 2: MATCHED TIGER Place boundaries
 t2 <- path(staging_path, "tigris_places_clean.geojson") %>% 
   st_read() %>% 
-  select(geoid)
+  select(tiger_match_geoid = geoid)
 
 # Tier 3: MODELED boundaries
 t3 <- path(staging_path, "tier3_median.geojson") %>% 
@@ -65,16 +65,9 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 
 # combine tiers -----------------------------------------------------------
 
-# Tier 1
+# Separate Tiers 1-3 from matched output and join to spatial data
 dt1 <- d %>% filter(tier == "Tier 1") %>% left_join(t1) %>% st_as_sf()
-
-# Tier 2
-dt2 <- d %>% 
-  filter(tier == "Tier 2") %>% 
-  left_join(t2, by = c("tiger_match_geoid" = "geoid")) %>% 
-  st_as_sf() 
-
-# Tier 3
+dt2 <- d %>% filter(tier == "Tier 2") %>% left_join(t2) %>% st_as_sf() 
 dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
 # TAMM Tiered layer
@@ -89,6 +82,6 @@ path_shp      <- here("tamm_layer/shp", glue("{Sys.Date()}_tamm.shp"))
 path_csv      <- here("tamm_layer",     glue("{Sys.Date()}_tamm.csv"))
 
 # write geojson, shp, and csv
-st_write(tamm, path_geojson, delete_dsn = TRUE)
+st_write(tamm, path_geojson, delete_dsn   = TRUE)
 st_write(tamm, path_shp,     delete_layer = TRUE)
 tamm %>% st_drop_geometry() %>% write_csv(path_csv)
