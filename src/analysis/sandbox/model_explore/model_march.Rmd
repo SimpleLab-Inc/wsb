@@ -352,28 +352,112 @@ J = \frac{A_T \cap A_E }{A_E}
 $$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
-# Tier 1: explicit boundaries
-t1 <- tamm %>% filter(tier == "Tier 1")
-
 # Tier 2 TIGER geometries for explicit boundaries
 tiger <- path(staging_path, "tigris_places_clean.geojson") %>% 
   st_read(quiet = TRUE) %>% 
   select(tiger_match_geoid = geoid)
 
 t2 <- tamm %>% 
-  filter(tier == "Tier 1") %>% 
+  filter(tier == "Tier 1" & !is.na(tiger_match_geoid)) %>% 
   st_drop_geometry() %>% 
-  select(tiger_match_geoid) %>% 
+  select(tiger_match_geoid, pwsid) %>% 
   left_join(tiger) %>% 
-  st_as_sf()
+  st_as_sf() %>% 
+  arrange(pwsid) %>% 
+  # put into metric CRS, ensure valid geom for intersection
+  st_transform(3310) %>% 
+  st_make_valid() 
 
-# compare
+# Tier 1: explicit boundaries
+t1 <- tamm %>% 
+  filter(
+    tier == "Tier 1" & 
+    pwsid %in% t2$pwsid
+  ) %>% 
+  select(pwsid) %>% 
+  arrange(pwsid) %>% 
+  # put into metric CRS, ensure valid geom for intersection, calc area
+  st_transform(3310) %>% 
+  st_make_valid() %>% 
+  mutate(area_t1 = st_area(geometry)) 
 
+# sanity check: t1 and t2 vectors are identical and ready to be compared
+# identical(t1$pwsid, t2$pwsid)
+
+# calculate intersection of t2 over t1 and calculate area
+f_intersection <- function(x){
+  res = st_intersection(t2[x, ], t1[x, ])
+  if(nrow(res) == 0){
+    res = 0
+  } else {
+    res = res %>% 
+      mutate(area = st_area(geometry)) %>% 
+      pull(area)
+  }
+  return(res)
+}
+
+# perform the intersection - needs to be pairwise, hence the func above
+t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x))
+
+# calculate modified jacard
+t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
+
+# sanity check that intersection worked
+# j = 6
+# mapview(t1[j,]) + 
+#   mapview(t2[j,], col.regions = "green") + 
+#   mapview(st_intersection(t2[j, ], t1[j, ]), col.regions = "red")
+# t1$jacard[j]
 ```
 
-Interpret plot above.
+We calculate that `r round(nrow(filter(t1, jacard > 0))/nrow(t1), 2)`% of Tier 2 matched Tiger Place boundaries spatially intersect their assigned explicit Tier 1 boundary (when present). The proportion of overlap (Modified Jacard) for the `r round(nrow(filter(t1, jacard != 0))/nrow(t1), 2)`% of intersecting Tier 1 and 2 geometries is generally left-skewed, which indicates high overlap. A Jacard of 1 indicates complete overlap (i.e., the TIGER Place sufficient covers the explicit water system boundary), a Jacard of 0.1 indicates that only 10% of the Tier 1 explicit boundary is covered by the Tier 2 boundary, and a Jacard of 0 indicates zero percent overlap (i.e., non-intersection).  
 
-See 93% overlap in previous EDA as starting point.
+```{r jacard histogram}
+t1 %>% 
+  filter(jacard != 0) %>% 
+  ggplot(aes(jacard)) +
+  geom_histogram(color = "white") +
+  labs(x = "Modified Jacard Similarity") +
+  theme_report
+```
+
+`r round(nrow(filter(t1, jacard == 0))/nrow(t1), 2)`% of Tier 1 and 2 boundaries do not intersect, however we show that the vast majority of these geometries are very close to one another, which is unsurprising, as matches are constrained within state. The distribution of distance between centroids of non-intersecting matches is shown below. 
+
+```{r jacard zeros how far from one another}
+# a substantial portion (almost half) of matched tier 2 geoms don't intersect
+# tier 1 explicit boundaries but are they close by? calculate centroid distances
+t1_zero <- t1 %>% 
+  filter(jacard == 0) %>% 
+  mutate(geometry = st_centroid(geometry)) %>% 
+  arrange(pwsid)
+
+t2_zero <- t2 %>% 
+  filter(pwsid %in% t1_zero$pwsid) %>% 
+  mutate(geometry = st_centroid(geometry)) %>% 
+  arrange(pwsid)
+
+# sanity check: t1 and t2 vectors are identical and ready to be compared
+# identical(t1_zero$pwsid, t2_zero$pwsid)
+
+# calculate pairwise distances between Tier 1-2 non-intersecting centroids
+f_distance <- function(x){
+  res = st_distance(t1_zero[x, ], t2_zero[x, ])
+  return(as.numeric(res)/1000)
+}
+zd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x))
+
+# histogram of distances in km
+tibble(dist = zd) %>% 
+  ggplot(aes(dist)) +
+  geom_histogram(color = "white", bins = 200) +
+  labs(x = "Distance (km) between matched Tier 2 and Tier 1 polygon centroids") +
+  coord_cartesian(xlim = c(0, 500)) + 
+  theme_report 
+```
+
+The median distance between matching Tier 1 and 2 geometries is `r round(median(zd), 2)` and the interquartile range is `r round(quantile(zd, 0.25), 2)` - `r round(quantile(zd, 0.75), 2)`. This suggests that non-spatially intersecting matches are _still very nearby_ and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid. 
+
 
 <br>
 
