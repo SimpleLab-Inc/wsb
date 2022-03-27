@@ -9,3 +9,4 @@ import map_echo
 import map_mhp
 import map_tiger
 import map_ucmr
+import map_labeled
