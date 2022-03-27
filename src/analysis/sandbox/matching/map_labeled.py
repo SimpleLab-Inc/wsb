@@ -43,7 +43,7 @@ print(f"Nulled out {mask.sum()} bad lat/long.")
 df = gpd.GeoDataFrame().assign(
     source_system_id        = labeled["pwsid"],
     source_system           = "labeled",
-    xref_id                 = "labeled." + labeled["pwsid"],
+    contributor_id          = "labeled." + labeled["pwsid"],
     master_key              = labeled["pwsid"],
     pwsid                   = labeled["pwsid"],
     state                   = labeled["state"],

@@ -22,14 +22,14 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 # Load up the supermodel
 
 supermodel = gpd.GeoDataFrame.from_postgis(
-    "SELECT * FROM utility_xref;", conn, geom_col="geometry")
+    "SELECT * FROM pws_contributors;", conn, geom_col="geometry")
 
 
 #%% ##############################
 # More Cleansing (or this could move to script #1, or into the tokenization)
 ##################################
 
-# These words often (but not always) indicate a mobile home park
+# These words usually indicate a mobile home park
 regex = r"\b(?:MOBILE|TRAILER|MHP|TP|CAMPGROUND|RV)\b"
 
 supermodel["likely_mhp"] = (
@@ -91,10 +91,11 @@ def tokenize_ws_name(series) -> pd.Series:
 
     return (series
         .str.upper() # Standardize to upper-case
-        .str.replace(fr"\b({replace})\b", "", regex=True) # Remove water and utility words
-        .str.replace(r"[^\w ]", " ", regex=True) # Replace non-word characters
-        .str.replace(r"\s\s+", " ", regex=True) # Normalize spaces
-        .str.strip())
+        .str.replace(fr"\b({replace})\b", "", regex=True)   # Remove water and utility words
+        .str.replace(r"[^\w ]", " ", regex=True)            # Replace non-word characters
+        .str.replace(r"\s\s+", " ", regex=True)             # Normalize spaces
+        .str.strip()                                        # Remove leading and trailing spaces
+        .replace({"": pd.NA}))                              # If left with nothing, null it out
 
 def tokenize_mhp_name(series) -> pd.Series:
     
@@ -106,10 +107,11 @@ def tokenize_mhp_name(series) -> pd.Series:
 
     return (series
         .str.upper() # Standardize to upper-case
-        .str.replace(fr"\b({replace})\b", "", regex=True) # Remove MHP words
-        .str.replace(r"[^\w ]", " ", regex=True) # Replace non-word characters
-        .str.replace(r"\s\s+", " ", regex=True) # Normalize spaces
-        .str.strip())
+        .str.replace(fr"\b({replace})\b", "", regex=True)   # Remove MHP words
+        .str.replace(r"[^\w ]", " ", regex=True)            # Replace non-word characters
+        .str.replace(r"\s\s+", " ", regex=True)             # Normalize spaces
+        .str.strip()
+        .replace({"": pd.NA}))                              # If left with nothing, null it out
 
 
 def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] = None, left_mask = None, right_mask = None):
@@ -125,7 +127,7 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
             right,
             left_on=left_on,
             right_on=right_on)
-        [["xref_id_x", "xref_id_y"]])
+        [["contributor_id_x", "contributor_id_y"]])
 
     matches["match_rule"] = match_rule
 
@@ -135,7 +137,7 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
 
 # Create a token table and apply standardizations
 tokens = supermodel[[
-    "source_system", "xref_id", "master_key", "state", "name", "city_served",
+    "source_system", "contributor_id", "master_key", "state", "name", "city_served",
     "address_line_1", "city",
     "geometry", "geometry_quality", "likely_mhp", "possible_mhp"
     ]].copy()
@@ -183,13 +185,17 @@ matches = new_matches
 
 left_mask = (
     tokens["source_system"].isin(["echo", "frs"]) &
-    (~tokens["geometry_quality"].isin(["STATE CENTROID", "COUNTY CENTROID", "ZIP CODE CENTROID"])))
+    (~tokens["geometry_quality"].isin([
+        "STATE CENTROID",
+        "COUNTY CENTROID",
+        "ZIP CODE CENTROID"
+    ])))
 
 right_mask = tokens["source_system"].isin(["tiger"])
 
 new_matches = (tokens[left_mask]
     .sjoin(tokens[right_mask], lsuffix="x", rsuffix="y")
-    [["xref_id_x", "xref_id_y"]]
+    [["contributor_id_x", "contributor_id_y"]]
     .assign(match_rule="spatial"))
 
 print(f"Spatial matches: {len(new_matches)}")
@@ -219,7 +225,7 @@ matches = pd.concat([matches, new_matches])
 
 #%%
 # Rule: match MHP's by tokenized name
-# 1186 matches. Not great, but then again, not all MHP's will have water systems.
+# 1173 matches. Not great, but then again, not all MHP's will have water systems.
 # Match on city too?
 
 # Unfortunately, half of the "MHP" system has no names
@@ -244,8 +250,7 @@ matches = pd.concat([matches, new_matches])
 
 #%%
 # Rule: match MHP's by state + city + address
-# 1186 matches. Not great, but then again, not all MHP's will have water systems.
-# Match on city too?
+# 84 matches.
 
 new_matches = run_match(
     "mhp state+address",
@@ -280,31 +285,30 @@ matches = pd.concat([matches, new_matches])
 # tokens[tokens["likely_mhp"]].sort_values(["state", "city", "address_line_1"])
 
 #%% ################################
-# Convert matches to MK matches.
+# Deduplicate matches to PWSID <-> contributor_id pairs.
 ####################################
 
 # The left side contains known PWS's and can be deduplicated by crosswalking to the master_key (pwsid)
-# The right side contains unknown (candidate) matches and could stay as an xref_id
+# The right side contains unknown (candidate) matches and could stay as an contributor_id
 
-mk_xwalk = supermodel[["xref_id", "master_key"]].set_index("xref_id")
-
+mk_xwalk = supermodel[["contributor_id", "master_key"]].set_index("contributor_id")
 
 mk_matches = (matches
-    .join(mk_xwalk, on="xref_id_x").rename(columns={"master_key": "master_key_x"})
-    .join(mk_xwalk, on="xref_id_y").rename(columns={"master_key": "master_key_y"})
-    [["master_key_x", "master_key_y", "match_rule"]])
+    .join(mk_xwalk, on="contributor_id_x")
+    .rename(columns={"contributor_id_y": "candidate_contributor_id"})
+    [["master_key", "candidate_contributor_id", "match_rule"]])
 
 # Deduplicate
 mk_matches = (mk_matches
-    .groupby(["master_key_x", "master_key_y"])["match_rule"]
+    .groupby(["master_key", "candidate_contributor_id"])["match_rule"]
     .apply(lambda x: list(pd.Series.unique(x)))
     .reset_index())
 
 #%%
 
 # Save the matches back to the database
-conn.execute("DROP TABLE IF EXISTS matches;")
-matches.to_sql("match_xref", conn, index=False)
+conn.execute("DROP TABLE IF EXISTS match_contributors;")
+matches.to_sql("match_contributors", conn, index=False)
 
 # Save the matches back to the database
 conn.execute("DROP TABLE IF EXISTS matches;")

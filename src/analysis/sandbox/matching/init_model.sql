@@ -1,7 +1,7 @@
-DROP TABLE IF EXISTS utility_xref;
+DROP TABLE IF EXISTS pws_contributors;
 
-CREATE TABLE utility_xref (
-    xref_id             TEXT NOT NULL PRIMARY KEY,
+CREATE TABLE pws_contributors (
+    contributor_id      TEXT NOT NULL PRIMARY KEY,
     source_system       TEXT NOT NULL,
     source_system_id    TEXT NOT NULL,
     master_key          TEXT NOT NULL,
@@ -27,6 +27,6 @@ CREATE TABLE utility_xref (
     geometry_quality    TEXT
 );
 
-CREATE INDEX ix__utility_xref__source_system ON utility_xref (source_system)
-CREATE INDEX ix__utility_xref__source_system_id ON utility_xref (source_system_id)
-CREATE INDEX ix__utility_xref__master_key ON utility_xref (master_key)
+CREATE INDEX ix__pws_contributors__source_system ON pws_contributors (source_system);
+CREATE INDEX ix__pws_contributors__source_system_id ON pws_contributors (source_system_id);
+CREATE INDEX ix__pws_contributors__master_key ON pws_contributors (master_key);

@@ -1,7 +1,6 @@
 #%%
 
 import os
-from shapely.geometry import Polygon
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
@@ -20,7 +19,7 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 # Load up the data sources
 
 supermodel = gpd.GeoDataFrame.from_postgis(
-    "SELECT * FROM utility_xref WHERE source_system NOT IN ('ucmr');",
+    "SELECT * FROM pws_contributors WHERE source_system NOT IN ('ucmr');",
     conn, geom_col="geometry")
 
 sdwis = supermodel[supermodel["source_system"] == "sdwis"]
@@ -137,16 +136,18 @@ distances = s1.distance(s2, align=True)
 """
 #%%
 
-# Know what....for now I'll just do arbitrary pick-one for v1.
+# Know what....for now I'll just do arbitrary pick-one per source system
 match_dedupe = (matches
-    .merge(supermodel, left_on="master_key_y", right_on="master_key")
-    .drop_duplicates(subset=["master_key_x", "source_system"], keep="first")
-    [["master_key_x", "master_key_y", "source_system", "source_system_id"]])
+    .merge(
+        supermodel[["contributor_id", "source_system", "source_system_id"]],
+        left_on="candidate_contributor_id", right_on="contributor_id")
+    .drop_duplicates(subset=["master_key", "source_system"], keep="first")
+    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
 
 tiger_best_match = (match_dedupe
     .loc[match_dedupe["source_system"] == "tiger"]
     .rename(columns={
-        "master_key_x": "pwsid",
+        "master_key": "pwsid",
         "source_system_id": "tiger_match_geoid"
     })
     .set_index("pwsid")

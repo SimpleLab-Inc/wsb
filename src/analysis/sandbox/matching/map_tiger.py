@@ -45,7 +45,7 @@ tiger.head()
 df = gpd.GeoDataFrame().assign(
     source_system_id    = tiger["geoid"],
     source_system       = "tiger",
-    xref_id             = "tiger." + tiger["geoid"],
+    contributor_id      = "tiger." + tiger["geoid"],
     master_key          = "UNK-tiger." + tiger["geoid"],
     name                = tiger["name"],
     state               = tiger["state"],

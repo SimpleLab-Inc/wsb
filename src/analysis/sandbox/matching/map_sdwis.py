@@ -111,7 +111,7 @@ sdwis.head()
 df = gpd.GeoDataFrame().assign(
     source_system_id     = sdwis["pwsid"],
     source_system        = "sdwis",
-    xref_id              = "sdwis." + sdwis["pwsid"],
+    contributor_id       = "sdwis." + sdwis["pwsid"],
     master_key           = sdwis["pwsid"],
     pwsid                = sdwis["pwsid"],
     state                = sdwis["state_code"],

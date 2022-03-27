@@ -22,7 +22,7 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 # Load up the supermodel
 
 supermodel = gpd.GeoDataFrame.from_postgis(
-    "SELECT * FROM utility_xref;", conn, geom_col="geometry")
+    "SELECT * FROM pws_contributors;", conn, geom_col="geometry")
 
 mk_matches = pd.read_sql("SELECT * FROM matches;", conn)
 
@@ -35,7 +35,7 @@ masters = supermodel[supermodel["source_system"] == "sdwis"]["master_key"]
 # Report some stats
 ####################################
 
-distinct_pwsid_matches = mk_matches['master_key_x'].drop_duplicates()
+distinct_pwsid_matches = mk_matches['master_key'].drop_duplicates()
 total_pwsid_count = len(masters)
 labeled_pwsids = supermodel[supermodel["source_system"] == "labeled"]["pwsid"]
 
@@ -56,11 +56,38 @@ print(
     f"Total coverage:  {total_coverage_count:,}" +
     f" ({(total_coverage_count / total_pwsid_count)*100:.1f}%)")
 
-
 #%%
-# Now, finally, the stacked match report.
 
-# This will include all XREFs where the master key is already known and there is a match to TIGER
+# Stats on match rules
+"""
+Match types:
+{spatial}                                          7069
+{state+city_served}                                7038
+{state+name}                                       4740
+{state+name,spatial,state+city_served}             3717
+{spatial,state+city_served}                        2862
+{state+name,state+city_served}                     2685
+{state+name,spatial}                               2608
+{state+name,state+mhp_name}                         337
+{state+mhp_name}                                    332
+{"mhp state+address"}                                37
+{state+name,state+mhp_name,"mhp state+address"}      21
+{state+mhp_name,"mhp state+address"}                 17
+{state+name,"mhp state+address"}                      2
+
+Rules taking shape:
+- If we have a state+name or state+city_served match, and a different spatial match, trash the spatial match.
+    - Possible variation: Only do this if it's a zip or county centroid. Counterexample: There are some bad address matches.
+"""
+
+mk_matches["match_rule"].value_counts()
+
+
+#%% ###########################
+# Generate a stacked match report (for manual review)
+###############################
+
+# This will include all contributors where the master key is already known and there is a match to TIGER
 anchors = supermodel[supermodel["master_key"].isin(mk_matches["master_key_x"])]
 
 candidates = (supermodel
@@ -89,17 +116,23 @@ stacked_match["color"] = (stacked_match["mk_match"].rank(method="dense") % 2) ==
 # Convert Python lists to strings
 stacked_match["match_rule"] = stacked_match["match_rule"].astype(str)
 
-#%%
-# Output the report
+#%% ###########################
+# Save the report
+###############################
+
 (stacked_match
     .drop(columns=["geometry"])
     .to_excel(OUTPUT_PATH + "/stacked_match_report.xlsx", index=False))
 
-#%%
+#%% ###########################
 # This geojson file supports the R Shiny app
+###############################
+
 stacked_match.to_file(OUTPUT_PATH + "/stacked_match_report.geojson", index=False)
 
-#%%
+#%% ###########################
+# The "unmatched" report helps ID why records didn't match
+###############################
 
 tokens = pd.read_sql("SELECT * FROM tokens;", conn)
 
@@ -122,48 +155,21 @@ umatched_report = umatched_report.drop(columns=["geometry"])
 #%%
 umatched_report.to_excel("unmatched_report.xlsx", index=False)
 
-#%% ###################################
-# Match Stats
-#######################################
 
-# Stats on match rules
-"""
-Match types:
-[spatial]                                          12042
-[state+city_served]                                 6707
-[state+name]                                        4698
-[state+name, spatial, state+city_served]            3728
-[spatial, state+city_served]                        3193
-[state+name, state+city_served]                     2674
-[state+name, spatial]                               2650
-[state+mhp_name]                                     339
-[state+name, state+mhp_name]                         337
-[mhp state+address]                                   37
-[state+name, state+mhp_name, mhp state+address]       21
-[state+mhp_name, mhp state+address]                   18
-[state+name, mhp state+address]                        2
+#%% #########################################
+# Some more stats
+#############################################
 
-Rules taking shape:
-- If we have a state+name or state+city_served match, and a different spatial match, trash the spatial match.
-    - Possible variation: Only do this if it's a zip or county centroid. Counterexample: There are some bad address matches.
-"""
-
-mk_matches["match_rule"].value_counts()
-
-#%%
 # How many distinct records did each master match to?
 
-# Join the masters to the candidate match keys + source_system
-# 49,445 masters
-
-#%%
-
 matches_with_system = (mk_matches
-    .merge(supermodel[["master_key", "source_system"]], left_on="master_key_y", right_on="master_key"))
+    .merge(
+        supermodel[["contributor_id", "source_system"]],
+        left_on="candidate_contributor_id", right_on="contributor_id"))
 
 # For each MK that matched, get counts of how many of each system it matched to
 match_counts = (matches_with_system
-    .groupby(["master_key_x", "source_system"])
+    .groupby(["master_key", "source_system"])
     .size()
     .unstack())
 
@@ -185,7 +191,7 @@ mk_match_counts.hist()
 # How about the other way around?
 # Of the candidates that matched, how many masters did they match to?
 mhp_and_tiger_matches = (matches_with_system
-    .groupby(["master_key_y", "source_system"])
+    .groupby(["candidate_contributor_id", "source_system"])
     .size())
 
 (mhp_and_tiger_matches

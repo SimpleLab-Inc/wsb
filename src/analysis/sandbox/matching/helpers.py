@@ -13,7 +13,7 @@ DATA_PATH = os.environ["WSB_STAGING_PATH"]
 def load_to_postgis(source_system: str, df: pd.DataFrame):
 
     conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
-    TARGET_TABLE = "utility_xref"
+    TARGET_TABLE = "pws_contributors"
 
     print(f"Removing existing {source_system} data from database...", end="")
     conn.execute(f"DELETE FROM {TARGET_TABLE} WHERE source_system = '{source_system}';")
@@ -103,11 +103,14 @@ def _sql_cleanse(source_system: Optional[str] = None):
     source_system_filter = "" if source_system is None else f"source_system = '{source_system}' AND"
 
     # Upper-case columns
-    for col in ["name", "address_line_1", "address_line_2", "city", "state", "county", "city_served"]:
+    for col in [
+            "name", "address_line_1", "address_line_2", "city", "state",
+            "county", "city_served", "geometry_quality"
+        ]:
         _run_cleanse_rule(conn,
             f"Upper-case {col}",
             f"""
-                UPDATE utility_xref
+                UPDATE pws_contributors
                 SET {col} = UPPER({col})
                 WHERE
                     {source_system_filter}
@@ -117,7 +120,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     _run_cleanse_rule(conn,
         "NULL out nonexistent zip code '99999'",
         f"""
-            UPDATE utility_xref
+            UPDATE pws_contributors
             SET zip = NULL
             WHERE
                 {source_system_filter}
@@ -127,7 +130,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     _run_cleanse_rule(conn,
         "Remove PO BOX from address_line_1",
         f"""
-            UPDATE utility_xref
+            UPDATE pws_contributors
             SET
                 address_quality = 'PO BOX',
                 address_line_1 = NULL
@@ -139,7 +142,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     _run_cleanse_rule(conn,
         "Remove PO BOX from address_line_2",
         f"""
-        UPDATE utility_xref
+        UPDATE pws_contributors
         SET
             address_quality = 'PO BOX',
             address_line_2 = NULL
@@ -151,7 +154,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     _run_cleanse_rule(conn,
         "If there's an address in line 2 but not line 1, move it",
         f"""
-            UPDATE utility_xref
+            UPDATE pws_contributors
             SET
                 address_line_1 = address_line_2,
                 address_line_2 = NULL
@@ -164,7 +167,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     _run_cleanse_rule(conn,
         "Standardize geometry quality",
         f"""
-            UPDATE utility_xref
+            UPDATE pws_contributors
             SET geometry_quality = 'ZIP CODE CENTROID'
             WHERE
                 {source_system_filter}

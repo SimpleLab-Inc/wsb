@@ -68,7 +68,7 @@ print(f"{len(frs)} FRS entries remain after removing various duplicates")
 df = gpd.GeoDataFrame().assign(
     source_system_id        = frs["pwsid"],
     source_system           = "frs",
-    xref_id                 = "frs." + frs["registry_id"] + "." + frs["pwsid"], # Apparently neither registry_id nor pwsid is fully unique, but together they are
+    contributor_id          = "frs." + frs["registry_id"] + "." + frs["pwsid"], # Apparently neither registry_id nor pwsid is fully unique, but together they are
     master_key              = frs["pwsid"],
     pwsid                   = frs["pwsid"],
     state                   = frs["state"],

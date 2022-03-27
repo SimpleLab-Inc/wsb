@@ -70,7 +70,7 @@ sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
 sdwis_supermodel = gpd.GeoDataFrame().assign(
     source_system_id     = sdwis["pwsid"],
     source_system        = "sdwis",
-    xref_id              = "sdwis." + sdwis["pwsid"],
+    contributor_id       = "sdwis." + sdwis["pwsid"],
     master_key           = sdwis["pwsid"],
     pwsid                = sdwis["pwsid"],
     state                = sdwis["state_code"],
@@ -88,8 +88,8 @@ sdwis_supermodel = sdwis_supermodel.set_crs(epsg=4326, allow_override=True)
 
 #%%
 print("Loading sdwis...")
-conn.execute("DELETE FROM utility_xref WHERE source_system = 'sdwis';")
-sdwis_supermodel.to_postgis("utility_xref", conn, if_exists="append")
+conn.execute("DELETE FROM pws_contributors WHERE source_system = 'sdwis';")
+sdwis_supermodel.to_postgis("pws_contributors", conn, if_exists="append")
 print("done.")
 
 
