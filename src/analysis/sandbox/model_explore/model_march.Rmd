@@ -155,7 +155,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   mutate(
     # transform radius from m to km
     radius = radius/1000,
-    # indicate the tier of the wsb
+    # indicate the tier to use for each pwsid
     tier = case_when(
       has_labeled_bound == TRUE ~ "Tier 1",
       has_labeled_bound == FALSE & !is.na(tiger_match_geoid) ~ "Tier 2",
@@ -166,9 +166,8 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   # this drop 267 rows (0.5% of data)
   filter(service_connections_count >= n_max,
          population_served_count   >= n_max) %>% 
-  # remove another 472 rows (1% of data) that are not in the contiguous 
-  # USA, mostly from Puerto Rico
-  filter(state_code %in% state.abb)
+  # remove 834 rows (1.5% of data) not in contiguous US, mostly Puerto Rico
+  filter(primacy_agency_code %in% state.abb) 
 
 # popultion served by all water systems
 pop_total <- sum(d$population_served_count)
@@ -239,7 +238,7 @@ dg %>%
   scale_y_continuous(breaks = c(0, 1, 0.5), 
                      labels = c(0, 1, 0.5)) +
   geofacet::facet_geo(~state_code) +
-  labs(x = "", y = "Population proportion") +
+  labs(x = "", y = "Proportion of Population Covered") +
   guides(fill = "none") +
   theme_minimal(base_size = 6) +
   theme(panel.grid.minor.x = element_blank())
@@ -268,11 +267,14 @@ The national water service boundary layer is too large to plot in this interacti
 include_graphics(here("src/analysis/sandbox/model_explore/etc/tamm-nation.png"))
 ```
 
-Now, we zoom into California, Nevada, and Oregon three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. 
+Now, we zoom into California, Nevada, and Oregon three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. Tier 3 circular buffers shown reflect median model estimates.  
 
 ```{r tamm zoom ca nv or}
 # read TAMM output
-tamm <- here("tamm_layer/2022-03-26_tamm.rds") %>% read_rds()
+tamm <- here("tamm_layer/2022-03-26_tamm.geojson") %>% 
+  st_read() %>% 
+  # drop this column because it's read as a list and causes mapview trouble
+  select(-service_area_type_code)
 
 # plot CA, NV, OR
 tamm %>% 
