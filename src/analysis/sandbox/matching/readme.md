@@ -27,7 +27,7 @@ Connect to the database:
 
 `\c wsb`
 
-Add the postgis extension:
+Add the PostGIS extension:
 
 `CREATE EXTENSION postgis;`
 
@@ -39,10 +39,17 @@ Exit out of the docker container:
 
 `exit`
 
+# Initialize the database
+
+Run the script:
+
+`0 - init.py`
+
+This script simply reads the `init_model.sql` file and executes it against the database.
 
 # Run the mappings
 
-This step should occur after running the downloaders and transformers, found elsewhere in the repo. These mappings transform all the data sources into a single model and stack them up on top of each other so they can be easily matched together and compared. They are loaded into postgis under the table name `utility_xref`.
+This step should occur after running the downloaders and transformers, found elsewhere in the repo. These mappings transform all the data sources into a single model and stack them up on top of each other so they can be easily matched together and compared. They are loaded into the table `pws_contributors` in PostGIS.
 
 Run this script to execute all of the mappings:
 
@@ -67,4 +74,4 @@ These reports allow you to browse the matches to develop an intuition of which m
 
 # Run the Superjoin
 
-The "superjoin" takes all of these candidate matches and attempts to pick the best ones, yielding a single file where each PWS matches to exactly 0 or 1 TIGER and exactly 0 or 1 MHP. 
+The "superjoin" takes all of these candidate matches and attempts to pick the best ones, yielding a single file where each PWS has a "best" lat/long (from ECHO, UCMR, or MHP), matches to exactly 0 or 1 TIGER, and exactly 0 or 1 MHP. 
