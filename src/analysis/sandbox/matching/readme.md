@@ -38,3 +38,33 @@ Exit out of psql:
 Exit out of the docker container:
 
 `exit`
+
+
+# Run the mappings
+
+This step should occur after running the downloaders and transformers, found elsewhere in the repo. These mappings transform all the data sources into a single model and stack them up on top of each other so they can be easily matched together and compared. They are loaded into postgis under the table name `utility_xref`.
+
+Run this script to execute all of the mappings:
+
+`1 - mappings.py`
+
+# Run the matching
+
+Step through this script to match the data together:
+
+`2 - matching.py`
+
+Each match rule attempts to connect one or more of the systems with known PWS ID's (ECHO, FRS, SDWIS, UCMR) to one or more of the systems with unknown PWS ID's (TIGER, MHP). Since we don't know the PWS ID's, we rely on a variety of matches, such as state+name matches or spatial matches.
+
+Once the matches are discovered, they are saved to the database.
+
+# Generate the match report
+Step through this script to generate match reports:
+
+`3 - match_reports.py`
+
+These reports allow you to browse the matches to develop an intuition of which match rules were successful and which ones weren't. It can be pretty hard to tell sometimes!
+
+# Run the Superjoin
+
+The "superjoin" takes all of these candidate matches and attempts to pick the best ones, yielding a single file where each PWS matches to exactly 0 or 1 TIGER and exactly 0 or 1 MHP. 
