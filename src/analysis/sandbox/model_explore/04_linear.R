@@ -6,7 +6,6 @@ library(sf)
 library(fs)
 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
-epsg_aw      <- Sys.getenv("WSB_EPSG_AW")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read dataset and log transform the response - only for linear model
