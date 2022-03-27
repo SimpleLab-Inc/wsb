@@ -787,7 +787,8 @@ xgb_test_res %>%
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
   # scale and size the x- and y-axis uniformly
-  coord_obs_pred()
+  coord_obs_pred() +
+  theme_report
 
 # calculate goodness of it and error metrics
 xgb_metrics <- metric_set(rsq, rmse, mae)
@@ -806,6 +807,24 @@ As explained in the review of random forest and xgboost models above, there is s
 Unlike the random forest and xgboost models, we are careful to log transform log-normal predictors and response, and specify interaction terms where present. 
 
 ```{r lm fit}
+# re-read dataset and log transform the response - only for linear model
+d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
+  mutate(radius  = log10(radius),
+         # multiply correlated predictors
+         density = population_served_count * service_connections_count)
+
+# unlabeled data (du) and labeled data (dl)
+du <- d %>% filter(is.na(radius))
+dl <- d %>% filter(!is.na(radius))
+
+# split labeled data (dl) into train and test with stratified random sampling
+# in each of the radius quartiles to account for the lognormal distribution
+# of the response variable (radius) and avoid overfitting to small radius obs
+set.seed(55)
+dl_split <- initial_split(dl, prop = 0.8, strata = radius)
+train    <- training(dl_split) 
+test     <- testing(dl_split)
+
 # lm recipe
 lm_recipe <- 
   # specify the model - interaction terms come later
@@ -851,12 +870,13 @@ lm_test_res %>%
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
   # scale and size the x- and y-axis uniformly
-  coord_obs_pred()
+  coord_obs_pred() +
+  theme_report
 ```
 
 On the test set, linear model goodness of fit is comparable to random forest, but error metrics are notably lower. 
 
-```{r}
+```{r lm goodness of fit and error}
 # calculate goodness of it and error metrics
 lm_metrics <- metric_set(rmse, rsq, mae)
 lm_metrics(lm_test_res, truth = radius, estimate = .pred) %>% 
@@ -866,12 +886,11 @@ lm_metrics(lm_test_res, truth = radius, estimate = .pred) %>%
 ```
 
 
-#### Residuals
+#### Spatial residuals
 
-We examine model residuals across space to determine if 
+We examine model residuals across space (i.e., Tier 3 predictions - Tier 1 explicit labels) to test for spatial autocorrelation in the model residuals. Although we do not calculate standard autocorrelation metrics, a high-level examination of the residuals across states shows that Tier 3 estimates are generally consistent with observed radii (most residuals are near 0 km - indicating strong agreement and consistent with the 1:1 predicted vs observed plot above). Notable exceptions include MO and OK, which show systematic under-estimation (negative values indicate a smaller estimated radius compared to the observed radius) on the order of around 5 km (3.1 miles).
 
-
-```{r}
+```{r lm spatial autocorrelation residuals}
 # Tier 3: Modeled boundaries: read and construct geometry
 t3 <- path(staging_path, "tier3_median.geojson") %>% st_read(quiet = TRUE)
 
@@ -891,29 +910,49 @@ t3 %>%
   theme_report
 ```
 
-### Model evaluation
+### Confidence intervals
 
-#### Random Forest ()
+Linear model 5 and 95% confidence intervals are calculated and provided as an output. Importantly, the range of these predictions is relatively narrow, and generally less than 1 km. 
 
-#### Tuned xgboost ()
+```{r lm ci range distribution}
+d %>% 
+  select(pwsid, radius) %>% 
+  bind_cols(predict(lm_fit, d)) %>% 
+  bind_cols(predict(lm_fit, d, type = "conf_int", level = 0.95)) %>% 
+  mutate(
+    # exponentiate results back to median (unbiased), and 5/95 CIs
+    across(where(is.numeric), ~10^(.x)),
+    # calculate CI range to plot distribution
+    .pred_range = .pred_upper - .pred_lower
+  ) %>% 
+  ggplot(aes(.pred_range/1000)) +
+  geom_histogram(bins = 500, color = "white") +
+  coord_cartesian(xlim = c(0, 2)) +
+  labs(x = "CI range (km)") +
+  theme_report
+```
 
-#### Linear model (connections)
+Below is an example of one Tier 3 with a typical CI range (around 1 km). Toggle to the `Esri.WorldImagery` basemap to view satellite imagery of the underlying location and compare this to the estimated range of the Tier 3 estimates. 
 
-We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability.
+```{r}
+# lm CI layers
+t3m_med <- st_read(path(staging_path, "tier3_median.geojson"))
+t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.geojson"))
+t3m_ciu <- st_read(path(staging_path, "tier3_ci_lower_05.geojson"))
 
-#### Linear model (connections, owner type)
+# plot examples
+pwsid_select <- "IN5289012" # ~1km CI range
+mapview(filter(t3m_ciu, pwsid == pwsid_select), 
+        col.regions = "green", layer.name = "upper CI", 
+         alpha.regions = 0.3) +
+mapview(filter(t3m_med, pwsid == pwsid_select), 
+        col.regions = "blue", layer.name = "median",
+        alpha.regions = 0.3) +
+  mapview(filter(t3m_cil, pwsid == pwsid_select), 
+          col.regions = "red", layer.name = "lower CI",
+          alpha.regions = 0.3) 
+```
 
-#### Linear model (connections, owner type, service area type)
-
-#### Linear model (connections, owner type, service area type, wholesaler)
-
-#### Linear model (connections, owner type, service area type, wholesaler)
-
-#### Linear model (person-connections, owner type, service area type, wholesaler)
-
-## Uncertainty
-
-Linear model CIs.
 
 ### Limitations {#limitations}
 
