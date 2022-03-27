@@ -202,7 +202,8 @@ Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ","))
 
 ```{r temm nationwide kable}
 pop %>% 
-  kable(col.names = c("Tier", "Population count", "Population proportion (%)")) %>% 
+  kable(col.names = c("Tier", "Population count", 
+                      "Population proportion (%)")) %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
@@ -284,7 +285,7 @@ Here, we zoom into California, Nevada, and Oregon -- three states with high prop
 
 ```{r temm zoom ca nv or}
 # read TEMM output
-temm <- here("temm_layer/2022-03-26_temm.geojson") %>% 
+temm <- here("temm_layer/2022-03-27_temm.geojson") %>% 
   st_read(quiet = TRUE) %>% 
   # drop this column because it's read as a list and causes mapview trouble
   select(-service_area_type_code)
@@ -397,10 +398,14 @@ f_intersection <- function(x){
 }
 
 # perform the intersection - needs to be pairwise, hence the func above
-t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x))
+# t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x))
 
 # calculate modified jacard
-t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
+# t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
+
+# load pre-computed result from above b/c the previous 2 lines take time
+# write_rds(t1, here("staging/t1_jacard.rds"))
+t1 <- read_rds(here("staging/t1_jacard.rds"))
 
 # sanity check that intersection worked
 # j = 6
@@ -440,22 +445,27 @@ t2_zero <- t2 %>%
 # identical(t1_zero$pwsid, t2_zero$pwsid)
 
 # calculate pairwise distances between Tier 1-2 non-intersecting centroids
+# with "zero jacard" (zd)
 f_distance <- function(x){
   res = st_distance(t1_zero[x, ], t2_zero[x, ])
   return(as.numeric(res)/1000)
 }
-zd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x))
+zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x))
+
+# load pre-computed result from above because it takes a while to run
+# write_rds(zjd, here("staging/zero_dist_non_intersects.rds"))
+zjd <- read_rds(here("staging/zero_dist_non_intersects.rds"))
 
 # histogram of distances in km
-tibble(dist = zd) %>% 
+tibble(dist = zjd) %>% 
   ggplot(aes(dist)) +
   geom_histogram(color = "white", bins = 200) +
-  labs(x = "Distance (km) between matched Tier 2 and Tier 1 polygon centroids") +
+  labs(x = "Distance between matched Tier 2 and Tier 1 polygon centroids (km)") +
   coord_cartesian(xlim = c(0, 500)) + 
   theme_report 
 ```
 
-The median distance between matching Tier 1 and 2 geometries is `r round(median(zd), 2)` km and the interquartile range is `r round(quantile(zd, 0.25), 2)` - `r round(quantile(zd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid.
+The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid.
 
 <br>
 
@@ -613,9 +623,12 @@ We fit random forest, xgboost, and multiple linear regression models to a traini
 
 ### Random Forest
 
-We first fit a random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models.
+We first fit a random forest, starting with random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models.
 
 ### xgboost
+
+Like random forest, xgboost is a tree-based method that is relatively easy to fit, not constrained by the same assumptions of linear models, 
+
 
 ### Linear Regression
 
