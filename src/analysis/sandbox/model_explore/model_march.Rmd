@@ -37,10 +37,13 @@ output:
 
 </style>
 ```
-
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE}
 library(knitr)
 library(here)
+library(ggplot2)
+
+# env vars
+epsg <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # global chunk options
 opts_chunk$set(warning = FALSE, message = FALSE, out.width = "100%")
@@ -60,6 +63,9 @@ dt_make <- function(x){
 
 # converts a float to a string with appropriate commas
 format_bign <- function(x) formatC(x, big.mark = ",", format = "d")
+
+# ggplot2 report theme
+theme_report <- theme_minimal() + theme(panel.grid.minor = element_blank())
 ```
 
 *Jess Goddard, Rich Pauloo, Ryan Shepherd, Noor Brody*
@@ -130,7 +136,7 @@ The key result of this study is a nationwide water service boundary layer. Here 
 
 <br>
 
-## Tier coverage - nationwide 
+## Tier coverage - nationwide
 
 ```{r load}
 library(tidyverse)
@@ -139,6 +145,9 @@ library(sf)
 library(fs)
 library(rcartocolor)
 library(geofacet)
+library(mapview)
+
+mapviewOptions(fgb = FALSE)
 
 # load environmental variable for staging path 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
@@ -173,7 +182,9 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 pop_total <- sum(d$population_served_count)
 ```
 
-In total, the TAMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by the `r format_bign(nrow(d))` water systems. 
+In total, the TAMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by `r format_bign(nrow(d))` water systems[^2].
+
+[^2]: Some water systems were excluded from this data layer. Specifically, 267 water systems were dropped because they had reported service connections or population less than 15, which we categorize as unreasonable given that community water systems are defined as serving at least 15 connections. We also assume that each connection must serve at least one person. Next, we removed 834 water systems associated with US territories; most excluded water systems in this step are found in Puerto Rico.
 
 ```{r tamm nationwide coverage count and prop}
 # calculate count and proportion of people served by each tier
@@ -185,9 +196,9 @@ pop <- d %>%
   )
 ```
 
-About `r str_sub(pop$count, 1, 3)[1]` million people are covered by Tier 1 spatial data, impressive given that only `r wsb_labeled_clean$state %>% unique() %>% length()` states that provided explicit boundary data. However, this relatively high coverage rate is unsurprising because these states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`) include notable centers of high-population like CA, TX, and PA. 
+About `r str_sub(pop$count, 1, 3)[1]` million people are covered by Tier 1 spatial data -- impressive given that only `r wsb_labeled_clean$state %>% unique() %>% length()` states that provided explicit boundary data. However, this relatively high coverage rate is unsurprising because these states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`) include notable centers of high-population like CA, TX, and PA.
 
-Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by either a Tier 1 or a Tier 2 spatial boundary. The remaining approximately `r str_split(pop$count[3], ",", simplify = TRUE)[1]` million people (`r pop$prop[3]`%) are covered by a Tier 3 boundary. These results indicate high confidence in the spatial accuracy of the resulting TAMM water boundary layer for community water systems. 
+Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by either a Tier 1 or a Tier 2 spatial boundary. The remaining approximately `r str_split(pop$count[3], ",", simplify = TRUE)[1]` million people (`r pop$prop[3]`%) are covered by a Tier 3 boundary. These results indicate high confidence in the spatial accuracy of the resulting TAMM water boundary layer for community water systems.
 
 ```{r tamm nationwide kable}
 pop %>% 
@@ -195,15 +206,15 @@ pop %>%
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
-<br> 
+<br>
 
-## Tier coverage - statewide 
+## Tier coverage - statewide
 
 Next, we show the proportion of population covered per TAMM Tier on a state-by-state basis. Notably:
 
-- When Tier 1 data is present (orange bars below), it tends to cover a majority of the population.  
-- Tier 2 (blue bars below) covers more population than Tier 3 across all states.  
-- Tier 3 coverage (grey bars below) is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal). 
+-   When Tier 1 data is present (orange bars below), it tends to cover a majority of the population.\
+-   Tier 2 (blue bars below) covers more population than Tier 3 across all states.\
+-   Tier 3 coverage (grey bars below) is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal).
 
 ```{r geofacet tamm tier distribution per state}
 # dataframe for barplot geofacet: population prop served by each tier
@@ -244,6 +255,8 @@ dg %>%
   theme(panel.grid.minor.x = element_blank())
 ```
 
+<br>
+
 A data table of the the above plot is provided below.
 
 ```{r datatable tamm tier distribution per state}
@@ -257,22 +270,22 @@ dg %>%
   dt_make()
 ```
 
-<br> 
+<br>
 
 ## National boundary layer
 
-The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above.  
+The national water service boundary layer is too large to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TAMM spatial layer in the project repository.  
 
 ```{r tamm nationwide wsb}
 include_graphics(here("src/analysis/sandbox/model_explore/etc/tamm-nation.png"))
 ```
 
-Now, we zoom into California, Nevada, and Oregon three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. Tier 3 circular buffers shown reflect median model estimates.  
+Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Note that when clicking on polygons in the map below, only Tier 2 and 3 data 
 
 ```{r tamm zoom ca nv or}
 # read TAMM output
 tamm <- here("tamm_layer/2022-03-26_tamm.geojson") %>% 
-  st_read() %>% 
+  st_read(quiet = TRUE) %>% 
   # drop this column because it's read as a list and causes mapview trouble
   select(-service_area_type_code)
 
@@ -282,23 +295,45 @@ tamm %>%
   mapview::mapview(zcol = "tier", burst = TRUE)
 ```
 
-Next, we review the construction of each tier in increasing detail. 
+Next, we review the construction of each Tier.
 
 <br>
 
 # Tier 1: *Assimilated* boundaries
 
-Tier 1 boundaries are the most straightforward to understand, but their "missingness" at 
+Tier 1 boundaries are the most straightforward to understand: states provide explicit data, and when they do, these boundaries tend to cover nearly the entire population served by water systems. Tier 1 data *missingness* challenges the accuracy of downstream Tier 2 and 3 boundary estimates. At the time of writing, Tier 1 data is present for `r wsb_labeled_clean$state %>% unique() %>% length()` states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`).
 
-```{r}
-# wsb_labeled_clean 
+```{r tier 1 presence absence}
+# summarize missing and present states in a dataframe
+states_missing <- state.abb[!state.abb %in% unique(wsb_labeled_clean$state)]
+states_present <- unique(wsb_labeled_clean$state)
+
+states_df <- tibble(
+  state_abbr = c(states_missing, states_present),
+  status = c(rep("missing", length(states_missing)), 
+             rep("present", length(states_present)))
+)
+
+# pull usa state geometries, project to input data CRS
+usa <- USAboundaries::us_states(resolution = "low") %>% 
+  st_transform(epsg) %>% 
+  left_join(states_df) %>% 
+  tigris::shift_geometry() %>% 
+  # remove Puerto Rico
+  filter(!is.na(status))
+
+# map of missing states
+ggplot() +
+  geom_sf(data = usa, aes(fill = status), alpha = 0.5, color = "white") +
+  scale_fill_carto_d(palette = "Pastel") +
+  labs(fill = "") +
+  theme_void() + 
+  labs(title = "Labeled data coverage by state",
+       subtitle = paste("Last updated:", Sys.Date()))
 ```
 
-Tier 1 explicit spatial boundary data is obtained from the following web addresses.
+We assume that data provided by states is correct, and do not clean Tier 1 data beyond _assimilating_ the data across states into a single layer. 
 
-URL table. Standard downloaders/transformers. Should expand in future work.
-
-Uncertainty out of our hands - depends on the state.
 
 <br>
 
@@ -310,13 +345,29 @@ Ryan's section with conceptual model.
 
 ## Uncertainty
 
-We estimate the range of uncertainty in the Tier 2 approach with a *Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}*, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary, which we can calculate by comparing Tier 2 matches to all Tier 2 data:
+We estimate the uncertainty in the Tier 2 matching approach with a *Modified [Jacard Similarity](https://en.wikipedia.org/wiki/Jaccard_index){target="_blank"}*, defined as the proportion of area overlap between the TIGER match and the underlying water service boundary. We calculate the Modified Jacard Index $J$ by comparing Tier 2 matched TIGER geometries to explicit Tier 1 geometries. 
 
 $$
 J = \frac{A_T \cap A_E }{A_E}
 $$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
+# Tier 1: explicit boundaries
+t1 <- tamm %>% filter(tier == "Tier 1")
+
+# Tier 2 TIGER geometries for explicit boundaries
+tiger <- path(staging_path, "tigris_places_clean.geojson") %>% 
+  st_read(quiet = TRUE) %>% 
+  select(tiger_match_geoid = geoid)
+
+t2 <- tamm %>% 
+  filter(tier == "Tier 1") %>% 
+  st_drop_geometry() %>% 
+  select(tiger_match_geoid) %>% 
+  left_join(tiger) %>% 
+  st_as_sf()
+
+# compare
 
 ```
 
@@ -328,9 +379,9 @@ See 93% overlap in previous EDA as starting point.
 
 # Tier 3: *Modeled* boundaries
 
-We experimented with 3 different models: random forest, xgboost, and multiple linear regression. Model specification hinges on the correlation between the radius of Tier 1 convex hulls[^2] (the response variable), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Moreover, different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
+We experimented with 3 different models: random forest, xgboost, and multiple linear regression. Model specification hinges on the correlation between the radius of Tier 1 convex hulls[^3] (the response variable), and predictors that explain this response, such as service connection count, population served, ownership type and so on. Moreover, different statistical and machine learning models have different assumptions and performance, which are discussed in the sections that follow.
 
-[^2]: Labeled radii are calculated from the convex hull area of Tier 1 systems instead of simple water system area because they better represent calculated Tier 3 circular buffers.
+[^3]: Labeled radii are calculated from the convex hull area of Tier 1 systems instead of simple water system area because they better represent calculated Tier 3 circular buffers.
 
 Ultimately, we selected the multiple linear regression model because it is computationally efficient, easily interpretable, provides confidence intervals to characterize uncertainty in the modeled boundary which may be useful depending on the application of the model results, and finally because it avoids overfitting (the linear model actually results in the lowest error of the models tested).
 
@@ -340,7 +391,7 @@ Ultimately, we selected the multiple linear regression model because it is compu
 
 In this section of the report, we expand on important data pre-processing steps, feature selection/engineering, and developed models.
 
-### Right skewed response
+### Right skewed response {#right-skewed-response}
 
 The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
@@ -348,12 +399,13 @@ The response variable (radius) is right-skewed. The median radius is `r round(me
 d %>% 
   ggplot(aes(radius)) + 
   geom_histogram(bins = 100, col= "white") +
-  labs(x = "Radius (km)")
+  labs(x = "Radius (km)") +
+  theme_report
 ```
 
-The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/){target="_blank"} to handle this interpretation[^3]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
+The main drawback of log-transformation is that model coefficient units (e.g., slope of the regression fit) and measures of performance (e.g., RMSE) become difficult to interpret, however there are [methods](https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/){target="_blank"} to handle this interpretation[^4]. The benefits of log-transformation outweigh the drawbacks, thus we log-transform the response variable.
 
-[^3]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
+[^4]: **When only the dependent/response variable is log-transformed**: exponentiate the coefficient, subtract one from this number, and multiply by 100. This gives the percent increase (or decrease) in the response for every one-unit increase in the independent variable. Example: the coefficient is 0.198. (exp(0.198) -- 1) \* 100 = 21.9. For every one-unit increase in the independent variable, our dependent variable increases by about 22%.
 
 Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
@@ -371,14 +423,15 @@ d %>%
   geom_vline(aes(xintercept = p50), linetype = "dashed", color = "red") +
   geom_vline(aes(xintercept = p75), linetype = "dashed", color = "red") +
   scale_x_log10() +
-  labs(x = "Radius (km)")
+  labs(x = "Radius (km)") +
+  theme_report
 ```
 
 ### Correlated predictors
 
-Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^4].
+Population served and service connections are highly correlated ($r$ $=$ `r round(tidy(cor.test(d$population_served_count, d$service_connections_count))$estimate, 2)`) and exhibit log-normality. Thus, like the response variable, they are log-transformed, which further impacts the interpretation of the regression fit[^5].
 
-[^4]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
+[^5]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
 ```{r}
 d %>% 
@@ -389,7 +442,8 @@ d %>%
   scale_y_log10() +
   labs(x = "Poulation served", 
        y = "Service connections",
-       color = "Is Wholesaler")
+       color = "Is Wholesaler") +
+  theme_report
 ```
 
 ### Interaction effects
@@ -408,7 +462,8 @@ d %>%
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Poulation served", 
-       y = "Radius")
+       y = "Radius") +
+  theme_report
 ```
 
 #### Wholesaler
@@ -424,7 +479,8 @@ d %>%
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Poulation served", 
-       y = "Radius (km)")
+       y = "Radius (km)") +
+  theme_report
 ```
 
 #### Service area type code
@@ -446,7 +502,7 @@ d <- d %>%
   ) 
 ```
 
-After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal population. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power. 
+After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal population. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
 
 ```{r}
 # plot population v radius and facet by top 5 service area type code
@@ -467,11 +523,11 @@ d %>%
 
 ## Models
 
-We fit random forest, xgboost, and multiple linear regression models to a training set of 80% of the data selected by [stratified random sampling to avoid overfitting to low-radius observations](#right-skewed-response). We then evaluate model performance on the 20% holdout test set, discuss model uncertainty and limitations, interpret model results, and use the model to generate Tier 3 predictions on unlabeled data not covered by Tier 1 or 2 boundaries. 
+We fit random forest, xgboost, and multiple linear regression models to a training set of 80% of the data selected by [stratified random sampling to avoid overfitting to low-radius observations](#right-skewed-response). We then evaluate model performance on the 20% holdout test set, discuss model uncertainty and limitations, interpret model results, and use the model to generate Tier 3 predictions on unlabeled data not covered by Tier 1 or 2 boundaries.
 
 ### Random Forest
 
-We first fit a random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models. 
+We first fit a random forest model to the data because the algorithm has less strict assumptions, it can handle correlated predictors, and because the variable importance output can quickly indicate which variables explain the most variance in the dataset and hence, what to focus on with more interpretable linear models.
 
 ### xgboost
 
@@ -481,7 +537,7 @@ We first fit a random forest model to the data because the algorithm has less st
 
 ```{r}
 # Tier 3: Modeled boundaries: read and construct geometry
-t3 <- path(staging_path, "tier3_median.geojson") %>% st_read()
+t3 <- path(staging_path, "tier3_median.geojson") %>% st_read(quiet = TRUE)
 
 # examine residuals
 t3 <- t3 %>% filter(!is.na(radius)) %>% mutate(r = .pred - radius)
@@ -491,11 +547,13 @@ t3 %>%
   mutate(state = str_sub(pwsid, 1, 2)) %>% 
   ggplot() +
   geom_vline(xintercept = 1, color = "black", linetype = "dashed") +
-  geom_line(aes(r, color = state), stat = "density") + 
+  geom_line(aes(r/1e3, color = state), stat = "density") + 
   rcartocolor::scale_color_carto_d() +
-  facet_wrap(~state, scales = "free_y")
+  facet_wrap(~state, scales = "free_y") +
+  guides(color = "none") +
+  labs(x = "Residual (km)", y = "Density") +
+  theme_report
 ```
-
 
 ### Model evaluation
 
@@ -506,7 +564,6 @@ t3 %>%
 #### Linear model (connections)
 
 We use these first to specify linear models, which have more assumptions and constraints in order to be fit but which offer measures of standard error and greater interpretability.
-
 
 #### Linear model (connections, owner type)
 
