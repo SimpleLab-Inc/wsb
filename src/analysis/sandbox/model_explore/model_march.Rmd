@@ -76,7 +76,7 @@ theme_report <- theme_minimal() + theme(panel.grid.minor = element_blank())
 
 # Introduction
 
-In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum ([`eda_february.html`](#)) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informs the approach taken herein.
+In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum (`eda_february.html`) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informs the approach taken herein.
 
 The resulting national water service boundary layer is the product of a "Tiered Explicit, Match, and Model" (henceforth, **TEMM**) approach. The TEMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
@@ -798,7 +798,7 @@ xgb_metrics(xgb_test_res, truth = log10(radius), estimate = log10(.pred)) %>%
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
-
+<br>
 
 ### Linear Regression
 
@@ -878,13 +878,14 @@ On the test set, linear model goodness of fit is comparable to random forest, bu
 
 ```{r lm goodness of fit and error}
 # calculate goodness of it and error metrics
-lm_metrics <- metric_set(rmse, rsq, mae)
+lm_metrics <- metric_set(rsq, rmse, mae)
 lm_metrics(lm_test_res, truth = radius, estimate = .pred) %>% 
   select(-.estimator) %>% 
   knitr::kable(col.names = c("Metric", "Estimate")) %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
+<br>
 
 #### Spatial residuals
 
@@ -910,7 +911,9 @@ t3 %>%
   theme_report
 ```
 
-### Confidence intervals
+<br>
+
+#### Confidence intervals
 
 Linear model 5 and 95% confidence intervals are calculated and provided as an output. Importantly, the range of these predictions is relatively narrow, and generally less than 1 km. 
 
@@ -936,9 +939,9 @@ Below is an example of one Tier 3 with a typical CI range (around 1 km). Toggle 
 
 ```{r}
 # lm CI layers
-t3m_med <- st_read(path(staging_path, "tier3_median.geojson"))
-t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.geojson"))
-t3m_ciu <- st_read(path(staging_path, "tier3_ci_lower_05.geojson"))
+t3m_med <- st_read(path(staging_path, "tier3_median.geojson"), quiet = TRUE)
+t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.geojson"), quiet = TRUE)
+t3m_ciu <- st_read(path(staging_path, "tier3_ci_lower_05.geojson"), quiet = TRUE)
 
 # plot examples
 pwsid_select <- "IN5289012" # ~1km CI range
@@ -953,36 +956,83 @@ mapview(filter(t3m_med, pwsid == pwsid_select),
           alpha.regions = 0.3) 
 ```
 
+<br>
 
-### Limitations {#limitations}
+# Limitations {#limitations}
 
 No model is without limitations. In this section, we highlight key limitations and identify potential future pathways to improve the model fit through additional data collection and/or cleaning.
 
-#### Missing Primacy Types
 
-We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. Thus, Tier 3 tribal community water system boundaries are fit by models trained on state primacy types, which may introduce error in modeled boundaries. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
+<br>
+
+## The "Pancake Problem"
+
+```{r pancake problem query}
+# filter for pancake stacks
+pancakes <- d %>% 
+  filter(geometry_quality == "County Centroid" & has_labeled_bound == FALSE & 
+         is.na(tiger_match_geoid)) 
+
+# counties of big pancakes
+big_pancakes <- pancakes %>% 
+  count(county_served, state_code, sort = TRUE) 
+
+# plot
+big_pancake_pwsid <- pancakes %>% 
+  filter(county_served == big_pancakes$county_served[1]) %>% 
+  pull(pwsid)
+```
+
+The "pancake problem" is fundamentally caused by low centroid accuracy  (e.g., country or state centroid accuracy), and impacts PWSIDs that lack an explicit boundary (or TIGRIS match). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. To illustrate, we query for the biggest pancake problem (greatest number of pancakes in a single stack), which belongs to the county of `r big_pancakes$county_served[1]` in `r big_pancakes$state_code[1]` and has `r length(big_pancake_pwsid)` Tier 3 predictions. 
+
+```{r pancake problem map}
+# visualize
+temm %>% 
+  filter(pwsid %in% big_pancake_pwsid) %>% 
+  mapview(zcol = "pwsid")
+```
+
+Upstream centroid accuracy issues are beyond the scope of this study, and may be addressed in coordination with federal agencies that produce FRS and ECHO databases. A recommendation for how to address the pancake problem is outlined in the [Recommendations](#recommendations) section below.
+
+
+<br>
+
+## Missing Primacy Types
+
+We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. Thus, Tier 3 tribal community water system boundaries are fit by models trained on state primacy types, which may introduce error in modeled boundaries if it is found that system boundaries systematically vary based on this parameter. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
 
 ```{r}
 d %>% 
   group_by(primacy_type) %>% 
   summarise(proportion_present = sum(!is.na(radius))/n(),
             proportion_present = round(proportion_present, 2)) %>% 
-  dt_make()
+  knitr::kable(col.names = c("Primacy Type", "Proportion Present")) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
 ```
 
-#### Centroid Accuracy and the "Pancake Problem"
 
-The "pancake problem" impacts PWSIDs that lack an explicit boundary (or TIGRIS match) and that suffer from low centroid accuracy (e.g., country centroid accuracy). Estimated radii for these systems result in circular buffers that overlap, like a stack of pancakes. Efforts may be made to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations. One approach is to relocate low accuracy centroids to the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
-
-Upstream centroid accuracy issues are beyond the scope of this study, and may be addressed in coordination with federal agencies that produce FRS and ECHO databases.
-
-# Contributions
+<br> 
 
 # Recommendations
 
--   Explicit boundary data supersedes TIGER proxy matches and estimated water system boundaries. Moreover, it improves the statistical model prediction by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would .
--   Gather labeled boundaries for tribal primacy type (and territories if coverage is to be extended to these regions).
--   There are `r length((table(d$service_area_type_code)))` unique service area type code combinations, and many are combinations of different types.
+Beyond a discussion of how the TAMM spatial layer may be used (covered in the next section, [Contributions](#contributions)) we advise the following improvements to the pipeline for creating the TEMM spatial layer. In order of importance: 
+
+1. **Collect additional Tier 1 data.** Explicit boundary data supersedes Tier 2 TIGER proxy matches and Tier 3 modeled water system boundaries. Moreover, additional Tier 1 data improves Tier 3 model predictions by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would supersede all Tier 2 and 3 matches and estimates and reduce the pipeline presented herein to a simple data cleaning and assimilation task.  
+2. **Address the "Pancake Problem".** Low-accuracy centroids challenge the usefulness of the TEMM layer and introduce uncertainty into analyses that depend on these data. We propose an approach to re-center low-accuracy centroids: 
+    - To "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations, one approach is to relocate low accuracy centroids (i.e., state and county level centroid accuracy) to the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.  
+3. **Gather labeled boundaries for tribal systems** (and territories if coverage is to be extended to these regions). The lack of data in tribal areas means that these areas are likely to be underrepresented. Coordination should target the collection of Tier 1 data for these systems. 
+
+
+<br>
+
+# Contributions
+
+We developed a "Tiered Explicit, Match, and Model" (**TEMM**) approach for nationwide water system boundary estimation and an open source data pipeline to dynamically regenerate the TEMM spatial layer based on the addition of new Tier 1 explicit boundaries, refinement of the Tier 2 matching algorithm, improvements to the Tier 3 modeled boundaries, and changes to any other data dependencies (e.g., improved centroid location to solve the pancake problem). The spatial layer covers `r format_bign(nrow(d))` community water systems and a total population of `r format_bign(pop_total)`. Most (`r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by a Tier 1 or 2 spatial boundary, which we demonstrate to have relatively high accuracy. 
+
+Results may be used for xyz. 
+
+Contributor guidelines xyz. 
+
 
 <br>
 
