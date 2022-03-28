@@ -1049,11 +1049,13 @@ Beyond a discussion of how the TAMM spatial layer may be used (covered in the ne
 
 # Contributions {#contributions}
 
-We developed a "Tiered Explicit, Match, and Model" (**TEMM**) approach for nationwide water system boundary estimation and an open source data pipeline to dynamically regenerate the TEMM spatial layer based on the addition of new Tier 1 explicit boundaries, refinement of the Tier 2 matching algorithm, improvements to the Tier 3 modeled boundaries, and changes to any other data dependencies (e.g., improved centroid location to solve the pancake problem). The spatial layer covers `r format_bign(nrow(d))` community water systems and a total population of `r format_bign(pop_total)`. Most (`r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by a Tier 1 or 2 spatial boundary, which we demonstrate to have relatively high accuracy.
+We developed a "Tiered Explicit, Match, and Model" (**TEMM**) approach to compile a nationwide water system boundary layer via an open source data pipeline. Such a dataset is unprecedented: presently, easily-accessible, machine-readable, and clean water system spatial boundary data -- if available online -- is siloed across states. This work brings together multiple spatial datasets where they exist, and develops algorithms and models to "fill in" missing data where it does not exist.
 
-Results may be used for xyz.
+The spatial layer covers `r format_bign(nrow(d))` community water systems and a total population of `r format_bign(pop_total)`. Most people (`r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million, `r sum(pop$prop[1:2])`% of the population) are covered by a Tier 1 or 2 spatial boundary, which have relatively high accuracy.
 
-Contributor guidelines xyz.
+The data pipeline developed in this work can dynamically regenerate the TEMM spatial layer based on the addition of new Tier 1 explicit boundaries, refinement of the Tier 2 matching algorithm, improvements to the Tier 3 modeled boundaries, and changes to any other data dependencies (e.g., improved centroid location to solve the pancake problem). This pipeline is provided under the [MIT License](https://opensource.org/licenses/MIT){target="_blank"} online at an open source [Github repository](https://github.com/SimpleLab-Inc/wsb){target="*blank"} along with output TAMM spatial layer results in geojson, shapefile, and csv format. Contributor guidelines are available on Github, and detail the processes by which contributions may be made to the project.
+
+We imagine that the spatial data layer is appropriate as an input for any analyses that depend on nationwide water service coverage boundaries.
 
 <br>
 
