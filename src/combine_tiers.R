@@ -65,7 +65,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
   filter(service_connections_count >= n_max,
          population_served_count   >= n_max) %>% 
   # remove 834 rows (1.5% of data) not in contiguous US, mostly Puerto Rico
-  filter(primacy_agency_code %in% state.abb) %>% 
+  filter(primacy_agency_code %in% c(state.abb, "DC")) %>% 
   # select only relevant cols
   select(all_of(cols_select)) %>% 
   suppressMessages()
