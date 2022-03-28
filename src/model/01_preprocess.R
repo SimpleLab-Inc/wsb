@@ -124,7 +124,7 @@ d <- d %>%
     # collapse the sorted chr vector
     satc = map_chr(satc, ~paste(.x, collapse = "")),
     # convert the sorted chr vector to factor with reasonable level count
-    satc = fct_lump_prop(satc, 0.02), 
+    satc = fct_lump_n(satc, 3), 
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc),
     # convert T/F is_wholesaler_ind to character for dummy var prep

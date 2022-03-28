@@ -319,7 +319,7 @@ The national water service boundary layer is too large (i.e., around 400 MB) to 
 include_graphics(here("src/analysis/sandbox/model_explore/etc/temm-nation.png"))
 ```
 
-Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Note that when clicking on polygons in the map below, only Tier 2 and 3 data
+Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. 
 
 ```{r temm zoom ca nv or}
 # plot CA, NV, OR
@@ -384,7 +384,7 @@ We estimate the uncertainty in the Tier 2 matching approach with a *Modified [Ja
 
 $$
 J = \frac{A_T \cap A_E }{A_E}
-$$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$ -- $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
+$$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$. The Jacard similarity $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
 # Tier 2 TIGER geometries for explicit boundaries
@@ -500,7 +500,7 @@ tibble(dist = zjd) %>%
   theme_report 
 ```
 
-The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid.
+The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries. In the absence of a Tier 1 boundary, where Tier 2 boundaries do not spatially intersect the provided ECHO centroid, we may decide at a later date to prefer the Tier 3 boundary, for instance, if the distance between the ECHO centroid and matched Tiger Place exceeds some reasonable threshold.
 
 Results suggest that matching water system spatial boundaries and attributes (i.e., name) to TIGER Places is a valid approach to construct "proxy" water system boundaries. These findings are consistent with independent validation of the approach by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.
 
@@ -530,7 +530,7 @@ In this section of the report, we expand on important data pre-processing steps,
 
 ### Right skewed response {#right-skewed-response}
 
-The response variable (radius) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
+The response variable (radius) from the `r length(unique(wsb_labeled_clean$state))` labeled Tier 1 states (`r paste(unique(wsb_labeled_clean$state), collapse = ", ")`) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
 ```{r radius tier 1 distribution}
 d %>% 
@@ -589,6 +589,9 @@ d %>%
 
 ### Interaction effects {#interaction-effects}
 
+
+Explain that ind vars are assumed ind and how to spot interactions.
+
 <br>
 
 #### Owner type code {#owner-type-code}
@@ -633,7 +636,7 @@ d %>%
 
 #### Service area type code
 
-Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems that show a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, select the top 5 as features for the model, lump everything else into an "Other" category, and train on this feature. We include an interaction effect for service area type code.
+We select the top 5 service area type codes as features for the model, lump everything else into an "Other" category, and train on this feature. We include an interaction effect for service area type code.
 
 ```{r interaction service area type code}
 # clean service area type code column
@@ -653,10 +656,10 @@ d <- d %>%
 After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal service connection count. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
 
 ```{r service conn v radius}
-# plot service connections v radius and facet by top 5 service area type code
+# plot service connections v radius and facet by top 3 service area type code
 d %>% 
   mutate(
-    satc = fct_lump_n(satc, 5), 
+    satc = fct_lump_n(satc, 3), 
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc)
   ) %>%
@@ -1058,7 +1061,7 @@ Upstream centroid accuracy issues are beyond the scope of this study, and may be
 
 ## Missing Primacy Types
 
-We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. Thus, Tier 3 tribal community water system boundaries are fit by models trained on state primacy types, which may introduce error in modeled boundaries if it is found that system boundaries systematically vary based on this parameter. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
+We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. The model therefore, has no information on "Tribal" primacy types and all inferences are based on "State" primacy types. This may introduce error in modeled boundaries if it is found that system boundaries systematically vary based on the "primacy type" parameter. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
 
 ```{r primacy type proportions}
 d %>% 
