@@ -82,7 +82,7 @@ The resulting national water service boundary layer is the product of a "Tiered 
 
 1.  Whenever present, we use *explicit water service boundaries* (labeled data). These are spatial polygon data, typically provided at the state-level.\
 2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with independent validation of the approach by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}.\
-3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable at this point in time (centroid accuracy is discussed in the [Limitations](#limitations) section with recommendations for future work).
+3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, notwithstanding centroid accuracy issues that remain intractable at this point in time (centroid accuracy is discussed in the [Limitations](#limitations) and [Recommendations](#recommendations) sections).
 
 [^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we add more states, modify the matching algorithm, and further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". Thus, this older metric should be disregarded in light of new developments described herein.
 
@@ -351,7 +351,9 @@ We assume that data provided by states is correct, and do not clean Tier 1 data 
 
 # Tier 2: *Matched* boundaries
 
-Ryan's section with conceptual model.
+A detailed overview of the Tier 2 matching approach is provided in the project Github repository at `src/analysis/sandbox/matching/methodology.md`, and a brief overview is provided here.
+
+Federal water facility data (i.e., SDWIS, ECHO, FRS, UCMR) contain spatial centroids (latitude/longitude of the water system) but lack explicit spatial boundaries. We match name and spatial attributes of these data to US Census Tiger Place spatial polygons, which are assumed to represent reasonable "proxy" water system boundaries. Matched TIGER polygon boundaries thus represent what we call "Tier 2" boundaries. The uncertainty of this approach is evaluated in the next section.
 
 <br>
 
@@ -479,6 +481,10 @@ tibble(dist = zjd) %>%
 
 The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries, specifically in cases where Tier 2 boundaries do not spatially intersect the provided ECHO centroid.
 
+Results suggest that matching water system spatial boundaries and attributes (i.e., name) to TIGER Places is a valid approach to construct "proxy" water system boundaries. These findings are consistent with independent validation of the approach by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}. 
+
+Error in the matching algorithm may arise from uncertainty in the *matching* process -- which can be modified in the underlying code -- as well as in the *quality of the underlying data*. Future improvements to the matching algorithm hinge on improvements in these two areas and are discussed in more detail in the [Recommendations](#recommendations) section.
+
 <br>
 
 # Tier 3: *Modeled* boundaries
@@ -570,7 +576,7 @@ Regression slopes differ for the service connections based on **owner type code*
 
 [^7]: For modeling purposes and until more data are collected, we re-classify Native American observations ($n$ $=$ 2) into the Public/Private category (M).
 
-```{r}
+```{r interaction owner type code}
 d %>% 
   ggplot(aes(service_connections_count, radius)) + 
   geom_point(alpha = 0.2) + 
@@ -589,7 +595,7 @@ d %>%
 
 As before with owner type code, wholesaler status interacts with service connections, thus we include an interaction effect for it in the linear model.
 
-```{r}
+```{r interaction wholesaler}
 d %>% 
   ggplot(aes(service_connections_count, radius)) + 
   geom_point(alpha = 0.2) + 
@@ -608,7 +614,7 @@ d %>%
 
 Only `r round((nrow(filter(d, is.na(service_area_type_code)))/nrow(d))*100,2)`% of observations have a missing service area type feature. At first glance, there are `r length((table(d$service_area_type_code)))` unique service area type codes, with many systems that show a combination of more than one type. However, upon closer inspection, service area type code combinations are often permutations of one another (e.g., "['RA', 'SC']" and "['SC', 'RA']"). Thus, we clean them to find truly unique service area type code combinations, select the top 5 as features for the model, lump everything else into an "Other" category, and train on this feature. We include an interaction effect for service area type code.
 
-```{r}
+```{r interaction service area type code}
 # clean service area type code column
 d <- d %>% 
   mutate(
@@ -625,8 +631,8 @@ d <- d %>%
 
 After cleaning, there are `r length((table(d$satc)))` truly unique service area type code combinations, and most are "RA" or "MH". Regression slopes appear similar, but with difference y intercepts, which suggest that some service area types are larger for an equal service connection count. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
 
-```{r}
-# plot population v radius and facet by top 5 service area type code
+```{r service conn v radius}
+# plot service connections v radius and facet by top 5 service area type code
 d %>% 
   mutate(
     satc = fct_lump_n(satc, 5), 
@@ -937,7 +943,7 @@ d %>%
 
 Below is an example of one Tier 3 with a typical CI range (around 1 km). Toggle to the `Esri.WorldImagery` basemap to view satellite imagery of the underlying location and compare this to the estimated range of the Tier 3 estimates.
 
-```{r}
+```{r tier 3 cis}
 # lm CI layers
 t3m_med <- st_read(path(staging_path, "tier3_median.geojson"), quiet = TRUE)
 t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.geojson"), quiet = TRUE)
@@ -1023,7 +1029,7 @@ Upstream centroid accuracy issues are beyond the scope of this study, and may be
 
 We lack labeled data and hence radii for tribal primacy types (and territories, although this analysis excludes them), and can't improve the model based on this information until it is collected. Thus, Tier 3 tribal community water system boundaries are fit by models trained on state primacy types, which may introduce error in modeled boundaries if it is found that system boundaries systematically vary based on this parameter. This issue is related to missing "owner type codes" for "native" (N) water systems, described [above](#owner-type-code).
 
-```{r}
+```{r primacy type proportions}
 d %>% 
   group_by(primacy_type) %>% 
   summarise(proportion_present = sum(!is.na(radius))/n(),
