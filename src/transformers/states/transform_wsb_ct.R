@@ -54,7 +54,6 @@ ct_wsb <- ct_wsb %>%
     state,
     #    county,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,

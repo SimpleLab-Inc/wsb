@@ -59,7 +59,6 @@ nm_wsb <- nm_wsb %>%
     state,
     county         = CN, 
     city           = City,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,

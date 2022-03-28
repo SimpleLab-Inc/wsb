@@ -53,7 +53,6 @@ ks_wsb <- ks_wsb %>%
     state,
     #    county,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
