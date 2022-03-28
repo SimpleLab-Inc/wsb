@@ -5,6 +5,7 @@ library(sf)
 library(tigris)
 library(rmapshaper)
 library(readr)
+library(tidyverse)
 
 # path to save raw data
 data_path <- Sys.getenv("WSB_DATA_PATH")
@@ -17,8 +18,13 @@ dir_create(path(data_path, "tigris"))
 dir_create(path(data_path, "ne/ocean"))
 
 # download all TIGRIS places, simplify polygons, save
+fips_ids <- fips_codes %>% 
+  filter(state %in% c(state.abb, "DC")) %>% 
+  pull(state_code) %>% 
+  unique()
+
 places <- state.abb %>% 
-  tigris::places()
+  tigris::places(fips_ids)
 
 places <- places %>% 
   rmapshaper::ms_simplify(
