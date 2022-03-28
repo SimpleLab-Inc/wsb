@@ -970,9 +970,7 @@ In the linear model specified above, when both the dependent (response) variable
 
 It is also worth noting the high prevalence of high p-value coefficients, which suggests that there is little evidence to support an effect from the coefficient[^8]. Most interaction term coefficients fall into this category. By contrast, low p-value coefficients indicate predictors that, when changed, also changes the response variable.
 
-[^8]: The p-value in a linear regression tests the null hypothesis that the coefficient has no effect (\$\\beta\$ = zero). A low p-value indicates evidence for rejecting the null hypothesis and a high p-value indicates otherwise.
-
-    \
+[^8]: The p-value in a linear regression tests the null hypothesis that the coefficient has no effect (i.e., coefficient = zero). A low p-value indicates evidence for rejecting the null hypothesis and a high p-value indicates otherwise.
 
 ```{r lm coefficients table}
 lm_fit %>% 
@@ -1055,7 +1053,7 @@ The spatial layer covers `r format_bign(nrow(d))` community water systems and a 
 
 The data pipeline developed in this work can dynamically regenerate the TEMM spatial layer based on the addition of new Tier 1 explicit boundaries, refinement of the Tier 2 matching algorithm, improvements to the Tier 3 modeled boundaries, and changes to any other data dependencies (e.g., improved centroid location to solve the pancake problem). This pipeline is provided under the [MIT License](https://opensource.org/licenses/MIT){target="_blank"} online at an open source [Github repository](https://github.com/SimpleLab-Inc/wsb){target="*blank"} along with output TAMM spatial layer results in geojson, shapefile, and csv format. Contributor guidelines are available on Github, and detail the processes by which contributions may be made to the project.
 
-We imagine that the spatial data layer is appropriate as an input for any analyses that depend on nationwide water service coverage boundaries.
+We imagine that the TEMM spatial layer is appropriate as an input for any analyses that depend on nationwide water service coverage boundaries.
 
 <br>
 
