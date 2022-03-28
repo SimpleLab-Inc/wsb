@@ -1055,6 +1055,23 @@ temm %>%
   mapview(zcol = "pwsid")
 ```
 
+TBD. 
+
+```{r count pancakes by centroid accuracy}
+nrow_pancake <- temm %>% filter(tier == "Tier 3") %>% nrow()
+
+temm %>% 
+  st_drop_geometry() %>% 
+  filter(tier == "Tier 3") %>%
+  group_by(geometry_quality) %>% 
+  summarise(
+    count = n(),
+    percent_tier3 = round((count/nrow_pancake), 3)*100
+  ) %>% 
+  arrange(desc(percent_tier3)) %>% 
+  dt_make()
+```
+
 Upstream centroid accuracy issues are beyond the scope of this study, and may be addressed in coordination with federal agencies that produce FRS and ECHO databases. A recommendation for how to address the pancake problem is outlined in the [Recommendations](#recommendations) section below.
 
 <br>
