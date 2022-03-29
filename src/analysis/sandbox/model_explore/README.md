@@ -4,7 +4,7 @@ This little sandbox houses model exploration scripts used to prototype the final
 
 ## Table of contents
 
-* `model_march.Rmd` summarizes construction of the TEMM data layer.  
+* `model_march.Rmd` summarizes construction of the TEMM data layer and uses flat files in `/etc` to render.  
 * `02_random_forest.R` fits the random forest model.  
 * `03_xgboost.R` fits the xgboost model.  
 
