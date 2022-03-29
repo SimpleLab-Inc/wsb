@@ -11,7 +11,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 # We also assume that population counts less than n_max are unreasonable, 
 # and only work with populations >= 15 (at least one per service connection)
 n_max <- 15
-cat("Preparing to mean impute service connection count", 
+cat("\n\nPreparing to mean impute service connection count", 
     "for all values >=", n_max, ".\n")
 
 # j stands for joined data, read and rm rownumber column, then drop
@@ -22,7 +22,9 @@ j <- read_csv(path(staging_path, "matched_output.csv")) %>%
   filter(service_connections_count >= n_max,
          population_served_count   >= n_max) %>% 
   # remove rows not in contiguous US, mostly Puerto Rico
-  filter(primacy_agency_code %in% c(state.abb, "DC"))
+  filter(primacy_agency_code %in% c(state.abb, "DC")) %>% 
+  suppressMessages()
+
 cat("Read", nrow(j), "matched outputs with >=", 
     n_max, "connection & population count in the 50 states and DC.\n")
 
@@ -74,7 +76,8 @@ cat("Mean imputed service connection count.\n")
 # read labeled data with recalculated area, centroid for multipolygon pwsids --
 
 # read wsb_labeled_clean
-wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson")) 
+wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.geojson") %>% 
+  st_read(quiet = TRUE) 
 
 # rm geometry and other unnecessary (for model) cols from clean wsb labels
 vars_keep <- c("pwsid", "radius")
@@ -94,7 +97,8 @@ cols_keep <- c("pwsid", "is_wholesaler_ind",
 
 # read sdwis data and only keep the specified columns
 sdwis <- path(staging_path, "sdwis_water_system.csv") %>%
-  read_csv(col_select = all_of(cols_keep))
+  read_csv(col_select = all_of(cols_keep)) %>% 
+  suppressMessages()
 
 # ensure non-duplicate pwsid in SDIWS pre-join
 cat("Detected", length(unique(sdwis$pwsid)), "unique pwsids", "and", 
