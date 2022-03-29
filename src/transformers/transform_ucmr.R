@@ -39,13 +39,13 @@ cat("Detected", nrow(zip_rm), "nonsense zipcodes:\n"); print(zip_rm)
 # remove nonsense zipcodes
 ucmr <- anti_join(ucmr, zip_rm)
 
-cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucrm data.\n")
+cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucmr data.\n")
 
 
 # merge zip codes to spatial zip code polygon -----------------------------
 
 # zip code columns to keep
-cols_keep <- c("zipcode", "geoid10", "aland10", "awater10", "st_areashape",
+cols_keep <- c("zipcode", "geoid20", "aland20", "awater20", "st_areashape",
                "centroid_long", "centroid_lat", "area_hull", "radius")
 
 # pull usa state geometries, project to input data CRS
@@ -56,7 +56,7 @@ zipcodes <- zipcode_areas %>%
   st_transform(st_crs(epsg_aw)) %>% 
   mutate(
     # area calculations occur in area weighted epsg
-    zipcode        = zcta5ce10,
+    zipcode        = zcta5ce20,
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull),
@@ -77,6 +77,7 @@ ucmr <- ucmr %>%
   left_join(zipcodes, on = "zipcode") %>% 
   # convert object back to spatial
   st_as_sf(crs = epsg)
+
 
 # Write clean ucmr data to geojson
 path_out <- path(staging_path, "ucmr.geojson")
