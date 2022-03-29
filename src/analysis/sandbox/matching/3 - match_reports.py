@@ -88,12 +88,14 @@ mk_matches["match_rule"].value_counts()
 ###############################
 
 # This will include all contributors where the master key is already known and there is a match to TIGER
-anchors = supermodel[supermodel["master_key"].isin(mk_matches["master_key_x"])]
+anchors = supermodel[supermodel["master_key"].isin(mk_matches["master_key"])]
 
 candidates = (supermodel
-    .merge(mk_matches, left_on="master_key", right_on="master_key_y")
-    .drop(columns="master_key_y")
-    .rename(columns={"master_key_x": "mk_match"}))
+    .drop(columns="master_key")
+    .merge(mk_matches, left_on="contributor_id", right_on="candidate_contributor_id")
+    .rename(columns={"master_key": "mk_match"}))
+
+#%%
 
 base_columns = ["type", "mk_match", "match_rule"]
 remainder = [c for c in candidates.columns if c not in base_columns]
@@ -139,7 +141,7 @@ tokens = pd.read_sql("SELECT * FROM tokens;", conn)
 # Unmatched report
 anchors = tokens[
     tokens["source_system"].isin(["sdwis"]) & 
-    (~tokens["master_key"].isin(mk_matches["master_key_x"]))]
+    (~tokens["master_key"].isin(mk_matches["master_key"]))]
 
 candidates = tokens[
     (tokens["source_system"] == "tiger")
@@ -148,9 +150,6 @@ candidates = tokens[
     ]
 
 umatched_report = pd.concat([anchors, candidates]).sort_values(["state", "name_tkn"])
-
-umatched_report["geometry_type"] = umatched_report["geometry"].geom_type
-umatched_report = umatched_report.drop(columns=["geometry"])
 
 #%%
 umatched_report.to_excel("unmatched_report.xlsx", index=False)
