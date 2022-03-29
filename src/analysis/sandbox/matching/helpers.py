@@ -164,35 +164,23 @@ def _sql_cleanse(source_system: Optional[str] = None):
                 address_line_2 IS NOT NULL;
         """)
 
-    # This next rule requires that SDWIS be already populated in the database, so we'll do a quick check for that.
-    sdwis_count = pd.read_sql(
-        "SELECT COUNT(*) FROM pws_contributors WHERE source_system = 'sdwis';",
-        conn).iloc[0][0]
-
-    if sdwis_count == 0:
-        raise Exception("You must load SDWIS into the database prior to other systems.")
-
     _run_cleanse_rule(conn,
-        "If the address's state disagrees with the SDWIS primacy_agency_code, null out the address and replace the state.",
+        "If the address's state disagrees with primacy_agency_code, null out the address and replace the state.",
         f"""
-            WITH sdwis AS (
-                SELECT master_key, primacy_agency_code
-                FROM pws_contributors
-                WHERE source_system = 'sdwis'
-            )
-            UPDATE pws_contributors c
+            UPDATE pws_contributors
             SET
                 address_line_1 = NULL,
                 address_line_2 = NULL,
                 city = NULL,
-                state = s.primacy_agency_code
-            FROM sdwis s
+                state = primacy_agency_code
             WHERE
-                s.master_key = C.master_key AND
-                s.primacy_agency_code <> C.state AND
+                {source_system_filter}
+                source_system IN ('sdwis', 'echo', 'frs') AND
+                pwsid is not null AND
+                primacy_agency_code <> state AND
                 -- Exclude Native American territories
-                s.primacy_agency_code !~ '[0-9]' AND
-                s.primacy_agency_code NOT IN ('NN');
+                primacy_agency_code !~ '[0-9]' AND
+                primacy_agency_code NOT IN ('NN');
         """)
 
     _run_cleanse_rule(conn,

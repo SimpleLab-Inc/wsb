@@ -50,7 +50,7 @@ echo.head()
 df = gpd.GeoDataFrame().assign(
     source_system_id        = echo["pwsid"],
     source_system           = "echo",
-    xref_id                 = "echo." + echo["pwsid"],
+    contributor_id          = "echo." + echo["pwsid"],
     master_key              = echo["pwsid"],
     pwsid                   = echo["pwsid"],
     state                   = echo["fac_state"],
@@ -59,6 +59,7 @@ df = gpd.GeoDataFrame().assign(
     city                    = echo["fac_city"],
     county                  = echo["fac_county"],
     zip                     = echo["fac_zip"],
+    primacy_agency_code     = echo["pwsid"].str[0:2],
     geometry_lat            = echo["fac_lat"],
     geometry_long           = echo["fac_long"],
     geometry                = echo["geometry"],

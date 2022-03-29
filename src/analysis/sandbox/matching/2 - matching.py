@@ -160,7 +160,7 @@ tokens.drop(columns="geometry").to_sql("tokens", conn, index=False)
 
 #%%
 # Rule: Match on state + name
-# 25,073 matches
+# 25,206 matches
 
 new_matches = run_match(
     "state+name",
@@ -180,7 +180,7 @@ matches = new_matches
 
 #%%
 # Rule: Spatial matches
-# 12,109 matches between echo/frs and tiger
+# 12,003 matches between echo/frs and tiger
 # (Down from 22,200 before excluding state, county, and zip centroids)
 
 left_mask = (
@@ -198,13 +198,24 @@ new_matches = (tokens[left_mask]
     [["contributor_id_x", "contributor_id_y"]]
     .assign(match_rule="spatial"))
 
+
+# Also require that the states match in both systems
+
+contributor_state = tokens.set_index("contributor_id")["state"]
+
+new_matches_with_states = (new_matches
+    .join(contributor_state, on="contributor_id_x")
+    .join(contributor_state, on="contributor_id_y", rsuffix="_y"))
+
+new_matches = new_matches[new_matches_with_states["state"] == new_matches_with_states["state_y"]]
+
 print(f"Spatial matches: {len(new_matches)}")
 
 matches = pd.concat([matches, new_matches])
 
 #%%
 # Rule: match state+city_served to state&name
-# 16,302 matches
+# 16,755 matches
 
 new_matches = run_match(
     "state+city_served",
@@ -225,7 +236,7 @@ matches = pd.concat([matches, new_matches])
 
 #%%
 # Rule: match MHP's by tokenized name
-# 1173 matches. Not great, but then again, not all MHP's will have water systems.
+# 1282 matches. Not great, but then again, not all MHP's will have water systems.
 # Match on city too?
 
 # Unfortunately, half of the "MHP" system has no names
