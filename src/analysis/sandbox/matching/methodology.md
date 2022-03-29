@@ -6,7 +6,7 @@ For example, SDWIS is the "system of record" for identifying which PWS's exist a
 
 ECHO contains lat/long, but it is also frequently low-quality. In many cases, it simply provides the centroid for the zip code, county, or state in which the facility is located.
 
-Since each of these data sources have some information to contribute, they will be known as **contributors**. Ultimately, we home create a CSV where each row represents a single, unique public water system, and the best attributes have been selected from each of the contributors to create a **master record**. These master records are uniquely identified by their PWS ID's.
+Since each of these data sources have some information to contribute, they will be known as **contributors**. Ultimately, we hope to create a CSV where each row represents a single, unique public water system, and the best attributes have been selected from each of the contributors to create a **master record**. These master records are uniquely identified by their PWS ID's.
 
 In order to create the most complete master records, we need to link as many contributors as possible to their corresponding master records. Some of our data sources (SDWIS, ECHO, FRS, and UCMR) are labeled with PWS ID's, which make them easy to match together. Other data sources (MHP, TIGER) do not have PWS ID's, so we have to rely on other attributes, fuzzier match logic, and various manual and automatic reviews to try to match these to their relevant PWS ID's.
 
