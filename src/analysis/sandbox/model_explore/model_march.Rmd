@@ -376,7 +376,7 @@ dg2 %>%
 
 A data table of the the above plot is provided below.
 
-```{r datatable temm tier distribution per state}
+```{r datatable temm tier distribution per state and system size}
 dg2 %>% 
   mutate(
     prop  = ifelse(is.na(prop), 0, prop),
