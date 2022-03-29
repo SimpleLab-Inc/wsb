@@ -271,7 +271,8 @@ dg <- d %>%
   ungroup() %>% 
   distinct() %>% 
   # add missing NA values per state code and tier group
-  complete(primacy_agency_code, tier) %>% 
+  complete(primacy_agency_code, tier,
+           fill = list(count = 0, prop = 0)) %>% 
   mutate(tier = factor(tier, levels = paste("Tier", 3:1)))
 
 # sanity check the grouped summary above: this should return all 1
@@ -301,8 +302,6 @@ A data table of the the above plot is provided below.
 ```{r datatable temm tier distribution per state}
 dg %>% 
   mutate(
-    count = ifelse(is.na(count), 0, count),
-    count = format_bign(count),
     prop  = ifelse(is.na(prop), 0, prop),
     prop  = round(prop, 3)
   ) %>% 
@@ -373,6 +372,18 @@ dg2 %>%
   theme(panel.grid.minor.x = element_blank(), legend.position = c(0.95, 0.1))
 ```
 
+<br>
+
+A data table of the the above plot is provided below.
+
+```{r datatable temm tier distribution per state}
+dg2 %>% 
+  mutate(
+    prop  = ifelse(is.na(prop), 0, prop),
+    prop  = round(prop, 3)
+  ) %>% 
+  dt_make()
+```
 
 <br>
 
