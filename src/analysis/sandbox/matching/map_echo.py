@@ -50,7 +50,7 @@ echo.head()
 df = gpd.GeoDataFrame().assign(
     source_system_id        = echo["pwsid"],
     source_system           = "echo",
-    contributor_id          = "echo." + echo["pwsid"],
+    xref_id                 = "echo." + echo["pwsid"],
     master_key              = echo["pwsid"],
     pwsid                   = echo["pwsid"],
     state                   = echo["fac_state"],
