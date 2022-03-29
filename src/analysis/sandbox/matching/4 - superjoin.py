@@ -11,6 +11,7 @@ load_dotenv()
 
 DATA_PATH = os.environ["WSB_STAGING_PATH"] + "/../outputs"
 EPSG = os.environ["WSB_EPSG"]
+PROJ = os.environ["WSB_EPSG_AW"]
 
 # Connect to local PostGIS instance
 conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
@@ -27,8 +28,17 @@ sdwis = supermodel[supermodel["source_system"] == "sdwis"]
 tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
 echo = supermodel[supermodel["source_system"] == "echo"]
 labeled = supermodel[supermodel["source_system"] == "labeled"]
-
-matches = pd.read_sql("SELECT * FROM matches;", conn)
+#%%
+matches = pd.read_sql("""
+    SELECT
+        m.master_key,
+        m.candidate_contributor_id,
+        m.match_rule,
+        c.source_system,
+        c.source_system_id
+    FROM matches m
+    JOIN pws_contributors c ON m.candidate_contributor_id = c.contributor_id;
+    """, conn)
 
 #%% ##########################
 # Pick the best TIGER match
@@ -40,20 +50,32 @@ rules (and combos of rules) are most effective. Rank our matches based
 on that, and select the top one.
 """
 
-# Augment the match table with the source_system and source_system_id
-matches = matches.merge(
-    supermodel[["contributor_id", "source_system", "source_system_id"]],
-    left_on="candidate_contributor_id", right_on="contributor_id")
-
-#%%
 # First, a check: How often do we match to multiple tigers?
-match_counts = (matches
+pws_to_tiger_match_counts = (matches
     .loc[matches["source_system"] == "tiger"]
     .groupby("master_key")
     .size())
 
+pws_to_tiger_match_counts.name = "pws_to_tiger_match_count"
+
+# Let's also do it the other direction
+tiger_to_pws_match_counts = (matches
+    .loc[matches["source_system"] == "tiger"]
+    .groupby("candidate_contributor_id")
+    .size())
+
+tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
+
+# Augment matches with these TIGER match stats
+matches = (matches
+    .join(pws_to_tiger_match_counts, on="master_key")
+    .join(tiger_to_pws_match_counts, on="candidate_contributor_id"))
+
 # 1850 situations with > 1 match
-print(f"{(match_counts > 1).sum()} matches to multiple TIGERs")
+print(f"{(pws_to_tiger_match_counts > 1).sum()} PWS's matched to multiple TIGERs")
+
+# 3631 TIGERs matched to multiple PWSs
+print(f"{(tiger_to_pws_match_counts > 1).sum()} TIGER's matched to multiple PWS's")
 
 #%%
 
@@ -79,6 +101,10 @@ candidate_matches = gpd.GeoDataFrame(matches
 s1 = s1.loc[s1.index.isin(candidate_matches.index)]
 candidate_matches = candidate_matches.loc[candidate_matches.index.isin(s1.index)]
 
+# Switch to a projected CRS
+s1 = s1.to_crs(PROJ)
+candidate_matches = candidate_matches.to_crs(PROJ)
+
 # This gives a couple warnings, but they're OK
 # "Indexes are different" - this is because tiger_matches has duplicated indices (multiple matches to the same PWS)
 # "Geometry is in a geographic CRS" - Projected CRS's will give more accurate distance results, but it's fine for our purposes.
@@ -92,7 +118,7 @@ distances.name = "distance"
 candidate_matches = candidate_matches.join(distances, on="pwsid", how="inner")
 
 # Assign a score
-PROXIMITY_BUFFER = .05
+PROXIMITY_BUFFER = 1000 # Meters
 candidate_matches["score"] = candidate_matches["distance"] < PROXIMITY_BUFFER
 
 #%%
@@ -125,7 +151,8 @@ matches.head()
 match_dedupe = (matches
     .sort_values(["master_key", "rank"])
     .drop_duplicates(subset=["master_key", "source_system"], keep="first")
-    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
+    [["master_key", "candidate_contributor_id", "source_system", "source_system_id",
+    "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
 # For TIGER only, take the best match (ignore MHP for now)
 tiger_best_match = (match_dedupe
@@ -135,7 +162,7 @@ tiger_best_match = (match_dedupe
         "source_system_id": "tiger_match_geoid"
     })
     .set_index("pwsid")
-    ["tiger_match_geoid"])
+    [["tiger_match_geoid", "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
 
 #%% ##########################
@@ -200,10 +227,8 @@ output = (output
         # 'ejscreen_flag_us'
     ]], on="pwsid", how="left"))
 
-# Add in the TIGER geoid
+# Add in the TIGER geoid and pws --> TIGER match counts
 output = output.join(tiger_best_match, on="pwsid")
-
-# For now, let's ignore the MHP's
 
 # Mark whether each one has a labeled boundary
 output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
@@ -213,6 +238,7 @@ if not (len(output) == len(sdwis)):
     raise Exception("Output was filtered or denormalized")
 
 output.head()
+
 
 #%%
 # Save the results
