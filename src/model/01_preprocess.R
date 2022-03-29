@@ -18,10 +18,13 @@ cat("Preparing to mean impute service connection count",
 # observations without a centroid or with nonsensical service connections
 j <- read_csv(path(staging_path, "matched_output.csv")) %>% 
   filter(!is.na(geometry_lat) | !is.na(geometry_long)) %>% 
-  # filter out systems with < n_max population count - 243 (0.5%),
-  filter(population_served_count > n_max) 
+  # filter to CWS and assume each connection must serve at least 1 person
+  filter(service_connections_count >= n_max,
+         population_served_count   >= n_max) %>% 
+  # remove rows not in contiguous US, mostly Puerto Rico
+  filter(primacy_agency_code %in% c(state.abb, "DC"))
 cat("Read", nrow(j), "matched outputs with >=", 
-    n_max, "connection & population count.\n")
+    n_max, "connection & population count in the 50 states and DC.\n")
 
 
 # mean impute service connections == 0 with linear model ------------------

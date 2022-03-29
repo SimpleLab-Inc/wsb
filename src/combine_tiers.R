@@ -26,10 +26,13 @@ t2 <- path(staging_path, "tigris_places_clean.geojson") %>%
   st_read(quiet = TRUE) %>% 
   select(tiger_match_geoid = geoid)
 
-# Tier 3: MODELED boundaries
+# Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 <- path(staging_path, "tier3_median.geojson") %>% 
   st_read(quiet = TRUE) %>% 
-  select(pwsid)
+  select(pwsid, 
+         pred_05 = .pred_lower, 
+         pred_50 = .pred,
+         pred_95 = .pred_upper)
 
 cat("done.\n") 
 
@@ -60,12 +63,6 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
       has_labeled_bound == FALSE & is.na(tiger_match_geoid)  ~ "Tier 3"
     )
   ) %>% 
-  # filter to CWS and assume each connection must serve at least 1 person
-  # this drop 267 rows (0.5% of data)
-  filter(service_connections_count >= n_max,
-         population_served_count   >= n_max) %>% 
-  # remove 834 rows (1.5% of data) not in contiguous US, mostly Puerto Rico
-  filter(primacy_agency_code %in% c(state.abb, "DC")) %>% 
   # select only relevant cols
   select(all_of(cols_select)) %>% 
   suppressMessages()
