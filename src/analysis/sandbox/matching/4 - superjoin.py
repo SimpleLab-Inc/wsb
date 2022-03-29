@@ -1,6 +1,7 @@
 #%%
 
 import os
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
@@ -23,10 +24,119 @@ supermodel = gpd.GeoDataFrame.from_postgis(
     conn, geom_col="geometry")
 
 sdwis = supermodel[supermodel["source_system"] == "sdwis"]
-tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("master_key")
+tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
 echo = supermodel[supermodel["source_system"] == "echo"]
+labeled = supermodel[supermodel["source_system"] == "labeled"]
 
 matches = pd.read_sql("SELECT * FROM matches;", conn)
+
+#%% ##########################
+# Pick the best TIGER match
+##############################
+
+"""
+We'll compare the matches to the labeled data to determine which match
+rules (and combos of rules) are most effective. Rank our matches based
+on that, and select the top one.
+"""
+
+# Augment the match table with the source_system and source_system_id
+matches = matches.merge(
+    supermodel[["contributor_id", "source_system", "source_system_id"]],
+    left_on="candidate_contributor_id", right_on="contributor_id")
+
+#%%
+# First, a check: How often do we match to multiple tigers?
+match_counts = (matches
+    .loc[matches["source_system"] == "tiger"]
+    .groupby("master_key")
+    .size())
+
+# 1850 situations with > 1 match
+print(f"{(match_counts > 1).sum()} matches to multiple TIGERs")
+
+#%%
+
+# Get a series with the labeled geometry for each PWS
+s1 = gpd.GeoSeries(
+    labeled[["pwsid", "geometry"]]
+    .loc[labeled["master_key"].isin(matches["master_key"])]
+    .set_index("pwsid")
+    ["geometry"])
+
+# TIGER and MHP candidates (note that this index will not be unique)
+candidate_matches = gpd.GeoDataFrame(matches
+    .join(tiger["geometry"], on="candidate_contributor_id")
+    .rename(columns={"master_key": "pwsid"})
+    .set_index("pwsid")
+    [["geometry", "match_rule", "source_system"]])
+
+#%%
+
+# Filter to only the PWS's that appear in both series
+# 7,423 match
+
+s1 = s1.loc[s1.index.isin(candidate_matches.index)]
+candidate_matches = candidate_matches.loc[candidate_matches.index.isin(s1.index)]
+
+# This gives a couple warnings, but they're OK
+# "Indexes are different" - this is because tiger_matches has duplicated indices (multiple matches to the same PWS)
+# "Geometry is in a geographic CRS" - Projected CRS's will give more accurate distance results, but it's fine for our purposes.
+distances = s1.distance(candidate_matches, align=True)
+
+# Not sure what causes NA. Filter only non-NA
+distances = distances[distances.notna()]
+distances.name = "distance"
+
+# re-join to the match table
+candidate_matches = candidate_matches.join(distances, on="pwsid", how="inner")
+
+# Assign a score
+PROXIMITY_BUFFER = .05
+candidate_matches["score"] = candidate_matches["distance"] < PROXIMITY_BUFFER
+
+#%%
+
+# Assign a "rank" to each match rule and combo of match rules
+match_ranks = (candidate_matches
+    .loc[candidate_matches["source_system"] == "tiger"]
+    .groupby(["match_rule"])
+    .agg(
+        points = ("score", "sum"),
+        total = ("score", "size")
+    )) #type:ignore
+
+match_ranks["score"] = match_ranks["points"] / match_ranks["total"]
+match_ranks = match_ranks.sort_values("score", ascending=False)
+match_ranks["rank"] = np.arange(len(match_ranks))
+
+match_ranks
+
+#%%
+
+# Assign the rank back to the matches
+matches = matches.join(match_ranks[["rank"]], on="match_rule", how="left")
+
+matches.head()
+
+#%%
+
+# Sort by rank, then take the first one
+match_dedupe = (matches
+    .sort_values(["master_key", "rank"])
+    .drop_duplicates(subset=["master_key", "source_system"], keep="first")
+    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
+
+# For TIGER only, take the best match (ignore MHP for now)
+tiger_best_match = (match_dedupe
+    .loc[match_dedupe["source_system"] == "tiger"]
+    .rename(columns={
+        "master_key": "pwsid",
+        "source_system_id": "tiger_match_geoid"
+    })
+    .set_index("pwsid")
+    ["tiger_match_geoid"])
+
 
 #%% ##########################
 # Generate the final table
@@ -90,84 +200,19 @@ output = (output
         # 'ejscreen_flag_us'
     ]], on="pwsid", how="left"))
 
-output.head()
-
-#%% #########################
-# Pick best match
-#############################
-
-"""
-# For sdwis --> tiger, deduplicate by distance
-
-# First, join the output to TIGER via the match table
-
-(output
-    .merge(matches, left_on="pwsid", right_on="master_key_x")
-    .merge(tiger[["master_key", "source_system_id", "geometry"]], left_on="master_key_y", right_on="master_key"))
-
-# K, now calculate the differences in the geometries
-
-#%%
-
-# I need to create two geoseries with the same index
-# Let's make pwsid the index?
-
-s1 = gpd.GeoSeries(
-        output[["pwsid", "geometry"]]
-        .loc[output["master_key"].isin(matches["master_key_x"])]
-        .set_index("pwsid")
-        ["geometry"])
-
-#%%
-
-# TIGER candidates (note that this index will not be unique)
-s2 = gpd.GeoSeries(matches
-    .join(tiger["geometry"], on="master_key_y")
-    .rename(columns={"master_key_x": "pwsid"})
-    .set_index("pwsid")
-    ["geometry"])
-
-#%%
-
-# Augment each match with its distance.
-# Of course, spatial matches will always be distance 0.
-# So spatial matches will always beat name matches.
-distances = s1.distance(s2, align=True)
-"""
-#%%
-
-# Know what....for now I'll just do arbitrary pick-one per source system
-match_dedupe = (matches
-    .merge(
-        supermodel[["contributor_id", "source_system", "source_system_id"]],
-        left_on="candidate_contributor_id", right_on="contributor_id")
-    .drop_duplicates(subset=["master_key", "source_system"], keep="first")
-    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
-
-tiger_best_match = (match_dedupe
-    .loc[match_dedupe["source_system"] == "tiger"]
-    .rename(columns={
-        "master_key": "pwsid",
-        "source_system_id": "tiger_match_geoid"
-    })
-    .set_index("pwsid")
-    ["tiger_match_geoid"])
-
-# Augment the output with the geoid
+# Add in the TIGER geoid
 output = output.join(tiger_best_match, on="pwsid")
 
 # For now, let's ignore the MHP's
+
+# Mark whether each one has a labeled boundary
+output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
 
 # Verify: We should still have exactly the number of pwsid's as we started with
 if not (len(output) == len(sdwis)):
     raise Exception("Output was filtered or denormalized")
 
-#%%
-# Mark whether each one has a labeled boundary
-
-labeled_pwsids = supermodel[supermodel["source_system"] == "labeled"]["pwsid"]
-
-output["has_labeled_bound"] = output["pwsid"].isin(labeled_pwsids)
+output.head()
 
 #%%
 # Save the results
