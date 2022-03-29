@@ -52,7 +52,6 @@ nj_wsb <- nj_wsb %>%
     state,
     #    county,   # county code is first 2 digits of PWID
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,

@@ -53,7 +53,6 @@ az_wsb <- az_wsb %>%
     state,
     county         = COUNTY,
     city           = CITY_SRVD,
-    #    source,
     owner          = OWNER_NAME,
     # geospatial columns
     st_areashape,

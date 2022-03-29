@@ -54,7 +54,6 @@ nc_wsb <- nc_wsb %>%
     state,
     county         = WAPCS,
 #    city,
-#    source,
 #    owner,
     # geospatial columns
     st_areashape,
