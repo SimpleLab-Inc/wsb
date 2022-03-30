@@ -190,27 +190,7 @@ print("Pulled useful information for the best MHP match.")
 # Generate the final table
 ##############################
 
-"""
-Requested table:
-
-Column                   | Data Source
--------------------------|----------------
-pwsid                    | SDWIS
-pws_name                 | SDWIS
-wsb                      | WSB (hold for now)
-centroid_lat             | Proposed: (1) MHP, (2) UCMR, (3) Echo, in order
-centroid_long            | Proposed: (1) MHP, (2) UCMR, (3) Echo, in order
-state_code               | SDWIS
-county_served            | SDWIS
-city_served              | SDWIS
-population_served        | SDWIS
-connections              | SDWIS
-primacy_agency_code      | SDWIS
-service_area_type_code   | SDWIS
-"""
-
 output = pd.DataFrame().assign(
-    master_key                 = sdwis["master_key"],
     pwsid                      = sdwis["pwsid"],
     pws_name                   = sdwis["name"],
     primacy_agency_code        = sdwis["primacy_agency_code"],

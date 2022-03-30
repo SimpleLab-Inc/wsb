@@ -103,9 +103,29 @@ The **unmatched report** displays a long list of the records that did not succes
 ## Superjoin
 Finally, the superjoin brings things all together, taking the best attributes from the different data sources.
 
-Because our matching generated only have _candidate matches_, at this point we have to make decisions about the "best" matches. This prevents issues like one PWS matching to multiple TIGER records.
+An important part of this is selecting the "best" match from our sources that do not have PWSID's. Our matching generated only have _candidate matches_, which may or may not be correct, and that allows for issues like one PWS matching to multiple TIGER's -- which cannot happen in the real world. As a result, we have to implement some logic to that chooses the "best" match. We take our best stab at this in the superjoin script by using the labeled data to "score" the various match rules and match rule combinations. We then rank _all_ the matches according to these scores and select the best one for each PWS. This logic should be studied for quality and refined over time.
 
-The superjoin attempts to find this best match by using the labeled data to "score" the various match rules. It then ranks the matches according to their scores, and selects the best one. This logic should be studied and refined over time.
+In total, the superjoin brings together the following data from various sources:
+
+Column                   | Data Source     | Description
+-------------------------|-----------------|-----------------
+pwsid                    | SDWIS           |
+pws_name                 | SDWIS           |
+primacy_agency_code      | SDWIS           |
+state_code               | SDWIS           |
+city_served              | SDWIS           |
+county_served            | SDWIS           |
+population_served_count  | SDWIS           |
+service_connections_count| SDWIS           |
+service_area_type_code   | SDWIS           |
+owner_type_code          | SDWIS           |
+geometry_lat             | MHP, UCMR, ECHO | Lat / Long from the best system is available
+geometry_long            | MHP, UCMR, ECHO | Lat / Long from the best system is available
+tiger_match_geoid        | TIGER           | ID of the best match in the TIGER system
+pws_to_tiger_match_count | Match Algorithm | Count of how many TIGER records this PWS matched to
+tiger_to_pws_match_count | Match Algorithm | Count of how many other PWS records this TIGER matched to
+mhp_id                   | MHP             | ID of the best match in the MHP system
+
 
 
 # Notes on Matching Challenges
