@@ -58,7 +58,7 @@ geo_area = geo_area.drop(columns = ["state_served_temp", "state_served"]) \
 # %% Clean city_served column
 
 # Remove "-" followed by 0 or 1 ".", 0 or more spaces, and four digits
-geo_area["city_served"] = geo_area["city_served"].str.replace("-\.?\s*\d{4}", 
+geo_area["city_served"] = geo_area["city_served"].str.replace("\.?-\.?\s*\d{4}", 
                                                               "", regex=True)
 # Replace "&apos;" with "'"
 geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
