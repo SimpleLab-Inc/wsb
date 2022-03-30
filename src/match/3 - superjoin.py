@@ -32,6 +32,8 @@ sdwis = supermodel[supermodel["source_system"] == "sdwis"]
 tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
 echo = supermodel[supermodel["source_system"] == "echo"]
 labeled = supermodel[supermodel["source_system"] == "labeled"]
+mhp = supermodel[supermodel["source_system"] == "mhp"].set_index("contributor_id")
+
 #%%
 matches = pd.read_sql("""
     SELECT
@@ -87,7 +89,6 @@ rules (and combos of rules) are most effective. Rank our matches based
 on that, and select the top one.
 """
 
-
 # Get a series with the labeled geometry for each PWS
 s1 = gpd.GeoSeries(
     labeled[["pwsid", "geometry"]]
@@ -102,11 +103,8 @@ candidate_matches = gpd.GeoDataFrame(matches
     .set_index("pwsid")
     [["geometry", "match_rule", "source_system"]])
 
-#%%
-
 # Filter to only the PWS's that appear in both series
 # 7,423 match
-
 s1 = s1.loc[s1.index.isin(candidate_matches.index)]
 candidate_matches = candidate_matches.loc[candidate_matches.index.isin(s1.index)]
 
@@ -148,30 +146,45 @@ match_ranks["rank"] = np.arange(len(match_ranks))
 print("Identified best match rules based on labeled data.")
 
 #%% ###########################
-# Pick the best TIGER match
+# Pick the best TIGER and MHP match
 ###############################
 
 # Assign the rank back to the matches
 matches_ranked = matches.join(match_ranks[["rank"]], on="match_rule", how="left")
 
 # Sort by rank, then take the first one
+# Since we only ranked the TIGER match rules, the best MHP match is selected arbitrarily
+# This is fine, because multiple MHP matches are rare.
 best_match = (matches_ranked
     .sort_values(["master_key", "rank"])
     .drop_duplicates(subset=["master_key", "source_system"], keep="first")
     [["master_key", "candidate_contributor_id", "source_system", "source_system_id",
     "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
+print("Picked the 'best' TIGER and MHP matches.")
+
 # For TIGER only, take the best match (ignore MHP for now)
 tiger_best_match = (best_match
     .loc[best_match["source_system"] == "tiger"]
-    .rename(columns={
-        "master_key": "pwsid",
-        "source_system_id": "tiger_match_geoid"
-    })
-    .set_index("pwsid")
+    .rename(columns={"source_system_id": "tiger_match_geoid"})
+    .set_index("master_key")
     [["tiger_match_geoid", "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
-print("Selected best matches so that every PWS matches only one TIGER.")
+print("Pulled useful information for the best TIGER match.")
+
+mhp_best_match = (best_match
+    .loc[best_match["source_system"] == "mhp"]
+    .join(mhp[["geometry_lat", "geometry_long"]], on="candidate_contributor_id")
+    .rename(columns={
+        "source_system_id": "mhp_match_id",
+        "geometry_lat": "mhp_geometry_lat",
+        "geometry_long": "mhp_geometry_long"
+    })
+    .set_index("master_key")
+    [["mhp_match_id", "mhp_geometry_lat", "mhp_geometry_long"]])
+
+print("Pulled useful information for the best MHP match.")
+
 
 #%% ##########################
 # Generate the final table
@@ -237,6 +250,15 @@ output = (output
 
 # Add in the TIGER geoid and pws --> TIGER match counts
 output = output.join(tiger_best_match, on="pwsid")
+
+#%%
+# If there's an MHP match, add matched ID and overwrite the lat/long
+output = output.join(mhp_best_match, on="pwsid")
+
+mask = output["mhp_match_id"].notna()
+output.loc[mask, "geometry_lat"] = output[mask]["mhp_geometry_lat"]
+output.loc[mask, "geometry_long"] = output[mask]["mhp_geometry_long"]
+output.loc[mask, "geometry_quality"] = "MHP Match"
 
 # Mark whether each one has a labeled boundary
 output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
