@@ -160,18 +160,17 @@ The superjoin attempts to find this best match by using the labeled data to "sco
 
 
 # Notes on Matching Challenges
-
 ## Matching PWS to TIGER
 
 * 1 PWS matches to multiple tigers
     * Solution: Rank the match rules by evaluating quality against labeled data, then use those ranks to select a "best match" TIGER
 
 * 1 TIGER matches to many PWS
-    No solution explored yet.
+    * No solution explored yet.
 
 ## Match PWS to MHP
 * Many MHP entries have no name
-* Administrative addresses SDWIS and (occasionally) MHP datasets make it difficult to rely on
+* Administrative addresses in SDWIS and (occasionally) MHP datasets make it difficult to rely on
 * MHP's are unlikely to match TIGER boundaries, so we do not leverage the MHP points 
 
 ## Match PWS --> UCMR --> TIGER

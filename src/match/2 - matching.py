@@ -307,18 +307,6 @@ mk_matches = (mk_matches
     .apply(lambda x: list(pd.Series.unique(x)))
     .reset_index())
 
-#%%
-# How many distinct pws + mhp matches did we get?
-
-mk_matches
-
-#%%
-mhp = supermodel[supermodel["source_system"] == "mhp"]
-
-#%%
-# How many distinct MHP matches do we have? 1147
-
-len(mk_matches[mk_matches["candidate_contributor_id"].isin(mhp["contributor_id"])]["master_key"].unique())
 
 #%%
 
