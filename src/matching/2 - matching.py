@@ -129,7 +129,8 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
             right,
             left_on=left_on,
             right_on=right_on)
-        [["contributor_id_x", "contributor_id_y"]])
+        [["master_key_x", "contributor_id_x", "contributor_id_y"]]
+        .rename(columns={"master_key_x": "master_key"}))
 
     matches["match_rule"] = match_rule
 
@@ -141,7 +142,7 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
 
 tokens = supermodel[[
     "source_system", "contributor_id", "master_key", "state", "name", "city_served",
-    "address_line_1", "city", "zip",
+    "address_line_1", "city", "zip", "county", 
     "geometry", "geometry_quality", "likely_mhp", "possible_mhp"
     ]].copy()
 
@@ -201,7 +202,8 @@ right_mask = tokens["source_system"].isin(["tiger"])
 
 new_matches = (tokens[left_mask]
     .sjoin(tokens[right_mask], lsuffix="x", rsuffix="y")
-    [["contributor_id_x", "contributor_id_y"]]
+    [["master_key_x", "contributor_id_x", "contributor_id_y"]]
+    .rename(columns={"master_key_x": "master_key"})
     .assign(match_rule="spatial"))
 
 
@@ -242,15 +244,15 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match MHP's by tokenized name
-# 1282 matches. Not great, but then again, not all MHP's will have water systems.
-# Match on city too?
+# 887 matches. Not great, but then again, not all MHP's will have water systems.
 
-# Unfortunately, half of the "MHP" system has no names
-# But they do have addresses that we could potentially match on
+# We get a few hundred more matches if we exclude the county, and it *seems* like
+# MHP names should be relatively unique within the state...but I spot checked
+# some and wasn't 100% convinced. So I'm being conservative and requiring county.
 
 new_matches = run_match(
     "state+mhp_name",
-    ["state", "mhp_name_tkn", "zip"],
+    ["state", "mhp_name_tkn", "county"],
     left_mask = (
         tokens["source_system"].isin(["sdwis", "echo", "frs"]) &
         tokens["possible_mhp"] &
@@ -267,7 +269,9 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match MHP's by state + city + address
-# 84 matches.
+
+# Unfortunately, half of the "MHP" system has no names, so we try this rule.
+# 84 matches. Meh.
 
 new_matches = run_match(
     "mhp state+address",
@@ -293,11 +297,8 @@ matches = pd.concat([matches, new_matches])
 # The left side contains known PWS's and can be deduplicated by crosswalking to the master_key (pwsid)
 # The right side contains unknown (candidate) matches and could stay as an contributor_id
 
-mk_xwalk = supermodel[["contributor_id", "master_key"]].set_index("contributor_id")
-
 mk_matches = (matches
-    .join(mk_xwalk, on="contributor_id_x")
-    .rename(columns={"contributor_id_y": "candidate_contributor_id"})
+    .rename(columns={"contributor_id_y": "candidate_contributor_id"}) #type:ignore
     [["master_key", "candidate_contributor_id", "match_rule"]])
 
 # Deduplicate
@@ -305,6 +306,19 @@ mk_matches = (mk_matches
     .groupby(["master_key", "candidate_contributor_id"])["match_rule"]
     .apply(lambda x: list(pd.Series.unique(x)))
     .reset_index())
+
+#%%
+# How many distinct pws + mhp matches did we get?
+
+mk_matches
+
+#%%
+mhp = supermodel[supermodel["source_system"] == "mhp"]
+
+#%%
+# How many distinct MHP matches do we have? 1147
+
+len(mk_matches[mk_matches["candidate_contributor_id"].isin(mhp["contributor_id"])]["master_key"].unique())
 
 #%%
 
