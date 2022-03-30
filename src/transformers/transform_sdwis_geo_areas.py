@@ -63,6 +63,12 @@ geo_area["city_served"] = geo_area["city_served"].str.replace("\.?-\.?\s*\d{4}",
 # Replace "&apos;" with "'"
 geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
                                                               "'", regex=True)
+# Replace parenthetical with letter in it, e.g. (V) or (T)
+geo_area["city_served"] = geo_area["city_served"].str.replace("\([A-Z]\)", 
+                                                              "", regex=True)
+
+# Trim whitespace again
+geo_area = trim_whitespace(geo_area)
 
 # %% Raise duplication issue on key fields
 
