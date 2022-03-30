@@ -55,6 +55,14 @@ geo_area["state_served_fin"] = np.where(geo_area["state_served"].isna(), \
 geo_area = geo_area.drop(columns = ["state_served_temp", "state_served"]) \
                 .rename(columns = {"state_served_fin": "state_served"})
                 
+# %% Clean city_served column
+
+# Remove "-" followed by 0 or 1 ".", 0 or more spaces, and four digits
+geo_area["city_served"] = geo_area["city_served"].str.replace("-\.?\s*\d{4}", 
+                                                              "", regex=True)
+# Replace "&apos;" with "'"
+geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
+                                                              "'", regex=True)
 
 # %% Raise duplication issue on key fields
 
@@ -63,4 +71,4 @@ if (geo_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()
      
  # %% Save csv in staging
 
-geo_area.to_csv(os.path.join(staging_path, "sdwis_geographic_area.csv"), index = False)
+geo_area.to_csv(os.path.join(staging_path, "sdwis_geographic_area2.csv"), index = False)
