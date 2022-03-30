@@ -157,3 +157,22 @@ Finally, the superjoin brings things all together, taking the best attributes fr
 Because our matching generated only have _candidate matches_, at this point we have to make decisions about the "best" matches. This prevents issues like one PWS matching to multiple TIGER records.
 
 The superjoin attempts to find this best match by using the labeled data to "score" the various match rules. It then ranks the matches according to their scores, and selects the best one. This logic should be studied and refined over time.
+
+
+# Notes on Matching Challenges
+
+## Matching PWS to TIGER
+
+* 1 PWS matches to multiple tigers
+    * Solution: Rank the match rules by evaluating quality against labeled data, then use those ranks to select a "best match" TIGER
+
+* 1 TIGER matches to many PWS
+    No solution explored yet.
+
+## Match PWS to MHP
+* Many MHP entries have no name
+* Administrative addresses SDWIS and (occasionally) MHP datasets make it difficult to rely on
+* MHP's are unlikely to match TIGER boundaries, so we do not leverage the MHP points 
+
+## Match PWS --> UCMR --> TIGER
+* UCMR's often contain multiple zip codes. We calculate the centroid for all of them. We will only use the UCMR centroid if the echo centroid appears to be lower quality.
