@@ -10,7 +10,7 @@ Issues enable task-tracking. If you identify something that is incorrect or does
 
 ### Pull Request
 
-Pull requests allow users to suggest a change to the repository. Pull requests will only be reviewed and incorporated if they were first agreed upon in an Issue by the project maintainer(s).
+Pull requests allow users to suggest a change to the repository. Pull requests will only be reviewed and incorporated if they were first agreed upon in an Issue by the project maintainer(s). Furthermore, all PRs should link to an issue(s) closed by the PR for clarity.
 
 ## How to Contribute
 
@@ -21,8 +21,8 @@ Pull requests allow users to suggest a change to the repository. Pull requests w
 Create a **new issue** if you find a problem you want to fix, identify an error in the code, or propose a refactor. Be sure to review existing issues first before posting, to ensure you do not double post. Follow the following steps to post an issue:
 
 -   Clearly label new issue; e.g. if you have an issue about the transformer for AZ, label the issue accordingly: `transformer/az {descriptive message}`.
--   Use "labels" to clearly mark what part of the pipeline your issue addresses.
--   Include a clear description of the issue
+-   Use "labels" (e.g., "transformer", "downloader", "analysis", "bugfix", etc.) to clearly mark what part of the pipeline your issue addresses.
+-   Include a clear description of the issue.
 
 For issues concerning larger refactors or feature developments, indicate that the issue needs review as a proposal and be sure to include your proposed plan.
 
