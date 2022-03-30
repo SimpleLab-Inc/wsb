@@ -37,7 +37,9 @@ rf_wflow <-
       # importantly, the RF can have correlated predictors, so we add
       # service connections, and don't need to account for interactions
       service_connections_count + 
-      owner_type_code + 
+      # use the cleaned owner type code from preprocess.R, which converts 
+      # 2 "N" owner type codes to "M" so that models can evaluate
+      owner_type_code_clean + 
       is_wholesaler_ind + 
       satc
   ) %>% 

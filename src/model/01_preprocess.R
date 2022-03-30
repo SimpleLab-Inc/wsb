@@ -14,6 +14,9 @@ n_max <- 15
 cat("\n\nPreparing to mean impute service connection count", 
     "for all values >=", n_max, ".\n")
 
+# regex to catch all states, DC, and all numeric tribal primacy agencies
+rx <- paste0(paste(c(state.abb, "DC"), collapse = "|"), "|", "^[0-9]")
+
 # j stands for joined data, read and rm rownumber column, then drop
 # observations without a centroid or with nonsensical service connections
 j <- read_csv(path(staging_path, "matched_output.csv")) %>% 
@@ -22,7 +25,7 @@ j <- read_csv(path(staging_path, "matched_output.csv")) %>%
   filter(service_connections_count >= n_max,
          population_served_count   >= n_max) %>% 
   # remove rows not in contiguous US, mostly Puerto Rico
-  filter(primacy_agency_code %in% c(state.abb, "DC")) %>% 
+  filter(str_detect(primacy_agency_code, rx)) %>% 
   suppressMessages()
 
 cat("Read", nrow(j), "matched outputs with >=", 
@@ -137,8 +140,11 @@ d <- d %>%
     # convert T/F is_wholesaler_ind to character for dummy var prep
     is_wholesaler_ind = ifelse(is_wholesaler_ind == TRUE, 
                                "wholesaler", "not wholesaler"),
-    # make native american owner types (only 2 present) public/private (M)
-    owner_type_code = ifelse(owner_type_code == "N", "M", owner_type_code)
+    # there are only 2 "N" owner type codes in Tier 1 data, which makes
+    # this parameter impossible to fit via models, so coerce them to "M"
+    # and remove this when we have more Tier 1 "N" data
+    owner_type_code_clean = ifelse(owner_type_code == "N",
+                                   "M", owner_type_code)
   )
 cat("Cleaned data according to EDA-generated insights.\n")
 

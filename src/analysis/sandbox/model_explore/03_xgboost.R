@@ -5,6 +5,7 @@ library(tidymodels)
 library(sf)
 library(fs)
 library(vip)
+library(here)
 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 
@@ -55,8 +56,10 @@ xgb_wflow <-
       population_served_count + 
       # importantly, the RF can have correlated predictors, so we add
       # service connections, and don't need to account for interactions
-      service_connections_count + 
-      owner_type_code + 
+      service_connections_count +
+      # use the cleaned owner type code from preprocess.R, which converts 
+      # 2 "N" owner type codes to "M" so that models can evaluate
+      owner_type_code_clean + 
       is_wholesaler_ind + 
       satc
   ) %>% 
@@ -78,7 +81,7 @@ xgb_res <- tune_grid(
 )
 
 # save for use in report
-# write_rds(xgb_res, here("src/analysis/sandbox/model_explore/etc/xgb_res.rds"))
+write_rds(xgb_res, here("src/analysis/sandbox/model_explore/etc/xgb_res.rds"))
 
 # visualize model performance across tuning grid
 xgb_res %>%
@@ -104,7 +107,7 @@ final_xgb <- finalize_workflow(
 final_xgb
 
 # save for later use in report
-# write_rds(final_xgb, here("src/analysis/sandbox/model_explore/etc/final_xgb.rds"))
+write_rds(final_xgb, here("src/analysis/sandbox/model_explore/etc/final_xgb.rds"))
 
 # fit the final xgboost model on training data
 xgb_fit <- fit(final_xgb, train)

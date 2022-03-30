@@ -36,7 +36,9 @@ lm_recipe <-
   recipe(
     radius ~ 
       service_connections_count + 
-      owner_type_code + 
+      # use the cleaned owner type code from preprocess.R, which converts 
+      # 2 "N" owner type codes to "M" so that models can evaluate
+      owner_type_code_clean + 
       satc + 
       is_wholesaler_ind,
     data = train
