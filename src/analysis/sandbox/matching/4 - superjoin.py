@@ -20,9 +20,13 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 #%%
 # Load up the data sources
 
+print("Pulling in data from database...", end="")
+
 supermodel = gpd.GeoDataFrame.from_postgis(
     "SELECT * FROM pws_contributors WHERE source_system NOT IN ('ucmr');",
     conn, geom_col="geometry")
+
+print("done.")
 
 sdwis = supermodel[supermodel["source_system"] == "sdwis"]
 tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
@@ -40,17 +44,13 @@ matches = pd.read_sql("""
     JOIN pws_contributors c ON m.candidate_contributor_id = c.contributor_id;
     """, conn)
 
+print("Read matches from database.")
+
 #%% ##########################
-# Pick the best TIGER match
+# Generate some TIGER match stats
 ##############################
 
-"""
-We'll compare the matches to the labeled data to determine which match
-rules (and combos of rules) are most effective. Rank our matches based
-on that, and select the top one.
-"""
-
-# First, a check: How often do we match to multiple tigers?
+# How often do we match to multiple tigers?
 pws_to_tiger_match_counts = (matches
     .loc[matches["source_system"] == "tiger"]
     .groupby("master_key")
@@ -77,7 +77,16 @@ print(f"{(pws_to_tiger_match_counts > 1).sum()} PWS's matched to multiple TIGERs
 # 3631 TIGERs matched to multiple PWSs
 print(f"{(tiger_to_pws_match_counts > 1).sum()} TIGER's matched to multiple PWS's")
 
-#%%
+#%% #########################
+# Figure out our strongest match rules
+#############################
+
+"""
+We'll compare the matches to the labeled data to determine which match
+rules (and combos of rules) are most effective. Rank our matches based
+on that, and select the top one.
+"""
+
 
 # Get a series with the labeled geometry for each PWS
 s1 = gpd.GeoSeries(
@@ -136,27 +145,25 @@ match_ranks["score"] = match_ranks["points"] / match_ranks["total"]
 match_ranks = match_ranks.sort_values("score", ascending=False)
 match_ranks["rank"] = np.arange(len(match_ranks))
 
-match_ranks
+print("Identified best match rules based on labeled data.")
 
-#%%
+#%% ###########################
+# Pick the best TIGER match
+###############################
 
 # Assign the rank back to the matches
-matches = matches.join(match_ranks[["rank"]], on="match_rule", how="left")
-
-matches.head()
-
-#%%
+matches_ranked = matches.join(match_ranks[["rank"]], on="match_rule", how="left")
 
 # Sort by rank, then take the first one
-match_dedupe = (matches
+best_match = (matches_ranked
     .sort_values(["master_key", "rank"])
     .drop_duplicates(subset=["master_key", "source_system"], keep="first")
     [["master_key", "candidate_contributor_id", "source_system", "source_system_id",
     "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
 # For TIGER only, take the best match (ignore MHP for now)
-tiger_best_match = (match_dedupe
-    .loc[match_dedupe["source_system"] == "tiger"]
+tiger_best_match = (best_match
+    .loc[best_match["source_system"] == "tiger"]
     .rename(columns={
         "master_key": "pwsid",
         "source_system_id": "tiger_match_geoid"
@@ -164,6 +171,7 @@ tiger_best_match = (match_dedupe
     .set_index("pwsid")
     [["tiger_match_geoid", "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
 
+print("Selected best matches so that every PWS matches only one TIGER.")
 
 #%% ##########################
 # Generate the final table
@@ -237,19 +245,15 @@ output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
 if not (len(output) == len(sdwis)):
     raise Exception("Output was filtered or denormalized")
 
+print("Joined several data sources into final output.")
+
 output.head()
 
 
-#%%
-# Save the results
+#%% ########################
+# Save the results to a file
+############################
+
 output.to_csv(DATA_PATH + "/matched_output.csv", index=False)
 
-#%%
-# Stat: Total population with either a tiger match or a labeled boundary?
-
-population_covered = int(output[output["tiger_match_geoid"].notna() | output["has_labeled_bound"]]["population_served_count"].sum())
-total_population = int(output["population_served_count"].sum())
-
-print(
-    f"Total population served: {population_covered:,} " +
-    f"({(float(population_covered) / total_population) * 100:.1f}%)")
+print("Saved matched_output.csv")

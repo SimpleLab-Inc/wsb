@@ -21,9 +21,10 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 #%%
 # Load up the supermodel
 
+print("Pulling data from the database...", end=None)
 supermodel = gpd.GeoDataFrame.from_postgis(
     "SELECT * FROM pws_contributors;", conn, geom_col="geometry")
-
+print("done.")
 
 #%% ##############################
 # More Cleansing (or this could move to script #1, or into the tokenization)
@@ -52,6 +53,7 @@ supermodel["possible_mhp"] = (
         supermodel["name"].fillna("").str.contains(regex, regex=True)
     ))
 
+print("Labeled likely and possible MHP's.")
 
 
 #%% ##########################
@@ -133,18 +135,20 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
 
     return matches
 
-#%%
-
+#%% ##############################
 # Create a token table and apply standardizations
+##################################
+
 tokens = supermodel[[
     "source_system", "contributor_id", "master_key", "state", "name", "city_served",
-    "address_line_1", "city",
+    "address_line_1", "city", "zip",
     "geometry", "geometry_quality", "likely_mhp", "possible_mhp"
     ]].copy()
 
 tokens["name_tkn"] = tokenize_ws_name(tokens["name"])
 tokens["mhp_name_tkn"] = tokenize_mhp_name(tokens["name"])
 
+print("Generated token table.")
 
 # In general, we'll be matching sdwis/echo to tiger
 # SDWIS, ECHO, and FRS are already matched - they'll go on the left.
@@ -158,7 +162,9 @@ tokens["mhp_name_tkn"] = tokenize_mhp_name(tokens["name"])
 conn.execute("DROP TABLE IF EXISTS tokens;")
 tokens.drop(columns="geometry").to_sql("tokens", conn, index=False)
 
-#%%
+print("Saved token table to database (for later analysis)")
+
+#%% #########################
 # Rule: Match on state + name
 # 25,206 matches
 
@@ -178,7 +184,7 @@ print(f"State+Name matches: {len(new_matches)}")
 
 matches = new_matches
 
-#%%
+#%% #########################
 # Rule: Spatial matches
 # 12,003 matches between echo/frs and tiger
 # (Down from 22,200 before excluding state, county, and zip centroids)
@@ -213,7 +219,7 @@ print(f"Spatial matches: {len(new_matches)}")
 
 matches = pd.concat([matches, new_matches])
 
-#%%
+#%% #########################
 # Rule: match state+city_served to state&name
 # 16,755 matches
 
@@ -234,7 +240,7 @@ print(f"Match on city_served: {len(new_matches)}")
 
 matches = pd.concat([matches, new_matches])
 
-#%%
+#%% #########################
 # Rule: match MHP's by tokenized name
 # 1282 matches. Not great, but then again, not all MHP's will have water systems.
 # Match on city too?
@@ -244,7 +250,7 @@ matches = pd.concat([matches, new_matches])
 
 new_matches = run_match(
     "state+mhp_name",
-    ["state", "mhp_name_tkn"],
+    ["state", "mhp_name_tkn", "zip"],
     left_mask = (
         tokens["source_system"].isin(["sdwis", "echo", "frs"]) &
         tokens["possible_mhp"] &
@@ -259,7 +265,7 @@ print(f"Match on mhp: {len(new_matches)}")
 
 matches = pd.concat([matches, new_matches])
 
-#%%
+#%% #########################
 # Rule: match MHP's by state + city + address
 # 84 matches.
 
@@ -279,21 +285,6 @@ new_matches = run_match(
 print(f"Match on mhp address: {len(new_matches)}")
 
 matches = pd.concat([matches, new_matches])
-
-# #%%
-# # Export the likely MHP's sorted by state and name so we can see the kind of cleansing necessary
-# # MHP name match
-# # Sorting by state + name
-# (tokens.loc[
-#         tokens["possible_mhp"] &
-#         tokens["name"].notna()]   
-#     .drop(columns=["geometry", "city_served"])
-#     .sort_values(["state", "city", "name_tkn"])
-#     .to_excel(OUTPUT_PATH + "/mhp_stack.xlsx", index=False))
-
-# #%%
-# # Sorting by state + address
-# tokens[tokens["likely_mhp"]].sort_values(["state", "city", "address_line_1"])
 
 #%% ################################
 # Deduplicate matches to PWSID <-> contributor_id pairs.
