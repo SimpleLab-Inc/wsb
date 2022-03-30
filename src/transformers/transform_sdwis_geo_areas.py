@@ -63,8 +63,9 @@ geo_area["city_served"] = geo_area["city_served"].str.replace("\.?-\.?\s*\d{4}",
 # Replace "&apos;" with "'"
 geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
                                                               "'", regex=True)
-# Replace parenthetical with letter in it, e.g. (V) or (T)
-geo_area["city_served"] = geo_area["city_served"].str.replace("\([A-Z]\)", 
+                                                              
+# Replace parenthetical with single letter (plus any spaces) in it, e.g. (V) or (T)
+geo_area["city_served"] = geo_area["city_served"].str.replace("\(\s*[A-Z]\s*\)", 
                                                               "", regex=True)
                                                               
 # Replace excess whitespace within line with a single space
