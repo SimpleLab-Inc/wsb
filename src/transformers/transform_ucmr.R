@@ -158,4 +158,4 @@ cat(n, "duplicate pwsids in labeled data following fix.\n")
 path_out <- path(staging_path, "ucmr.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(ucmr, path_out)
+st_write(ucmr_clean, path_out)
