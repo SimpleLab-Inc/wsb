@@ -72,39 +72,16 @@ zipcodes <- zipcode_areas %>%
   ) %>%
   select(all_of(cols_keep))
 
-# join zipcode polygon geometries to ucmr master list 
+
+# join zipcode polygon geometries to ucmr master list and
+# combine data and merge geometries for rows with duplicate pwsids --------
+
 ucmr <- ucmr %>% 
   left_join(zipcodes, on = "zipcode") %>% 
   # convert object back to spatial
-  st_as_sf(crs = epsg)
-
-
-# combine data and merge geometries for rows with duplicate pwsids --------
-
-# show there are rows with duplicate pwsids
-multi <- st_drop_geometry(ucmr) %>% 
-  count(pwsid, sort = TRUE) %>% 
-  filter(n > 1)
-cat("Detected", nrow(multi), "groups of rows with duplicate pwsids.\n")
-
-# add column indicating if row has a duplicated pwsid
-ucmr <- ucmr %>% 
-  # label duplicated pwsid geometries
-  mutate(is_multi = ifelse(pwsid %in% multi$pwsid, TRUE, FALSE))
-
-# separate rows without duplicated pwsids
-ucmr_no_multi <- ucmr %>% 
-  filter(is_multi == FALSE) %>% 
-  # remove is_multi column
-  select(-is_multi)
-
-
-# for rows with duplicated pwsids: 
-# union geometries, recalculate area, centroids, radius
-ucmr_multi <- ucmr %>% 
-  # filter for rows with duplicated pwsid's
-  filter(is_multi == TRUE) %>% 
-  st_make_valid() %>% 
+  st_as_sf(crs = epsg) %>% 
+  # this st_make_valid us is not needed for code to run, but it changes the final geometry -- why?
+  st_make_valid() %>%
   # importantly, all calculations take place in AW epsg 
   st_transform(epsg_aw) %>% 
   st_make_valid() %>% 
@@ -123,7 +100,7 @@ ucmr_multi <- ucmr %>%
     across(where(is.character), ~toString(unique(.)))
   ) %>%
   # only take the first result from each group
-  slice(1) %>% 
+  slice(1) %>%
   ungroup() %>% 
   # convert back to the project standard epsg
   st_transform(epsg) %>% 
@@ -136,17 +113,14 @@ ucmr_multi <- ucmr %>%
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2]
   ) %>% 
-  # remove centroid, area_hull, and is_multi columns
-  select(-c(centroid, area_hull, is_multi))
+  # remove columns. Note: future iteration may include other values downstream
+  select(-c(centroid, area_hull, geometry, geoid20, aland20, awater20))
 
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
 
-# combine ucmr labeled data with corrected rows
-ucmr_clean <- bind_rows(ucmr_no_multi, ucmr_multi)
-
 # verify that there is only one pwsid per geometry
-n <- ucmr_clean %>%
+n <- ucmr %>%
   st_drop_geometry() %>%
   count(pwsid) %>%
   filter(n > 1) %>%
@@ -158,4 +132,4 @@ cat(n, "duplicate pwsids in labeled data following fix.\n")
 path_out <- path(staging_path, "ucmr.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(ucmr_clean, path_out)
+st_write(ucmr, path_out)
