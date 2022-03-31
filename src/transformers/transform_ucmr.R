@@ -60,7 +60,7 @@ zipcodes <- zipcode_areas %>%
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
     area_hull      = st_area(convex_hull)
-  ) 
+  ) %>% 
   select(all_of(cols_keep))
 
 
