@@ -38,7 +38,7 @@ frs = frs[
 
 # We only need a subset of the columns
 keep_columns = [
-    "registry_id", "pwsid", "state", "primary_name", "location_address",
+    "registry_id", "pwsid", "state_code", "primary_name", "location_address",
     "city_name", "postal_code", "county_name",
     "latitude83", "longitude83", "geometry", "ref_point_desc"]
 
@@ -71,7 +71,7 @@ df = gpd.GeoDataFrame().assign(
     contributor_id          = "frs." + frs["registry_id"] + "." + frs["pwsid"], # Apparently neither registry_id nor pwsid is fully unique, but together they are
     master_key              = frs["pwsid"],
     pwsid                   = frs["pwsid"],
-    state                   = frs["state"],
+    state                   = frs["state_code"],
     name                    = frs["primary_name"],
     address_line_1          = frs["location_address"],
     city                    = frs["city_name"],

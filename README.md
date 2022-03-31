@@ -51,7 +51,7 @@ WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
-POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5434/wsb"
+POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
 
 ```
 Don't forget to leave a blank line at the end of `.Renviron` before saving.
