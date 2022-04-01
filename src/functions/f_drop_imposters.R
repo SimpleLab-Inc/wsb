@@ -20,7 +20,7 @@ f_drop_imposters <- function(d, path_log){
   if(!dir_exists(here::here("log"))) dir_create(here::here("log"))
   
   # reported state name 
-  d = rename(d, state_reported = state)
+  d = mutate(d, state_reported = state)
   
   # create state name to abbreviation key with built-in R objects
   key = tibble(name = state.name, state_intersection = state.abb)
