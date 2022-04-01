@@ -1,0 +1,59 @@
+---
+title: "multipolygon pwsid in labeled geometries"
+output: html_document
+---
+
+_Rich Pauloo_  
+_Last updated `r Sys.time()`_  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo      = TRUE, 
+                      out.width = "100%", 
+                      message   = FALSE,
+                      error     = FALSE,
+                      warning   = FALSE)
+```
+
+There are duplicate pwsid in labeled data, and these polygons are adjacent. Thus they should be joined in transformers. 
+
+For instance:
+
+```{r}
+library(tidyverse)
+library(sf)
+library(fs)
+library(mapview)
+
+# mapview option for render
+mapviewOptions(fgb = FALSE)
+
+# data input location for modeling is the post-transformer staging path
+staging_path <- Sys.getenv("WSB_STAGING_PATH")
+
+# read labeled data and ignore NA pwsid
+wsb_labeled <- st_read(path(staging_path, "wsb_labeled.geojson")) %>% 
+  filter(!is.na(pwsid))
+
+# multipolygon count (dc) data frame
+mc <- st_drop_geometry(wsb_labeled) %>% 
+  count(pwsid, sort = TRUE) %>% 
+  filter(n > 1) 
+
+mc
+
+# multipolygon ids (mid) and data (md), remove 3 NA pwsid
+mid <- mc$pwsid
+md  <- filter(wsb_labeled, pwsid %in% mid) %>% 
+  filter(!is.na(pwsid))
+
+# plot dupes for visual inspection
+mapview(md, zcol = "pwsid")
+```
+
+
+Visual inspection of duplicate pwsid indicates they are few in number (`r nrow(md)` rows and `r length(unique(md$pwsid))` unique values) and typically spatially adjacent, but in other cases, can be separated by considerable distance. This issue is addressed in the pre-modeling transformer, currently in `src/analysis/sandbox/model_explore/01_preprocess.R`. Eventually, this preprocess program will be moved to `src/predict` and the code that accomplishes the cleaning (pending consideration) may be moved to a transformer helper function. The cleaning currently implemented:  
+
+1. unions duplicate pwsid geometries  
+2. groups by pwsid and sums area  
+3. recalculates radius from these areas (no convex hull, which would inflate radii for multipolygon systems with considerable space between polygons)  
+4. recalculates centroids x and y (as before, these are suspect and less meaningful for non-adjacent multipolgyon systems)
