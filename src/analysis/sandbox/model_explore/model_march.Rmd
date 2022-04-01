@@ -10,7 +10,6 @@ output:
     # number_sections: true
 ---
 
-
 ```{=html}
 <style type="text/css">
   /* Whole document: */
@@ -82,7 +81,7 @@ In this report, we present a nationwide water service spatial boundary layer for
 The resulting national water service boundary layer is the product of a "Tiered Explicit, Match, and Model" (henceforth, **TEMM**) approach. The TEMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
 1.  Whenever present, we use *explicit water service boundaries* (labeled data). These are spatial polygon data, typically provided at the state-level.\
-2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. When a water system and TIGER place match one-to-one, we label this Tier 2a. When multiple water systems match to the same TIGER place, we label this Tier 2b. Tier 2b reflects overlapping boundaries for multiple systems--which require future validation. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with findings by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries.\
+2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. When a water system and TIGER place match one-to-one, we label this Tier 2a. When multiple water systems match to the same TIGER place, we label this Tier 2b. Tier 2b reflects overlapping boundaries for multiple systems--which require future validation. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with findings by [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries.\
 3.  Finally, in the absence of an explicit water service boundary (Tier 1) or a TIGER place polygon match (Tier 2a or Tier 2b), a statistical model trained on explicit water service boundary data (Tier 1) is used to estimate a reasonable radius at provided PWSID centroids, and model a spherical water system boundary (Tier 3). Centroid accuracy issues that remain intractable at this point in time are discussed in the [Limitations](#limitations) and [Recommendations](#recommendations) sections.
 
 [^1]: In a previous report (`eda_february.html`,"*Section* *6 TIGER proxy polygon appropriateness*"), we show that matching PWSID to TIGER places is highly accurate: matched TIGER place polygons intersected explicit water service boundary polygons 93.16% of the time. In this report, we add more states, modify the matching algorithm, and further quantify this boolean (TRUE/FALSE) spatial intersection in terms of "percent overlap". Thus, this older metric should be disregarded in light of new developments described herein.
@@ -102,7 +101,7 @@ Finally, we encourage the reader to consider the TEMM water service boundary lay
 ## Data Sources
 
 | Data Source                                              | Description                                                                                                             | Link                                                                                                                                                                                                          |
-|-------------------|-----------------------------------|-------------------|
+|-------------------|----------------------------------|-------------------|
 | EPA Safe Drinking Water Information Systems              | Public water systems "master list" with key attribute data and some tabular geographic data like cities served          | [SDWIS MODEL](https://www.epa.gov/enviro/sdwis-model)                                                                                                                                                         |
 | EPA Enforcement and Compliance History Online            | Public water system facilities archive, drawing lat/long data for facilities centroids from FRS                         | [ECHO Exporter](https://echo.epa.gov/tools/data-downloads#exporter)                                                                                                                                           |
 | EPA Facilities Registry Service                          | FRS regularly updates facilities data with lat/long information, which pipes into ECHO                                  | [FRS Geospatial](https://www.epa.gov/frs/geospatial-data-download-service)                                                                                                                                    |
@@ -177,10 +176,10 @@ The following outline reflects a summary of key findings, followed by a descript
 
 -   A nationwide water service boundary layer is provided for `r format_bign(nrow_d)` community water systems[^2] covering a total population of `r format_bign(pop_total)`.\
 -   Population coverage rates per Tier:
-    -   *Tier 1*:  `r pop$prop[1]`% population covered (`r pop$count[1]` people)\
+    -   *Tier 1*: `r pop$prop[1]`% population covered (`r pop$count[1]` people)\
     -   *Tier 2a*: `r pop$prop[2]`% population covered (`r pop$count[2]` people)\
     -   *Tier 2b*: `r pop$prop[3]`% population covered (`r pop$count[3]` people)\
-    -   *Tier 3*:  `r pop$prop[4]`% population covered (`r pop$count[4]` people)\
+    -   *Tier 3*: `r pop$prop[4]`% population covered (`r pop$count[4]` people)\
 -   The distribution of population in each of these Tiers varies by state (see [state-level coverage map](#Tier_coverage_-_statewide)).\
 -   Favorable uncertainty metrics for Tier 2 and 3 estimates suggest that the TEMM approach provides a reasonable preliminary water service boundary layer.
 
@@ -199,7 +198,11 @@ The following outline reflects a summary of key findings, followed by a descript
 
 ***Tier 3: Modeled boundaries***
 
--   Random Forest, xgboost, and multiple linear regression models were fit to Tier 1 labeled boundaries to develop a model that estimates water system radii and spatial boundaries at all systems nationwide.\
+-   Models are based on centroids provided by ECHO and FRS. Where geometry accuracy is low (i.e. county centroid or state centroid), centroids of zip codes served from UCMR or mobile home park centroids are used.
+
+-   Random Forest, xgboost, and multiple linear regression models were fit to Tier 1 labeled boundaries to develop a model that estimates water system radii and spatial boundaries at all systems nationwide.
+
+-   Linear regression models had the lowest error and best fit.
 
 -   Circular water service boundary estimates were then calculated for all water systems; median, 5% and 95% confidence intervals reflect medium, low, and high water service boundary estimates.
 
@@ -218,13 +221,13 @@ The following outline reflects a summary of key findings, followed by a descript
 -   Directions for future work to address the limitations of the TEMM approach are briefly discussed, in particular:
     -   Develop an approach to refine Tier 2b polygons to disaggregate the boundary to the underlying water systems.
 
-    -   Centroid accuracy and the "pancake problem" may be solved by "re-centering" low-accuracy centroids with city/town spatial databases.\
+    -   Centroid accuracy and the "pancake problem" may be improved by "re-centering" low-accuracy centroids with city/town spatial databases or acquiring new centroids from states.
 
-    -   Some primacy agency codes report a state that conflicts with the spatial location (i.e., coordinates) of the water system. For example, state A, may have a primacy agency that lists state B. This may be resolved by additional data cleaning.
+    -   Some water systems have a primacy agency code that conflicts with the spatial location (i.e., coordinates) of the water system. For example, water system with primacy agency code of state A, may have a centroid located in state B. This could be resolved by additional data cleaning.
 
 ***Contributions***
 
--   The significance and broader impact of the TEMM open source, nationwide water service boundary later is briefly discussed.\
+-   The significance and broader impact of the TEMM open source, nationwide water service boundary layer is briefly discussed.\
 -   The reader is oriented towards contributor guides and a vision for the continual development of the project is outlined.
 
 <br>
@@ -338,7 +341,7 @@ dg %>%
 
 ## Tier coverage - system size
 
-Next, for each state, we quantify the proportion of Tiers in each water size category based on population according to [EPA guidelines](https://echo.epa.gov/help/drinking-water-dashboard-help#:~:text=Very%20Small%20%C2%A0%20%C2%A0%20%C2%A0%20500,Very%20Large%C2%A0%C2%A0%C2%A0%C2%A0%C2%A0%20%3E100%2C000){target="_blank"}:
+Next, for each state, we quantify the proportion of systems in each Tier by water size based on population categories according to [EPA guidelines](https://echo.epa.gov/help/drinking-water-dashboard-help#:~:text=Very%20Small%20%C2%A0%20%C2%A0%20%C2%A0%20500,Very%20Large%C2%A0%C2%A0%C2%A0%C2%A0%C2%A0%20%3E100%2C000){target="_blank"}:
 
 ```{r epa sys size}
 tribble(
@@ -353,7 +356,7 @@ tribble(
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
-In states that lack Tier 1 boundaries, "Very Small" and "Small" systems tend to have higher proportions of Tier 3 boundaries (grey bars) compared to larger systems. This result is unsurprising because Tier 2 spatial matches hinge on connecting water systems to Census "Places" which tend to be more populous areas. We therefore expect that smaller systems lack a Tier 2 match, and are hence covered by Tier 3 boundaries. When Tier 1 data is present, it seems to cover all system sizes (i.e., CA, NJ, TX), with a slight bias towards covering larger systems (e.g., OK, WA, CT). 
+In states that lack Tier 1 boundaries, "Very Small" and "Small" systems tend to have higher proportions of Tier 3 boundaries (grey bars) compared to larger systems. This result is unsurprising because Tier 2 spatial matches hinge on connecting water systems to Census "Places" which tend to be more populous areas. We therefore expect that smaller systems lack a Tier 2 match, and are hence covered by Tier 3 boundaries. When Tier 1 data is present, it seems to cover all system sizes (i.e., CA, NJ, TX), with a slight bias towards covering larger systems (e.g., OK, WA, CT).
 
 ```{r temm statewide system size}
 # water system size levels in table above
@@ -444,7 +447,7 @@ The national water service boundary layer is too large (i.e., around 400 MB) to 
 include_graphics(here("src/analysis/sandbox/model_explore/etc/temm-nation.png"))
 ```
 
-Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates.
+Here, we zoom into California, Nevada, and Oregon -- four states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Click on the layers icon to toggle between Tiers.
 
 ```{r temm zoom ca nv or}
 # plot CA, NV, OR
@@ -499,9 +502,9 @@ We assume that data provided by states is correct, and do not clean Tier 1 data 
 
 A detailed overview of the Tier 2 matching approach is provided in the project Github repository at `src/analysis/sandbox/matching/methodology.md`, and a brief overview is provided here.
 
-A master list of active, community water systems is derived from SDWIS data. Supporting locational information-- such as city served-- is joined from supporting SDWIS tables. Federal water facility data (i.e., ECHO, FRS) exist with spatial centroids (latitude/longitude of the water system facility), but no federal sources provide explicit spatial boundaries. While ECHO is a superset of FRS centroids, both data sources are used because they result in improved matching. Many centroids in the ECHO database are poor quality because they are merely the centroid of the county or state of the water system. In these cases, where available, zip code centroids are substituted based on the zipcode served data provided for select water systems in the UCMR dataset.
+A master list of active, community water systems is derived from SDWIS data. Supporting locational information-- such as city served-- is joined from supporting SDWIS tables. Federal water facility data (i.e., ECHO, FRS) exist with spatial centroids (latitude/longitude of the water system facility), but no federal sources provide explicit spatial boundaries. While ECHO is a superset of FRS centroids, both data sources are used because they result in improved matching. Many centroids in the ECHO database are poor quality because they are merely the centroid of the county or state of the water system. In these cases, where available, zip code centroids are substituted based on the zipcode served data provided for select water systems in the UCMR dataset or for mobile homes, the MHP dataset.
 
-We match water system name, city served name, and spatial attributes of these data (centroids) to US Census Tiger Place spatial polygons, which are assumed to represent reasonable "proxy" water system boundaries. Matched TIGER polygon boundaries thus represent what we call "Tier 2" boundaries. Multiple matches are possible among the different match strategies, and thus a set of steps outlined in the methodology are taken to assign the correct match. Many water systems match TIGER places one-to-one (Tier 2a). Still, multiple water systems can match to the same TIGER place. This makes sense--as many urban areas contain multiple water systems (Tier 2b). For the MVP model, we allow for the overlap of water systems within the same TIGER polygon (Tier 2b). A future step includes rules to assign all Tier 2b systems to either Tier 2a or Tier 3.
+We match water system name, city served name, and spatial attributes of these data (centroids) to US Census Place spatial polygons (TIGER shapefiles), which are assumed to represent reasonable proxy water system boundaries. Matched TIGER polygon boundaries thus represent what we call "Tier 2" boundaries. Multiple matches are possible among the different match strategies, and thus a set of steps outlined in the methodology are taken to assign the best match. Best matches are based on rules that are validated against systems with existing labeled boundaries. Many water systems match TIGER places one-to-one (Tier 2a). Still, multiple water systems can match to the same TIGER place. This makes sense--as many urban areas contain multiple water systems (Tier 2b). For the MVP model, we allow for the overlap of water systems within the same TIGER polygon (Tier 2b). A future step includes rules to assign all Tier 2b systems to either Tier 2a or Tier 3.
 
 The uncertainty of using TIGER polygons as proxies for water system boundaries is evaluated in the next section.
 
@@ -631,7 +634,7 @@ tibble(dist = zjd) %>%
 
 The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries. In the absence of a Tier 1 boundary, where Tier 2 boundaries do not spatially intersect the provided ECHO centroid, we may decide at a later date to prefer the Tier 3 boundary, for instance, if the distance between the ECHO centroid and matched Tiger Place exceeds some reasonable threshold.
 
-Results suggest that matching water system spatial boundaries and attributes (i.e., name) to TIGER Places is a valid approach to construct "proxy" water system boundaries. These findings are relatively consistent with findings by [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries and that these municipal boundaries are valid proxies for water service areas.
+Results suggest that matching water system spatial boundaries and attributes (i.e., name) to TIGER Places is a valid approach to construct "proxy" water system boundaries. These findings are relatively consistent with findings by [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries and that these municipal boundaries are valid proxies for water service areas.
 
 <br>
 
@@ -1177,7 +1180,7 @@ No model is without limitations. In this section, we highlight key limitations a
 
 ## Tier 2b Boundaries
 
-Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. [SOME ADDITIONAL DESCRIPTIONS ONCE WE HAVE THIS DATA].
+Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. This applies to `r temm %>% filter(tier == "Tier 2") %>% summarise(n = n_distinct(pwsid)) %>% pull(n)`
 
 <br>
 
@@ -1222,7 +1225,7 @@ pancake_count_prop <- temm %>%
   arrange(desc(percent_tier3)) 
 ```
 
-Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, geometry_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, geometry_quality == "COUNTY CENTROID	") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, geometry_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
+Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, geometry_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, geometry_quality == "COUNTY CENTROID    ") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, geometry_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
 
 ```{r count pancakes by centroid accuracy}
 pancake_count_prop %>% 
@@ -1262,8 +1265,8 @@ Beyond a discussion of how the TEMM spatial layer may be used (covered in the ne
     -   *Gather additional data to support technical efforts.* In particular, centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} and state-provided municipal boundaries may be used to address the pancake problem and improve the matching algorithm, respectively (described below).
 2.  **Data pipeline and methodological improvements**
     -   *Address the "Pancake Problem".* Low-accuracy centroids challenge the usefulness of the TEMM layer and introduce uncertainty into analyses that depend on these data. An approach to re-center low-accuracy centroids (i.e., state and county level centroid accuracy) may be to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations, like the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
-    -   *Improve "Match" and "Model" Tiers 1-2.* Improvements may be made to Tier 2 matching and Tier 3 modeling. Specifically, matching may be improved by using municipal boundaries, which [Patterson et al. (2019)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"} showed to improve upon Census Place boundaries. Addressing multiple systems matching to the same Census Place is another area for improvement, to reduce the number of systems with overlapping boundaries.
-    -   *Develop rules to handle* boundary assignment for county-level systems, private systems, or water districts, for which Tier 2 boundaries may be less appropriate according to Patterson et al. 2022; such efforts would require substantial work to first categorize the system types, since no database disaggregating public or private systems by more nuanced types readily exists.
+    -   *Improve "Match" and "Model" Tiers 2-3.* Improvements may be made to Tier 2 matching and Tier 3 modeling. Specifically, matching may be improved by using municipal boundaries, which [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"} showed to improve upon Census Place boundaries. Addressing multiple systems matching to the same Census Place is another area for improvement, to reduce the number of systems with overlapping boundaries.
+    -   *Develop rules to handle* boundary assignment for county-level systems, private systems, or water districts, for which Tier 2 boundaries may be less appropriate according to [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}; such efforts would require substantial work to first categorize the system types, since no database disaggregating public or private systems by more nuanced types readily exists.
     -   *Create tools to visualize matches.* A preliminary, minimal interactive Shiny App was developed to visualize candidate matches and support Tier 2 algorithm development. This tool may be expanded to further support iterative review of changes to the algorithm and better understand how match rules determine the end result.
     -   *Web hosting of the TEMM spatial layer.* The developed TEMM spatial layer will be made available online as a flat file (i.e., `.geojson`, `.shp`, `.csv`) which is accessible to analysts. To make the results accessible to non-technical people and the general public, one option is to stand it up on a server for interactive use in a web browser.
 
