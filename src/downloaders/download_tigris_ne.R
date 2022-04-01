@@ -25,7 +25,8 @@ places <- places %>%
   rmapshaper::ms_simplify(
     keep_shapes = TRUE,
     # https://github.com/ateucher/rmapshaper/issues/83
-    # and https://github.com/ateucher/rmapshaper#using-the-system-mapshaper
+    # and https://github.com/ateucher/rmapshaper#using-the-system-mapshaper or 
+    # https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally
     sys = TRUE)
 
 write_rds(places, path(data_path, "tigris/tigris_places.rds"))

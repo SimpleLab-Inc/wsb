@@ -3,26 +3,40 @@
 # start a timer
 SECONDS=0
 
-# run downloaders
+# # # run downloaders
 
 echo -e "\n\n======================================\n\n"
 echo -e "Running downloaders"
 echo -e "\n\n======================================\n\n"
 . src/run_downloaders.sh
 
-# run transformers
+# # # run transformers
 
 echo -e "\n\n======================================\n\n"
 echo -e "Running transformers"
 echo -e "\n\n======================================\n\n"
 . src/run_transformers.sh
 
+# # run mapping
+
+echo -e "\n\n======================================\n\n"
+echo -e "Mapping data to postgres"
+echo -e "\n\n======================================\n\n"
+python src/match/1-mappings.py 
+
+# # run matching
+
+echo -e "\n\n======================================\n\n"
+echo -e "Running match algorithms"
+echo -e "\n\n======================================\n\n"
+python src/match/2-matching.py 
+
 # run superjoin
 
 echo -e "\n\n======================================\n\n"
 echo -e "Running superjoin"
 echo -e "\n\n======================================\n\n"
-python src/analysis/sandbox/matching/superjoin.py 
+python src/match/3-superjoin.py 
 
 # run model 
 

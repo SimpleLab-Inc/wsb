@@ -12,10 +12,10 @@ DATA_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
 # Bring in the FIPS -> State Abbr crosswalk
-state_cw = pd.read_csv("../crosswalks/state_fips_to_abbr.csv").set_index("code")
+state_cw = pd.read_csv("crosswalks/state_fips_to_abbr.csv").set_index("code")
 
 county_cw = (
-    pd.read_csv("../crosswalks/county_fips.csv", usecols=["code", "county"])
+    pd.read_csv("crosswalks/county_fips.csv", usecols=["code", "county"])
     .set_index("code"))
 
 #%%

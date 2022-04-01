@@ -119,6 +119,10 @@ To match and join all data including spatial data, you must set up a PostGIS doc
 
 ### Start a PostGIS Docker container
 
+Download Docker for Mac or Windows, [here](https://docs.docker.com/get-docker/).
+
+Then, from your command line run:
+
 `docker run -e POSTGRES_PASSWORD=postgres -d --name postgis -p 5433:5432 -v postgis_volume:/var/lib/postgresql/data postgis/postgis`
 
 Notes about this command:
@@ -156,6 +160,12 @@ Exit out of psql:
 Exit out of the docker container:
 
 `exit`
+
+Then, initialize the database. Also from the command line, run:
+
+`python src/match/0-init.py`
+
+You have now initialized the PostGIS database in a docker container and can run the pipeline.
 
 ## Running the Pipeline
 

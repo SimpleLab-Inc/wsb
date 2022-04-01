@@ -101,7 +101,7 @@ Finally, we encourage the reader to consider the TEMM water service boundary lay
 ## Data Sources
 
 | Data Source                                              | Description                                                                                                             | Link                                                                                                                                                                                                          |
-|-------------------|----------------------------------|-------------------|
+|------------------|--------------------|----------------------------------|
 | EPA Safe Drinking Water Information Systems              | Public water systems "master list" with key attribute data and some tabular geographic data like cities served          | [SDWIS MODEL](https://www.epa.gov/enviro/sdwis-model)                                                                                                                                                         |
 | EPA Enforcement and Compliance History Online            | Public water system facilities archive, drawing lat/long data for facilities centroids from FRS                         | [ECHO Exporter](https://echo.epa.gov/tools/data-downloads#exporter)                                                                                                                                           |
 | EPA Facilities Registry Service                          | FRS regularly updates facilities data with lat/long information, which pipes into ECHO                                  | [FRS Geospatial](https://www.epa.gov/frs/geospatial-data-download-service)                                                                                                                                    |
@@ -206,7 +206,7 @@ The following outline reflects a summary of key findings, followed by a descript
 
 -   Circular water service boundary estimates were then calculated for all water systems; median, 5% and 95% confidence intervals reflect medium, low, and high water service boundary estimates.
 
--   The the multiple linear regression fit has an impressive $R^2 = 0.65$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area. EDA, Random Forest, and xgboost models confirm the importance of service connection count as an explanatory variable.
+-   The the multiple linear regression fit has an impressive $R^2 = 0.66$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area. EDA, Random Forest, and xgboost models confirm the importance of service connection count as an explanatory variable.
 
 ***Combine Tiers***
 
@@ -565,13 +565,13 @@ f_intersection <- function(x){
 }
 
 # perform the intersection - needs to be pairwise, hence the func above
-# t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x)) # slow
+#t1$area_intersection <- map_dbl(1:nrow(t1), ~f_intersection(.x)) # slow
 
 # calculate modified jacard
-# t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
+#t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
 
 # load pre-computed result from above b/c the previous 2 lines take time
-# write_rds(t1, here("staging/t1_jacard.rds"))
+#write_rds(t1, here("staging/t1_jacard.rds"))
 t1 <- read_rds(here("staging/t1_jacard.rds"))
 
 # sanity check that intersection worked
@@ -617,10 +617,10 @@ f_distance <- function(x){
   res = st_distance(t1_zero[x, ], t2_zero[x, ])
   return(as.numeric(res)/1000)
 }
-# zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x)) # slow
+#zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x)) # slow
 
 # load pre-computed result from above because it takes a while to run
-# write_rds(zjd, here("staging/zero_dist_non_intersects.rds"))
+#write_rds(zjd, here("staging/zero_dist_non_intersects.rds"))
 zjd <- read_rds(here("staging/zero_dist_non_intersects.rds"))
 
 # histogram of distances in km
@@ -985,7 +985,7 @@ xgb_metrics(xgb_test_res, truth = log10(radius), estimate = log10(.pred)) %>%
 
 As explained in the review of random forest and xgboost models above, there is sound rationale for linear regression in the context of this problem. A strong (and intuitive) linear relationship is observed between Tier 1 water system radii and service connections. The linear model fit outperforms other models, is easily interpretable, and provides standard error metrics. The underlying data do not have a high number of observations that machine learning models would benefit from, and the parameter space is also not high in dimensionality. For these reasons, we select the linear model to estimate Tier 3 boundaries.
 
-Unlike the random forest and xgboost models, we are careful to log transform log-normal predictors and response, and specify interaction terms where present. We experimented with different model specifications, including a model which combined the correlated population and service connection variables, however, this led to negligible improvement in the model fit and less interpretable model coefficients -- thus in the final model specification we regress only on service connection. Interaction terms are added for owner type, service area type code, and wholesaler status. A simple linear regression on service connections alone has an $R^2$ of 0.56; including these extra terms substantially improves the model fit ($R^2 = 0.65$) and reduces test error.
+Unlike the random forest and xgboost models, we are careful to log transform log-normal predictors and response, and specify interaction terms where present. We experimented with different model specifications, including a model which combined the correlated population and service connection variables, however, this led to negligible improvement in the model fit and less interpretable model coefficients -- thus in the final model specification we regress only on service connection. Interaction terms are added for owner type, service area type code, and wholesaler status. A simple linear regression on service connections alone has an $R^2$ of 0.56; including these extra terms substantially improves the model fit ($R^2 = 0.66$) and reduces test error.
 
 ```{r lm fit}
 # re-read dataset and log transform the response - only for linear model
@@ -1180,7 +1180,7 @@ No model is without limitations. In this section, we highlight key limitations a
 
 ## Tier 2b Boundaries
 
-Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. This applies to `r temm %>% filter(tier == "Tier 2") %>% summarise(n = n_distinct(pwsid)) %>% pull(n)`
+Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. Boundaries for these systems require further validation. 
 
 <br>
 
@@ -1199,7 +1199,8 @@ big_pancakes <- pancakes %>%
 
 # plot
 big_pancake_pwsid <- pancakes %>% 
-  filter(county_served == big_pancakes$county_served[1]) %>% 
+  filter(county_served == big_pancakes$county_served[1] &
+           primacy_agency_code == big_pancakes$primacy_agency_code[1]) %>% 
   pull(pwsid)
 ```
 
@@ -1265,7 +1266,7 @@ Beyond a discussion of how the TEMM spatial layer may be used (covered in the ne
     -   *Gather additional data to support technical efforts.* In particular, centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} and state-provided municipal boundaries may be used to address the pancake problem and improve the matching algorithm, respectively (described below).
 2.  **Data pipeline and methodological improvements**
     -   *Address the "Pancake Problem".* Low-accuracy centroids challenge the usefulness of the TEMM layer and introduce uncertainty into analyses that depend on these data. An approach to re-center low-accuracy centroids (i.e., state and county level centroid accuracy) may be to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations, like the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
-    -   *Improve "Match" and "Model" Tiers 2-3.* Improvements may be made to Tier 2 matching and Tier 3 modeling. Specifically, matching may be improved by using municipal boundaries, which [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"} showed to improve upon Census Place boundaries. Addressing multiple systems matching to the same Census Place is another area for improvement, to reduce the number of systems with overlapping boundaries.
+    -   *Improve "Match" and "Model" Tiers 2-3.* Improvements may be made to Tier 2 matching and Tier 3 modeling. Specifically, matching may be improved by using state-provided municipal boundaries, which [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"} showed to improve upon Census Place boundaries. Addressing multiple systems matching to the same Census Place is another area for improvement, to reduce the number of systems with overlapping boundaries. A further match rule might be incorporated to assign only one system to the full TIGER boundary, and apply Tier 3 model to the remaining systems.
     -   *Develop rules to handle* boundary assignment for county-level systems, private systems, or water districts, for which Tier 2 boundaries may be less appropriate according to [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}; such efforts would require substantial work to first categorize the system types, since no database disaggregating public or private systems by more nuanced types readily exists.
     -   *Create tools to visualize matches.* A preliminary, minimal interactive Shiny App was developed to visualize candidate matches and support Tier 2 algorithm development. This tool may be expanded to further support iterative review of changes to the algorithm and better understand how match rules determine the end result.
     -   *Web hosting of the TEMM spatial layer.* The developed TEMM spatial layer will be made available online as a flat file (i.e., `.geojson`, `.shp`, `.csv`) which is accessible to analysts. To make the results accessible to non-technical people and the general public, one option is to stand it up on a server for interactive use in a web browser.
