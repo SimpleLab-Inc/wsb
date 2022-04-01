@@ -51,7 +51,7 @@ WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
-
+POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
 
 ```
 Don't forget to leave a blank line at the end of `.Renviron` before saving.
@@ -62,6 +62,8 @@ To associate `.Renviron` with the `R` project, open `R`, run `usethis::edit_r_en
 `WSB_DATA_PATH` is where we save raw data from the downloaders, which may grow sizable and be better placed off disk.  
 
 `WSB_STAGING_PATH` is where we stage post-transformed for EDA and modeling.  
+
+`POSTGIS_CONN_STR` is the connection string for the local PostGIS docker database.
 
 Use `WSB_EPSG` when writing to geojson, and `WSB_EPSG_AW` when calculating areas on labeled geometries
 `WSB_EPSG_AW` is the coordinate reference system (CRS) used by transformers when we make calculations. We currently use [Albers Equal Area Conic projected CRS](https://epsg.io/102003) for equal area calculations. For AK and HI, we need to shift geometry into this CRS so area calculations are minimally distorted, see `tigris::shift_geometry(d, preserve_area = TRUE)` at [this webpage](https://walker-data.com/census-r/census-geographic-data-and-applications-in-r.html#shifting-and-rescaling-geometry-for-national-us-mapping). `WSB_EPSG` is a World Geodetic System 1984 (see [here](https://epsg.io/4326)) which is the CRS that geojson stores.
