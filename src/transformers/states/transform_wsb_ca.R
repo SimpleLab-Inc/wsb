@@ -1,5 +1,7 @@
 # transform CA water system data to standard model -------------------
 
+cat("Preparing to transform CA polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -48,18 +50,16 @@ ca_wsb <- ca_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = WATER_SYST,
-    pws_name         = WATER_SY_1,
+    pwsid          = WATER_SYST,
+    pws_name       = WATER_SY_1,
     state,
-    county           = COUNTY,
+    county         = COUNTY,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
@@ -74,4 +74,4 @@ path_out <- path(staging_path, "ca/ca_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(ca_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")

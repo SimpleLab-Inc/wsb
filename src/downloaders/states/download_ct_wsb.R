@@ -1,7 +1,6 @@
 # Download CT water system data -------------------------------------------
 
-setwd("src/downloaders/states/")
-source("download_state_helpers.R")
+source(here::here("src/downloaders/states/download_state_helpers.R"))
 
 # Data Source: Connecticut ArcGIS shapefile water system boundary
 url <- paste0("https://portal.ct.gov/-/media/Departments-and-Agencies/",

@@ -1,5 +1,7 @@
 # transform NJ water system data to standard model -------------------
 
+cat("Preparing to transform NJ polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -45,18 +47,16 @@ nj_wsb <- nj_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = PWID,
-    pws_name         = SYS_NAME,
+    pwsid          = PWID,
+    pws_name       = SYS_NAME,
     state,
     #    county,   # county code is first 2 digits of PWID
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
@@ -71,4 +71,4 @@ path_out <- path(staging_path, "nj/nj_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(nj_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")

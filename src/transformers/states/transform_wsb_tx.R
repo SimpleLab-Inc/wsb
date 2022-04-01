@@ -1,5 +1,7 @@
 # transform TX water system data to standard model -------------------
 
+cat("Preparing to transform TX polygon boundary data.\n\n")
+
 library(fs)
 library(sf)
 library(tidyverse)
@@ -47,18 +49,16 @@ tx_wsb <- tx_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid            = PWSId,
-    pws_name         = pwsName,
+    pwsid          = PWSId,
+    pws_name       = pwsName,
     state,
     #    county,
     #    city,
-    #    source,
     #    owner,
     # geospatial columns
     st_areashape,
     centroid_long,
     centroid_lat,
-    area_hull,
     radius,
     geometry
   )
@@ -73,4 +73,4 @@ path_out <- path(staging_path, "tx/tx_wsb_labeled.geojson")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(tx_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to geojson.\n\n\n")
