@@ -20,7 +20,7 @@ county_cw = (
 
 #%%
 
-tiger = gpd.read_file(DATA_PATH + "/tigris_places_clean.geojson")
+tiger = gpd.read_file(os.path.join(DATA_PATH, "tigris_places_clean.geojson"))
 
 # keep_columns = ["STATEFP", "GEOID", "NAME", "NAMELSAD"]
 # tiger = tiger[keep_columns]

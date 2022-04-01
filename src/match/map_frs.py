@@ -17,7 +17,7 @@ EPSG = os.environ["WSB_EPSG"]
 
 #%%
 
-frs = gpd.read_file(DATA_PATH + "/frs.geojson")
+frs = gpd.read_file(os.path.join(DATA_PATH, "frs.geojson"))
 print("Read FRS file.")
 
 pwsids = helpers.get_pwsids_of_interest()

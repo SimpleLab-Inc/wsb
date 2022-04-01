@@ -12,7 +12,7 @@ DATA_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
 #%%
-mhp = gpd.read_file(DATA_PATH + "/mhp_clean.geojson")
+mhp = gpd.read_file(os.path.join(DATA_PATH, "mhp_clean.geojson"))
 
 # A little cleansing
 mhp = mhp.replace({"NOT AVAILABLE": pd.NA})

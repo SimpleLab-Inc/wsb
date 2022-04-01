@@ -14,7 +14,7 @@ EPSG = os.environ["WSB_EPSG"]
 #%%
 
 echo_df = pd.read_csv(
-    DATA_PATH + "/echo.csv",
+    os.path.join(DATA_PATH, "echo.csv"),
     usecols=[
         "pwsid", "fac_lat", "fac_long", "fac_name",
         "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 

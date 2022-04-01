@@ -17,7 +17,7 @@ EPSG = os.environ["WSB_EPSG"]
 
 #%%
 
-labeled = gpd.read_file(DATA_PATH + "/wsb_labeled_clean.geojson")
+labeled = gpd.read_file(os.path.join(DATA_PATH, "wsb_labeled_clean.geojson"))
 print("Read Labeled WSB file.")
 
 pwsids = helpers.get_pwsids_of_interest()

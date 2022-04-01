@@ -15,7 +15,7 @@ EPSG = os.environ["WSB_EPSG"]
 # Primarily: This links pwsid to zip code.
 # Primary Key: pwsid + zipcode (because pws's may serve more than one zip)
 
-ucmr = gpd.read_file(DATA_PATH + "/ucmr.geojson")
+ucmr = gpd.read_file(os.path.join(DATA_PATH, "ucmr.geojson"))
 
 #%%
 

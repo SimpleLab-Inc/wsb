@@ -11,9 +11,6 @@ load_dotenv()
 
 pd.options.display.max_columns = None
 
-DATA_PATH = os.environ["WSB_STAGING_PATH"]
-OUTPUT_PATH = os.path.join(DATA_PATH, "..", "outputs")
-
 # Connect to local PostGIS instance
 conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 

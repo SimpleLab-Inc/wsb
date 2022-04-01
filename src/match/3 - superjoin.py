@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATA_PATH = os.environ["WSB_STAGING_PATH"] + "/../outputs"
+OUTPUT_PATH = os.path.join(os.environ["WSB_STAGING_PATH"], "..", "outputs")
 EPSG = os.environ["WSB_EPSG"]
 PROJ = os.environ["WSB_EPSG_AW"]
 
@@ -256,6 +256,6 @@ output.head()
 # Save the results to a file
 ############################
 
-output.to_csv(DATA_PATH + "/matched_output.csv", index=False)
+output.to_csv(os.path.join(OUTPUT_PATH, "matched_output.csv"), index=False)
 
 print("Saved matched_output.csv")

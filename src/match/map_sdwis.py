@@ -49,7 +49,7 @@ keep_columns = ["pwsid", "pws_name", "primacy_agency_code",
     "primacy_type"]
 
 sdwis = pd.read_csv(
-    DATA_PATH + "/sdwis_water_system.csv",
+    os.path.join(DATA_PATH, "sdwis_water_system.csv"),
     usecols=keep_columns,
     dtype="string")
 
@@ -69,7 +69,7 @@ sdwis.loc[mask, "state_code"] = sdwis.loc[mask, "primacy_agency_code"]
 # ~1k PWSID's appear in water_system but not geographic_area
 # We're trying to get city_served and county_served, but these columns aren't always populated
 sdwis_ga = pd.read_csv(
-    DATA_PATH + "/sdwis_geographic_area.csv",
+    os.path.join(DATA_PATH, "sdwis_geographic_area.csv"),
     usecols=["pwsid", "city_served", "county_served"],
     dtype="string")
 
@@ -88,7 +88,7 @@ sdwis = sdwis.merge(sdwis_ga, on="pwsid", how="left")
 # service_area - PWSID + service_area_type_code is unique
 # ~1k PWSID's appear in water_system but not service_area
 sdwis_sa = pd.read_csv(
-    DATA_PATH + "/sdwis_service_area.csv",
+    os.path.join(DATA_PATH, "sdwis_service_area.csv"),
     usecols=["pwsid", "service_area_type_code"])
 
 # Filter to the pws's we're interested in
