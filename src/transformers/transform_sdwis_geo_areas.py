@@ -55,6 +55,25 @@ geo_area["state_served_fin"] = np.where(geo_area["state_served"].isna(), \
 geo_area = geo_area.drop(columns = ["state_served_temp", "state_served"]) \
                 .rename(columns = {"state_served_fin": "state_served"})
                 
+# %% Clean city_served column
+
+# Remove "-" followed by 0 or 1 ".", 0 or more spaces, and four digits
+geo_area["city_served"] = geo_area["city_served"].str.replace("\.?-\.?\s*\d{4}", 
+                                                              "", regex=True)
+# Replace "&apos;" with "'"
+geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
+                                                              "'", regex=True)
+                                                              
+# Replace parenthetical with single letter (plus any spaces) in it, e.g. (V) or (T)
+geo_area["city_served"] = geo_area["city_served"].str.replace("\(\s*[A-Z]\s*\)", 
+                                                              "", regex=True)
+                                                              
+# Replace excess whitespace within line with a single space
+geo_area["city_served"] = geo_area["city_served"].str.replace("\s\s+", 
+                                                              " ", regex=True)
+
+# Trim whitespace again
+geo_area = trim_whitespace(geo_area)
 
 # %% Raise duplication issue on key fields
 

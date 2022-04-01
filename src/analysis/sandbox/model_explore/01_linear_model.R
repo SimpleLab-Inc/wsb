@@ -1,1 +1,0 @@
-# space to explore candidate models, characterize error, select features, and so on
