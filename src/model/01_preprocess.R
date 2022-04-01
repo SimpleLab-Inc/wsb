@@ -8,11 +8,12 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 
 # this is the critical service connection count below which (inclusive) we
 # assume that the value is nonsensical, and impute it based on population. 
-# We also assume that population counts less than n_max are unreasonable, 
-# and only work with populations >= 15 (at least one per service connection)
-n_max <- 15
+# We also assume that population counts less than 25 are unreasonable, 
+# and only work with populations >= 25 (CWS definition)
+n_max_sc  <- 15
+n_max_pop <- 25
 cat("\n\nPreparing to mean impute service connection count", 
-    "for all values >=", n_max, ".\n")
+    "for all values >=", n_max_sc, ".\n")
 
 # regex to catch all states, DC, and all numeric tribal primacy agencies
 rx <- paste0(paste(c(state.abb, "DC"), collapse = "|"), "|", "^[0-9]")
@@ -22,14 +23,15 @@ rx <- paste0(paste(c(state.abb, "DC"), collapse = "|"), "|", "^[0-9]")
 j <- read_csv(path(staging_path, "matched_output.csv")) %>% 
   filter(!is.na(geometry_lat) | !is.na(geometry_long)) %>% 
   # filter to CWS and assume each connection must serve at least 1 person
-  filter(service_connections_count >= n_max,
-         population_served_count   >= n_max) %>% 
+  filter(service_connections_count >= n_max_sc,
+         population_served_count   >= n_max_pop) %>% 
   # remove rows not in contiguous US, mostly Puerto Rico
   filter(str_detect(primacy_agency_code, rx)) %>% 
   suppressMessages()
 
 cat("Read", nrow(j), "matched outputs with >=", 
-    n_max, "connection & population count in the 50 states and DC.\n")
+    n_max_sc, "connections and >=", n_max_pop, 
+    "population count in the 50 states and DC.\n")
 
 
 # mean impute service connections == 0 with linear model ------------------
@@ -57,9 +59,10 @@ cat("Read", nrow(j), "matched outputs with >=",
 #   geom_smooth(method = "lm") 
 
 # linear model for imputing service connections from population served
-# Only train on population served >= n_max (community water systems)
-jm <- j %>% filter(service_connections_count >= n_max,
-                   population_served_count   >= n_max)
+# Only train on service connections and population served >= n_max_sc
+# and n_max_pop for CWS 
+jm <- j %>% filter(service_connections_count >= n_max_sc,
+                   population_served_count   >= n_max_pop)
 
 # simple linear model for imputing service connection count and b1 slope
 m  <- lm(service_connections_count ~ population_served_count, data = jm)
@@ -69,7 +72,7 @@ b1 <- coefficients(m)["population_served_count"]
 j <- j %>%
   mutate(
     service_connections_count = ifelse(
-      service_connections_count < n_max,
+      service_connections_count < n_max_sc,
       ceiling(population_served_count * b1),
       service_connections_count)
   )
