@@ -39,14 +39,14 @@ cat("Detected", nrow(zip_rm), "nonsense zipcodes:\n"); print(zip_rm)
 # remove nonsense zipcodes
 ucmr <- anti_join(ucmr, zip_rm)
 
-cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucrm data.\n")
+cat("Removed", nrow(zip_rm), "nonsense zipcodes from ucmr data.\n")
 
 
 # merge zip codes to spatial zip code polygon -----------------------------
 
 # zip code columns to keep
-cols_keep <- c("zipcode", "geoid10", "aland10", "awater10", "st_areashape",
-               "centroid_long", "centroid_lat", "area_hull", "radius")
+cols_keep <- c("zipcode", "geoid20", "aland20", "awater20", "st_areashape",
+               "area_hull")
 
 # pull usa state geometries, project to input data CRS
 zipcode_areas <- tigris::zctas()
@@ -56,30 +56,67 @@ zipcodes <- zipcode_areas %>%
   st_transform(st_crs(epsg_aw)) %>% 
   mutate(
     # area calculations occur in area weighted epsg
-    zipcode        = zcta5ce10,
+    zipcode        = zcta5ce20,
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
-    area_hull      = st_area(convex_hull),
-    radius         = sqrt(area_hull/pi)
-  ) %>%
-  # transform back to standard epsg for geojson write
-  st_transform(epsg) %>%
-  # compute centroids
-  mutate(
-    centroid       = st_geometry(st_centroid(geometry)),
-    centroid_long  = st_coordinates(centroid)[, 1],
-    centroid_lat   = st_coordinates(centroid)[, 2],
-  ) %>%
+    area_hull      = st_area(convex_hull)
+  ) %>% 
   select(all_of(cols_keep))
 
-# join zipcode polygon geometries to ucmr master list 
+
+# join zipcode polygon geometries to ucmr master list and
+# combine data and merge geometries for rows with duplicate pwsids --------
+
 ucmr <- ucmr %>% 
   left_join(zipcodes, on = "zipcode") %>% 
   # convert object back to spatial
-  st_as_sf(crs = epsg)
+  st_as_sf(crs = epsg_aw) %>% 
+  # ensure valid geometries
+  st_make_valid() %>%
+  group_by(pwsid) %>% 
+  # mutate these new columns, knowing full well that duplicate rows
+  # will be created, but that they will be dropped in the next step
+  mutate(
+    # combine all fragmented geometries
+    geometry       = st_union(geometry),
+    # new area is the sum of the area of all polygons
+    st_areashape   = sum(st_areashape),
+    area_hull      = sum(area_hull),
+    # new radius is calculated from the new area
+    radius         = sqrt(area_hull/pi),
+    # combine data into list-formatted strings for character columns
+    across(where(is.character), ~toString(unique(.)))
+  ) %>%
+  # only take the first result from each group
+  slice(1) %>%
+  ungroup() %>% 
+  # convert back to the project standard epsg
+  st_transform(epsg) %>% 
+  # compute new centroids and note that when multipolygons are separated
+  # by space, these are suspect and should not be used. Importantly, this
+  # calculation occurs in the EPSG consistent with other staged data!
+  mutate(
+    centroid       = st_geometry(st_centroid(geometry)),
+    centroid_long  = st_coordinates(centroid)[, 1],
+    centroid_lat   = st_coordinates(centroid)[, 2]
+  ) %>% 
+  # remove columns. Note: future iteration may include other values downstream
+  select(c(pwsid, zipcode, st_areashape, radius, centroid_long, centroid_lat)) %>%
+  st_drop_geometry()
+
+cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
+cat("Combined string values for multipolygon pwsids.\n")
+
+# verify that there is only one pwsid per geometry
+n <- ucmr %>%
+  count(pwsid) %>%
+  filter(n > 1) %>%
+  nrow()
+cat(n, "duplicate pwsids in labeled data following fix.\n")
+
 
 # Write clean ucmr data to geojson
-path_out <- path(staging_path, "ucmr.geojson")
+path_out <- path(staging_path, "ucmr.csv")
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(ucmr, path_out)
+write_csv(ucmr, path_out)
