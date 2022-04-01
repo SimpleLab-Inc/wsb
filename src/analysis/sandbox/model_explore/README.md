@@ -1,4 +1,4 @@
-# "model_explore" Little Saandbox
+# "model_explore" Little Sandbox
 
 This little sandbox houses model exploration scripts used to prototype the final code in `src/model` and the March 2022 report summarizing construction of the TEMM data layer. 
 
