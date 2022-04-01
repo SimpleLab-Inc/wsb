@@ -240,6 +240,23 @@ print(f"Match on city_served: {len(new_matches)}")
 matches = pd.concat([matches, new_matches])
 
 #%% #########################
+# Rule: UCMR to TIGER Spatial matches
+# 
+
+left_mask = tokens["source_system"].isin(["ucmr"])
+right_mask = tokens["source_system"].isin(["tiger"])
+
+new_matches = (tokens[left_mask]
+    .sjoin(tokens[right_mask], lsuffix="x", rsuffix="y")
+    [["master_key_x", "contributor_id_x", "contributor_id_y"]]
+    .rename(columns={"master_key_x": "master_key"})
+    .assign(match_rule="ucmr_spatial"))
+
+print(f"UCMR spatial matches: {len(new_matches)}")
+
+matches = pd.concat([matches, new_matches])
+
+#%% #########################
 # Rule: match MHP's by tokenized name
 # 887 matches. Not great, but then again, not all MHP's will have water systems.
 

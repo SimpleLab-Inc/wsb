@@ -23,15 +23,16 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 print("Pulling in data from database...", end="")
 
 supermodel = gpd.GeoDataFrame.from_postgis(
-    "SELECT * FROM pws_contributors WHERE source_system NOT IN ('ucmr');",
+    "SELECT * FROM pws_contributors;",
     conn, geom_col="geometry")
 
 print("done.")
 
 sdwis = supermodel[supermodel["source_system"] == "sdwis"]
-tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
 echo = supermodel[supermodel["source_system"] == "echo"]
 labeled = supermodel[supermodel["source_system"] == "labeled"]
+ucmr = supermodel[supermodel["source_system"] == "ucmr"]
+tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
 mhp = supermodel[supermodel["source_system"] == "mhp"].set_index("contributor_id")
 
 #%%
@@ -112,9 +113,8 @@ candidate_matches = candidate_matches.loc[candidate_matches.index.isin(s1.index)
 s1 = s1.to_crs(PROJ)
 candidate_matches = candidate_matches.to_crs(PROJ)
 
-# This gives a couple warnings, but they're OK
+# This gives a warning, but it's OK
 # "Indexes are different" - this is because tiger_matches has duplicated indices (multiple matches to the same PWS)
-# "Geometry is in a geographic CRS" - Projected CRS's will give more accurate distance results, but it's fine for our purposes.
 distances = s1.distance(candidate_matches, align=True)
 
 # Not sure what causes NA. Filter only non-NA
@@ -231,14 +231,30 @@ output = (output
 # Add in the TIGER geoid and pws --> TIGER match counts
 output = output.join(tiger_best_match, on="pwsid")
 
-#%%
+# If the PWS has a UCMR, and the echo quality is state or county centroid,
+# overwrite the lat/long
+
+output = (output
+    .merge(
+        ucmr[["pwsid", "geometry_lat", "geometry_long"]]
+        .rename(columns={"geometry_lat": "ucmr_lat", "geometry_long": "ucmr_long"}),
+        on="pwsid", how="left"))
+
+mask = (
+    output["geometry_quality"].isin(["STATE CENTROID", "COUNTY CENTROID"]) &
+    output["ucmr_lat"].notna())
+
+output.loc[mask, "geometry_lat"] = output[mask]["ucmr_lat"]
+output.loc[mask, "geometry_long"] = output[mask]["ucmr_long"]
+output.loc[mask, "geometry_quality"] = "UCMR CENTROID"
+
 # If there's an MHP match, add matched ID and overwrite the lat/long
-output = output.join(mhp_best_match, on="pwsid")
+output = output.join(mhp_best_match, on="pwsid", how="left")
 
 mask = output["mhp_match_id"].notna()
 output.loc[mask, "geometry_lat"] = output[mask]["mhp_geometry_lat"]
 output.loc[mask, "geometry_long"] = output[mask]["mhp_geometry_long"]
-output.loc[mask, "geometry_quality"] = "MHP Match"
+output.loc[mask, "geometry_quality"] = "MHP MATCH"
 
 # Mark whether each one has a labeled boundary
 output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
@@ -249,7 +265,9 @@ if not (len(output) == len(sdwis)):
 
 print("Joined several data sources into final output.")
 
-output.head()
+#%%
+# A little cleanup
+output = output.drop(columns=["ucmr_lat", "ucmr_long", "mhp_geometry_lat", "mhp_geometry_long"])
 
 
 #%% ########################
