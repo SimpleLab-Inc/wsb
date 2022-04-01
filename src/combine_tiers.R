@@ -48,9 +48,6 @@ cols_select <- c(
   "has_labeled_bound", "is_wholesaler_ind", "primacy_type",
   "primary_source_code", "tier")
 
-# service connection count cutoff for community water systems
-n_max <- 15
-
 # read and format matched output
 cat("Reading matched output...")
 
@@ -59,7 +56,8 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
     # indicate the tier to use for each pwsid
     tier = case_when(
       has_labeled_bound == TRUE ~ "Tier 1",
-      has_labeled_bound == FALSE & !is.na(tiger_match_geoid) ~ "Tier 2",
+      has_labeled_bound == FALSE & tiger_to_pws_match_count == 1 ~ "Tier 2a",
+      has_labeled_bound == FALSE & tiger_to_pws_match_count >  1 ~ "Tier 2b",
       has_labeled_bound == FALSE & is.na(tiger_match_geoid)  ~ "Tier 3"
     )
   ) %>% 
@@ -74,7 +72,7 @@ cat("done.\n")
 
 # Separate Tiers 1-3 from matched output, join to spatial data, and bind
 dt1 <- d %>% filter(tier == "Tier 1") %>% left_join(t1) %>% st_as_sf()
-dt2 <- d %>% filter(tier == "Tier 2") %>% left_join(t2) %>% st_as_sf() 
+dt2 <- d %>% filter(tier %in% c("Tier 2a", "Tier2b")) %>% left_join(t2) %>% st_as_sf() 
 dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
 temm <- bind_rows(dt1, dt2, dt3)
