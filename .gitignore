@@ -43,6 +43,7 @@ vignettes/*.pdf
 /data
 /staging
 /output
+/log
 
 # pesky OSX
 .DS_Store
