@@ -4,7 +4,7 @@ The sandbox houses EDA, sanity checks, feature engineering experiments, and othe
 
 ## Contributor guide
 
-1. **Input**: All analyses on standardized data begin with downloading data from the web. At this point in time, to obtain an MVP, we do no snapshot or fix incoming data, thus is is possible that the results of the analysis (and hence the viability of the code in this project) depends on when the download modules are run. Nonetheless, sandbox processes depend on standardized data in `/data/staging`.   
+1. **Input**: All analyses on standardized data begin with downloading data from the web. At this point in time, to obtain an MVP, we do not snapshot or fix incoming data, thus is is possible that the results of the analysis (and hence the viability of the code in this project) depends on when the download modules are run. Nonetheless, sandbox processes depend on standardized data in `/data/staging`.   
 2. **Output**: All output should be either a report, figure, or table and live on Github in `/src/analysis/figures` or `/src/analysis/tables`.
 3. **Contributions**: 
   * number reports and analyses within `/src/analysis`.  

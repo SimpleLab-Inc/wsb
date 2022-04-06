@@ -9,6 +9,7 @@ library(here)
 library(glue)
 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
+output_path <- Sys.getenv("WSB_OUTPUT_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 
@@ -83,12 +84,13 @@ cat("Combined a spatial layer using best available tiered data.\n")
 # write to multiple output formats ----------------------------------------
 
 # paths to write
-path_geojson  <- here("temm_layer",     glue("{Sys.Date()}_temm.geojson"))
-path_shp      <- here("temm_layer/shp", glue("{Sys.Date()}_temm.shp"))
-path_csv      <- here("temm_layer",     glue("{Sys.Date()}_temm.csv"))
+path_geojson  <- path(output_path, "temm_layer", glue("{Sys.Date()}_temm.geojson"))
+path_shp      <- path(output_path, "temm_layer/shp", glue("{Sys.Date()}_temm.shp"))
+path_csv      <- path(output_path, "temm_layer",     glue("{Sys.Date()}_temm.csv"))
 
 # create dirs
-dir_create(here("temm_layer")); dir_create(here("temm_layer/shp"))
+dir_create(path(output_path, "temm_layer"))
+dir_create(path(output_path, "temm_layer/shp"))
 
 # write geojson, shp, and csv
 st_write(temm, path_geojson, delete_dsn   = TRUE)
