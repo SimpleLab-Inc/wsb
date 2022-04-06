@@ -47,8 +47,9 @@ Note: `.Renviron` needs to be set up in the root directory, `wsb/` to work with 
 To add variables, open both environment files, copy and paste into each:
 
 ```
-WSB_DATA_PATH = "path to save raw data from downloaders"
-WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
+WSB_DATA_PATH = "path to save raw data from downloaders (must end with a slash)"
+WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling (must end with a slash)"
+WSB_OUTPUTS_PATH = "path to output matching artifacts, like reports"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
 POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
