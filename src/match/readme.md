@@ -55,7 +55,7 @@ The process for matching these together is described below.
 ## Mapping
 Map all the data sources into a standard model, unioned on top of one another. That is, instead of one system having a column "pws_name" and another system having a column "FacName", we simply standardize them all to "name". This allows us to compare differences across the systems easily. Stacking them in a single table allows us to apply various sorts and joins that identify potential matches.
 
-![Mapping Diagram](img/mapping_diagram.png)
+![Mapping Diagram](../../docs/img/mapping_diagram.png)
 
 Since all the records are being stacked, we populate a few additional fields to help track their lineage:
 - `source_system` - The name of the data source that contributed the row
@@ -82,11 +82,11 @@ Then we run a series of match rules. Each rule is implemented as a simple join b
 
 For example, on the state+name match, we constrain the left side to only SDWIS, ECHO, and FRS rows in which the "state" and the "name_tkn" (containing the results of the name tokenization function) fields are populated. We constrain the right side to only TIGER and MHP rows in which "state" and "name_tkn" are populated. We then join the left to the right side where both sides match on "state" and "name_tkn". This gives us a series of "match pairs" between contributors.
 
-![Matching Diagram](img/matching_diagram.png)
+![Matching Diagram](../../docs/img/matching_diagram.png)
 
 Since there are often multiple contributors on the left side for the same PWS ID, we end up with some duplication. So we simplify these match pairs by converting the left contributor ID to its master key, then group them up. We end up with a table containing: master key (the unique PWS identifier), candidate_contributor_id (the contributor that *might* be linked to the master), and match_rule (the reasons these two records matched). We save this resulting table to the database.
 
-![Match Pairs](img/matches.png)
+![Match Pairs](../../docs/img/matches.png)
 
 There is a problem, though: Our matching generates only _candidate matches_, meaning, we don't know for sure that they are accurate matches. Depending on how we tighten or loosen our match rules, we are bound to get some number of accurate matches, and some number of inaccurate matches. It is an area of ongoing refinement to try to maximize the accurate matches and minimize inaccurate ones.
 
@@ -95,7 +95,7 @@ To determine whether our match rules are generating accurate matches, we generat
 
 The **stacked match report** displays groupings of contributors so that you can easily compare their attributes and determine if they belong together. Once the report has been exported to Excel, apply a conditional formatting rule on the "Color" column to get color bands visually indicating the match groups.
 
-![Stacked Match Report](img/stacked_match_report.png)
+![Stacked Match Report](../../docs/img/stacked_match_report.png)
 
 The **unmatched report** displays a long list of the records that did not successfully match to anything. You can manually sort and comb through this data to see if you can identify the correct matches, and develop intuitions as to why they did not match.
 

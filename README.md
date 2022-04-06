@@ -24,7 +24,7 @@ The data science **contributor guide** in the [sandbox](https://github.com/Simpl
 
 The overall **pipeline** is shown below:
 
-![](etc/diagram.png)
+![](docs/img/data_flow_diagram.png)
 
 ## Getting started
 
