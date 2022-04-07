@@ -23,7 +23,7 @@ rx <- paste0(paste(c(state.abb, "DC"), collapse = "|"), "|", "^[0-9]")
 j <- read_csv(path(staging_path, "matched_output.csv")) %>% 
   filter(!is.na(geometry_lat) | !is.na(geometry_long)) %>% 
   # filter to CWS and assume each connection must serve at least 1 person
-  filter(service_connections_count >= n_max_sc,
+  filter(service_connections_count >= n_max_sc |
          population_served_count   >= n_max_pop) %>% 
   # remove rows not in contiguous US, mostly Puerto Rico
   filter(str_detect(primacy_agency_code, rx)) %>% 
