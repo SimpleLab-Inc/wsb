@@ -89,7 +89,7 @@ The resulting national water service boundary layer is the product of a "Tiered 
 Below is a conceptual diagram of the three tiers in the TEMM approach. Tier 1 **explicit** boundaries always supersede Tier 2 **matched** proxy boundaries, which in turn always supersede Tier 3 **modeled** boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
 ```{r conceptual model, echo = FALSE}
-include_graphics(here("src/analysis/sandbox/model_explore/etc/sl-march-2020.png"))
+include_graphics(here("docs/img/tiers_diagram.png"))
 ```
 
 In the sections that follow, we summarize our approach for each of the three tiers. As we move from Tier 1 to Tier 3, uncertainty increases, hence, we describe each Tier with increasing detail and provide measures of validation and uncertainty for Tier 2 and 3 estimates.
@@ -127,9 +127,10 @@ mapviewOptions(fgb = FALSE)
 
 # load environmental variable for staging path 
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
+output_path <- Sys.getenv("WSB_OUTPUT_PATH")
 
 # read TEMM spatial output for key resul summary stats below
-temm <- dir_ls(here("temm_layer"), glob = "*geojson") %>% 
+temm <- dir_ls(path(output_path, "temm_layer"), glob = "*geojson") %>% 
   # get the most up to date temm spatial geojson layer if there are many
   sort() %>% rev() %>% .[1] %>% 
   st_read(quiet = TRUE) %>% 
@@ -444,7 +445,7 @@ dg2 %>%
 The national water service boundary layer is too large (i.e., around 400 MB) to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.
 
 ```{r temm nationwide wsb}
-include_graphics(here("src/analysis/sandbox/model_explore/etc/temm-nation.png"))
+include_graphics(here("docs/img/temm-nation.png"))
 ```
 
 Here, we zoom into California, Nevada, and Oregon -- four states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Click on the layers icon to toggle between Tiers.
@@ -519,7 +520,7 @@ J = \frac{A_T \cap A_E }{A_E}
 $$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$. The Jacard similarity $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
-# Tier 2 TIGER geometries for explicit boundaries
+e# Tier 2 TIGER geometries for explicit boundaries
 tiger <- path(staging_path, "tigris_places_clean.geojson") %>% 
   st_read(quiet = TRUE) %>% 
   select(tiger_match_geoid = geoid)
@@ -571,8 +572,8 @@ f_intersection <- function(x){
 #t1$jacard <- as.numeric(t1$area_intersection / t1$area_t1)
 
 # load pre-computed result from above b/c the previous 2 lines take time
-#write_rds(t1, here("staging/t1_jacard.rds"))
-t1 <- read_rds(here("staging/t1_jacard.rds"))
+#write_rds(t1, path(staging_path, "t1_jacard.rds"))
+t1 <- read_rds(path(staging_path, "t1_jacard.rds"))
 
 # sanity check that intersection worked
 # j = 6
@@ -620,8 +621,8 @@ f_distance <- function(x){
 #zjd <- map_dbl(1:nrow(t1_zero), ~f_distance(.x)) # slow
 
 # load pre-computed result from above because it takes a while to run
-#write_rds(zjd, here("staging/zero_dist_non_intersects.rds"))
-zjd <- read_rds(here("staging/zero_dist_non_intersects.rds"))
+#write_rds(zjd, path(staging_path, "zero_dist_non_intersects.rds"))
+zjd <- read_rds(path(staging_path, "zero_dist_non_intersects.rds"))
 
 # histogram of distances in km
 tibble(dist = zjd) %>% 

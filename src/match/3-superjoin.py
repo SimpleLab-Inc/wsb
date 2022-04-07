@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OUTPUT_PATH = os.path.join(os.environ["WSB_STAGING_PATH"], "..", "outputs")
+STAGING_PATH = os.environ["WSB_STAGING_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 PROJ = os.environ["WSB_EPSG_AW"]
 
@@ -274,6 +274,6 @@ output = output.drop(columns=["ucmr_lat", "ucmr_long", "mhp_geometry_lat", "mhp_
 # Save the results to a file
 ############################
 
-output.to_csv(os.path.join(OUTPUT_PATH, "matched_output.csv"), index=False)
+output.to_csv(os.path.join(STAGING_PATH, "matched_output.csv"), index=False)
 
 print("Saved matched_output.csv")

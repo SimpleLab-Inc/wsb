@@ -24,7 +24,7 @@ The data science **contributor guide** in the [sandbox](https://github.com/Simpl
 
 The overall **pipeline** is shown below:
 
-![](etc/diagram.png)
+![](docs/img/data_flow_diagram.png)
 
 ## Getting started
 
@@ -49,6 +49,7 @@ To add variables, open both environment files, copy and paste into each:
 ```
 WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
+WSB_OUTPUTS_PATH = "path to output matching artifacts, like reports"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
 POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
