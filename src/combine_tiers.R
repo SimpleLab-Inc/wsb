@@ -73,7 +73,7 @@ cat("done.\n")
 
 # Separate Tiers 1-3 from matched output, join to spatial data, and bind
 dt1 <- d %>% filter(tier == "Tier 1") %>% left_join(t1) %>% st_as_sf()
-dt2 <- d %>% filter(tier %in% c("Tier 2a", "Tier2b")) %>% left_join(t2) %>% st_as_sf() 
+dt2 <- d %>% filter(tier %in% c("Tier 2a", "Tier 2b")) %>% left_join(t2) %>% st_as_sf() 
 dt3 <- d %>% filter(tier == "Tier 3") %>% left_join(t3) %>% st_as_sf()
 
 temm <- bind_rows(dt1, dt2, dt3)

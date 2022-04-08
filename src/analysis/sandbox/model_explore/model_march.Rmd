@@ -76,9 +76,9 @@ theme_report <- theme_minimal() + theme(panel.grid.minor = element_blank())
 
 # Introduction {#introduction}
 
-In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. This report builds on a previous technical memorandum (`eda_february.html`) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informs the approach taken herein.
+In this report, we present a nationwide water service spatial boundary layer for community water systems and explain the tiered approach taken towards this end. The water service boundary layer produced in this report should not be interpreted as a final product, but rather, one that may be improved with the assimilation of additional water service boundaries from states and improvements to the methodology.
 
-The resulting national water service boundary layer is the product of a "Tiered Explicit, Match, and Model" (henceforth, **TEMM**) approach. The TEMM is composed of three hierarchical tiers, arranged by data and model fidelity.
+This report builds on a previous technical memorandum (`eda_february.html`) that should be read as prerequisite material to understand the broader context, background, and exploratory data analysis (EDA) that informs the approach taken herein. The resulting national water service boundary layer is the product of a "Tiered Explicit, Match, and Model" (henceforth, **TEMM**) approach. The TEMM is composed of three hierarchical tiers, arranged by data and model fidelity.
 
 1.  Whenever present, we use *explicit water service boundaries* (labeled data). These are spatial polygon data, typically provided at the state-level.\
 2.  In the absence of explicit water service boundary data, we use a matching algorithm to match PWSIDs by spatial intersection and name to [TIGER place polygons](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html){target="_blank"}. When a water system and TIGER place match one-to-one, we label this Tier 2a. When multiple water systems match to the same TIGER place, we label this Tier 2b. Tier 2b reflects overlapping boundaries for multiple systems--which require future validation. We validate this heuristic approach on explicit water service boundaries[^1], and find favorable results consistent with findings by [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries.\
@@ -101,7 +101,7 @@ Finally, we encourage the reader to consider the TEMM water service boundary lay
 ## Data Sources
 
 | Data Source                                              | Description                                                                                                             | Link                                                                                                                                                                                                          |
-|------------------|--------------------|----------------------------------|
+|-------------------|--------------------|----------------------------------|
 | EPA Safe Drinking Water Information Systems              | Public water systems "master list" with key attribute data and some tabular geographic data like cities served          | [SDWIS MODEL](https://www.epa.gov/enviro/sdwis-model)                                                                                                                                                         |
 | EPA Enforcement and Compliance History Online            | Public water system facilities archive, drawing lat/long data for facilities centroids from FRS                         | [ECHO Exporter](https://echo.epa.gov/tools/data-downloads#exporter)                                                                                                                                           |
 | EPA Facilities Registry Service                          | FRS regularly updates facilities data with lat/long information, which pipes into ECHO                                  | [FRS Geospatial](https://www.epa.gov/frs/geospatial-data-download-service)                                                                                                                                    |
@@ -130,7 +130,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 output_path <- Sys.getenv("WSB_OUTPUT_PATH")
 
 # read TEMM spatial output for key resul summary stats below
-temm <- dir_ls(path(output_path, "temm_layer"), glob = "*geojson") %>% 
+temm <- dir_ls(path(output_path, "temm_layer/"), glob = "*geojson") %>% 
   # get the most up to date temm spatial geojson layer if there are many
   sort() %>% rev() %>% .[1] %>% 
   st_read(quiet = TRUE) %>% 
@@ -159,7 +159,7 @@ d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
 # total water system count
 nrow_d <- nrow(d)
 
-# popultion served by all water systems
+# population served by all water systems
 pop_total <- sum(d$population_served_count)
 
 # calculate count and proportion of people served by each tier
@@ -169,6 +169,28 @@ pop <- d %>%
     count = format_bign(sum(population_served_count)),
     prop  = round((sum(population_served_count)/pop_total)*100, 2)
   )
+
+# calculate count and proportion of water systems by each tier
+sys <- d %>% 
+  group_by(tier) %>% 
+  summarize(
+    count = n(),
+    prop  = round((sum(count)/nrow_d)*100, 2)
+  )
+
+# read in sdwis original set of water systems for comparisons
+acws <- read_csv(path(staging_path, "sdwis_water_system.csv")) %>%
+  filter(pws_activity_code == "A" &
+           pws_type_code == "CWS")
+
+# number of active, community water systems in SDWIS
+n_acws <- acws %>% nrow()
+
+# population served by active, community water systems in SDWIS
+pop_acws <- acws %>% 
+  summarise(pop = sum(population_served_count)) %>%
+  pull(pop)
+
 ```
 
 The following outline reflects a summary of key findings, followed by a description of each Tier in the TEMM approach. Notably, the TEMM may be refined and re-run as new data sources are ingested or improvements are made to matching and modeling algorithms.
@@ -181,6 +203,11 @@ The following outline reflects a summary of key findings, followed by a descript
     -   *Tier 2a*: `r pop$prop[2]`% population covered (`r pop$count[2]` people)\
     -   *Tier 2b*: `r pop$prop[3]`% population covered (`r pop$count[3]` people)\
     -   *Tier 3*: `r pop$prop[4]`% population covered (`r pop$count[4]` people)\
+-   CWS coverage rates per Tier:
+    -   *Tier 1*: `r sys$prop[1]`% system covered (`r sys$count[1]` systems)\
+    -   *Tier 2a*: `r sys$prop[2]`% system covered (`r sys$count[2]` systems)\
+    -   *Tier 2b*: `r sys$prop[3]`% system covered (`r sys$count[3]` systems)\
+    -   *Tier 3*: `r sys$prop[4]`% system covered (`r sys$count[4]` systems)\
 -   The distribution of population in each of these Tiers varies by state (see [state-level coverage map](#Tier_coverage_-_statewide)).\
 -   Favorable uncertainty metrics for Tier 2 and 3 estimates suggest that the TEMM approach provides a reasonable preliminary water service boundary layer.
 
@@ -207,7 +234,7 @@ The following outline reflects a summary of key findings, followed by a descript
 
 -   Circular water service boundary estimates were then calculated for all water systems; median, 5% and 95% confidence intervals reflect medium, low, and high water service boundary estimates.
 
--   The the multiple linear regression fit has an impressive $R^2 = 0.66$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area. EDA, Random Forest, and xgboost models confirm the importance of service connection count as an explanatory variable.
+-   The multiple linear regression fit has an impressive $R^2 = 0.66$ and is mostly explained by service connection count, which intuitively makes sense: there is roughly linear scaling between service connection count and the spatial extent of a water service area. EDA, Random Forest, and xgboost models confirm the importance of service connection count as an explanatory variable.
 
 ***Combine Tiers***
 
@@ -241,18 +268,27 @@ The key result of this study is a nationwide water service boundary layer. Here 
 
 ## Tier coverage - nationwide
 
-In total, the TEMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by `r format_bign(nrow_d)` water systems[^3].
+In total, the TEMM data layer represents tap water delivery to `r round(pop_total/1e6, 2)` million people served by `r format_bign(nrow_d)` water systems[^3]. This amounts to `r round(pop_total/pop_acws*100,2)`% of the population reportedly served by active community water systems in SDWIS and `r round(nrow_d/n_acws*100,2)`% of active community water systems in SDWIS.
 
-[^3]: Some water systems were excluded from this data layer. Specifically, 354 water systems were dropped because they had reported service connections less than 15 or population count less than 25, which we categorize as unreasonable given that community water systems are defined as serving at least 15 connections and 25 population served. Next, we removed 834 water systems associated with US territories; most excluded water systems in this step are found in Puerto Rico.
+[^3]: Some water systems were excluded from this data layer. Specifically, 4,526 water systems were dropped because they either had reported service connections less than 15 or population count less than 25 or were associated with US territories; most excluded water systems in this step are found in Puerto Rico. Future efforts should refine service connection and population data in these systems.
 
 About `r str_sub(pop$count, 1, 3)[1]` million people are covered by Tier 1 spatial data -- impressive given that only `r wsb_labeled_clean$state %>% unique() %>% length()` states that provided explicit boundary data. However, this relatively high coverage rate is unsurprising because these states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`) include notable centers of high-population like CA, TX, and PA.
 
-Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:3], ",")))), 1, 3)` million people (`r sum(pop$prop[1:3])`% of the population) are covered by either a Tier 1 or a Tier 2 spatial boundary. The remaining approximately `r str_split(pop$count[4], ",", simplify = TRUE)[1]` million people (`r pop$prop[4]`%) are covered by a Tier 3 boundary. These results indicate high confidence in the spatial accuracy of the resulting TEMM water boundary layer for community water systems.
+Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ",")))), 1, 3)` million people (`r sum(pop$prop[1:2])`% of the population) are covered by either a Tier 1 or a Tier 2a spatial boundary. This is an underestimation--because many systems assigned to Tier 2b are likely to be moved to Tier 2a with further refinement. However, until further development of rules to disaggregate Tier 2b into Tier 2a and Tier 3 boundary types are developed, we evaluate the accuracy conservatively. Therefore the remaining approximately `r str_split(pop$count[3:4], ",", simplify = TRUE)[1]` million people (`r sum(pop$prop[3:4])`%) represented in the layer are covered by a less accurate, Tier 2b or Tier 3 boundary. These results indicate relatively high confidence in the spatial accuracy of the resulting TEMM water boundary layer for a majority of the population served by community water systems.
 
-```{r temm nationwide kable}
+```{r temm nationwide pop kable}
 pop %>% 
   kable(col.names = c("Tier", "Population count", 
                       "Population proportion (%)"), 
+        align = rep("l", 3)) %>% 
+  kableExtra::kable_styling(full_width = FALSE)
+```
+
+Together, around `r sum(sys$count[1:2])` community water systems (`r sum(sys$prop[1:2])`% of systems in layer) are covered by either a Tier 1 or a Tier 2a spatial boundary. The remaining approximately `r str_split(sys$count[3:4], ",", simplify = TRUE)[1]` water systems (`r sum(sys$prop[3:4])`%) are covered by a Tier 2b or Tier 3 boundary. 
+```{r temm nationwide cws kable}
+sys %>% 
+  kable(col.names = c("Tier", "Community Water Systems\ncount", 
+                      "Community Water Systems\nproportion (%)"), 
         align = rep("l", 3)) %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
@@ -427,7 +463,40 @@ dg2 %>%
 
 <br>
 
-A data table of the the above plots is provided below.
+A data table of Tier categories across system sizes, nationwide, is provided below. Proportion represents the proportion of Tier within the size class.
+
+```{r datatable temm tier distribution by system size}
+# dataframe for barplot geofacet: prop of each each tier per size class
+d %>% 
+  mutate(
+    size_class = case_when(
+      service_connections_count <= 500 ~ "Very Small",
+      service_connections_count > 500 & service_connections_count <= 3300 ~ "Small",
+      service_connections_count > 3300 & service_connections_count <= 10000 ~ "Medium",
+      service_connections_count > 10000 & service_connections_count <= 100000 ~ "Large",
+      service_connections_count > 100000 ~ "Very Large"),
+    size_class = factor(size_class, levels = size_lvls)
+  ) %>% 
+  group_by(size_class) %>%
+  # total count of tiers per state and size class
+  mutate(size_class_count = n()) %>%
+  ungroup() %>%
+  group_by(size_class, tier) %>%
+  # calculate count/proportion of tiers per state and size class
+  summarise(
+    count = n(),
+    prop  = round(count/size_class_count,2)
+  ) %>% 
+  ungroup() %>% 
+  distinct() %>% 
+  # add missing NA values per state code and tier group
+  complete(size_class, tier, 
+           fill = list(count = 0, prop = 0)) %>%
+  dt_make()
+```
+
+
+A data table of the the above plots, looking at Tier counts by primacy agency code, is provided below.
 
 ```{r datatable temm tier distribution per state and system size}
 dg2 %>% 
@@ -448,7 +517,7 @@ The national water service boundary layer is too large (i.e., around 400 MB) to 
 include_graphics(here("docs/img/temm-nation.png"))
 ```
 
-Here, we zoom into California, Nevada, and Oregon -- four states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Click on the layers icon to toggle between Tiers.
+Here, we zoom into California, Nevada, and Oregon -- three states with high proportions of Tier 1, 2, and 3 spatial boundaries respectively. The Tier 3 circular buffers in this interactive map represent median (50th percentile) model estimates. Click on the layers icon to toggle between Tiers.
 
 ```{r temm zoom ca nv or}
 # plot CA, NV, OR
@@ -505,7 +574,7 @@ A detailed overview of the Tier 2 matching approach is provided in the project G
 
 A master list of active, community water systems is derived from SDWIS data. Supporting locational information-- such as city served-- is joined from supporting SDWIS tables. Federal water facility data (i.e., ECHO, FRS) exist with spatial centroids (latitude/longitude of the water system facility), but no federal sources provide explicit spatial boundaries. While ECHO is a superset of FRS centroids, both data sources are used because they result in improved matching. Many centroids in the ECHO database are poor quality because they are merely the centroid of the county or state of the water system. In these cases, where available, zip code centroids are substituted based on the zipcode served data provided for select water systems in the UCMR dataset or for mobile homes, the MHP dataset.
 
-We match water system name, city served name, and spatial attributes of these data (centroids) to US Census Place spatial polygons (TIGER shapefiles), which are assumed to represent reasonable proxy water system boundaries. Matched TIGER polygon boundaries thus represent what we call "Tier 2" boundaries. Multiple matches are possible among the different match strategies, and thus a set of steps outlined in the methodology are taken to assign the best match. Best matches are based on rules that are validated against systems with existing labeled boundaries. Many water systems match TIGER places one-to-one (Tier 2a). Still, multiple water systems can match to the same TIGER place. This makes sense--as many urban areas contain multiple water systems (Tier 2b). For the MVP model, we allow for the overlap of water systems within the same TIGER polygon (Tier 2b). A future step includes rules to assign all Tier 2b systems to either Tier 2a or Tier 3.
+We match water system name, city served name, and spatial attributes of these data (centroids) to US Census Place spatial polygons (TIGER shapefiles), which are assumed to represent reasonable proxy water system boundaries. Matched TIGER polygon boundaries thus represent what we call "Tier 2" boundaries. Multiple matches are possible among the different match strategies, and thus a set of steps outlined in the methodology are taken to assign the best match. Best matches are based on rules that are validated against systems with existing labeled boundaries. Many water systems match TIGER places one-to-one (Tier 2a). Still, multiple water systems can match to the same TIGER place. Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. This makes sense--as many urban areas contain multiple water systems (Tier 2b). For the MVP model, we allow for the overlap of water systems within the same TIGER polygon (Tier 2b). A future step should include rules to assign all Tier 2b systems to either Tier 2a or Tier 3.
 
 The uncertainty of using TIGER polygons as proxies for water system boundaries is evaluated in the next section.
 
@@ -520,7 +589,7 @@ J = \frac{A_T \cap A_E }{A_E}
 $$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and the explicit Tier 1 water service boundary area ($A_E$). Thus, the quantity $J$ is a closed interval between 0 and 1, inclusive: $\{J \space \space | \space \space 0 \le J \le 1\}$. Importantly, $A_T$ can fall outside of $A_E$. The Jacard similarity $J$ measures the proportion of coverage that $A_T$ provides over $A_E$.
 
 ```{r modified jacard similarity on tiger place match and labeled wsb}
-e# Tier 2 TIGER geometries for explicit boundaries
+# Tier 2 TIGER geometries for explicit boundaries
 tiger <- path(staging_path, "tigris_places_clean.geojson") %>% 
   st_read(quiet = TRUE) %>% 
   select(tiger_match_geoid = geoid)
@@ -1181,7 +1250,7 @@ No model is without limitations. In this section, we highlight key limitations a
 
 ## Tier 2b Boundaries
 
-Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. Boundaries for these systems require further validation. 
+Where water systems match to the same TIGER boundary, the proxy boundary for those systems is perfectly overlapping. Boundaries for these systems require further validation.
 
 <br>
 
@@ -1262,9 +1331,9 @@ d %>%
 Beyond a discussion of how the TEMM spatial layer may be used (covered in the next section, [Contributions](#contributions)) we advise the following improvements to the pipeline for creating the TEMM spatial layer. In order of importance:
 
 1.  **Data collection and refinement**
-    -   *Collect additional Tier 1 data.* Explicit boundary data supersedes Tier 2 TIGER proxy matches and Tier 3 modeled water system boundaries. Moreover, additional Tier 1 data improves Tier 3 model predictions by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would supersede all Tier 2 and 3 matches and estimates and reduce the pipeline presented herein to a simple data cleaning and assimilation task.
+    -   *Collect additional Tier 1 data.* Explicit boundary data supersedes Tier 2 TIGER proxy matches and Tier 3 modeled water system boundaries. Moreover, additional Tier 1 data improves Tier 3 model predictions by providing more training data for similar systems with missing boundary data or a matching TIGER place. In theory, explicit boundary data for each state across the USA would supersede all Tier 2 and 3 matches and estimates and reduce the pipeline presented herein to a simple data cleaning and assimilation task. Potential buffering of state water line data to approximate water systems is another potential option for states with this kind of data, e.g. Kentucky.
     -   *Gather labeled boundaries for tribal systems.* Tribal systems are currently underrepresented (and territories if coverage is to be extended to these regions). Coordination should target the collection of Tier 1 data for these systems.
-    -   *Gather additional data to support technical efforts.* In particular, centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} and state-provided municipal boundaries may be used to address the pancake problem and improve the matching algorithm, respectively (described below).
+    -   *Gather additional data to support technical efforts.* In particular, centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} and state-provided municipal boundaries may be used to address the pancake problem and improve the matching algorithm, respectively (described below). Another area for data improvement is to fill in data gaps around population or connections served that result in the loss of systems with missing data.
 2.  **Data pipeline and methodological improvements**
     -   *Address the "Pancake Problem".* Low-accuracy centroids challenge the usefulness of the TEMM layer and introduce uncertainty into analyses that depend on these data. An approach to re-center low-accuracy centroids (i.e., state and county level centroid accuracy) may be to "spatially dis-aggregate" or "spread out" the pancakes to more reasonable locations, like the centroids of [cities and towns](https://hifld-geoplatform.opendata.arcgis.com/datasets/cities-and-towns-ntad/explore?location=44.247405%2C-113.640330%2C3.84&showTable=true){target="_blank"} that fall within the county/state (depending on the centroid accuracy). Candidate cities for pancakes may be identified via a name match.
     -   *Improve "Match" and "Model" Tiers 2-3.* Improvements may be made to Tier 2 matching and Tier 3 modeling. Specifically, matching may be improved by using state-provided municipal boundaries, which [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"} showed to improve upon Census Place boundaries. Addressing multiple systems matching to the same Census Place is another area for improvement, to reduce the number of systems with overlapping boundaries. A further match rule might be incorporated to assign only one system to the full TIGER boundary, and apply Tier 3 model to the remaining systems.
