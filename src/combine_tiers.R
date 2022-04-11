@@ -84,9 +84,9 @@ cat("Combined a spatial layer using best available tiered data.\n")
 # write to multiple output formats ----------------------------------------
 
 # paths to write
-path_geojson  <- path(output_path, "temm_layer", glue("{Sys.Date()}_temm.geojson"))
-path_shp      <- path(output_path, "temm_layer/shp", glue("{Sys.Date()}_temm.shp"))
-path_csv      <- path(output_path, "temm_layer",     glue("{Sys.Date()}_temm.csv"))
+path_geojson  <- path(output_path, "temm_layer", glue("temm.geojson"))
+path_shp      <- path(output_path, "temm_layer/shp", glue("temm.shp"))
+path_csv      <- path(output_path, "temm_layer",     glue("temm.csv"))
 
 # create dirs
 dir_create(path(output_path, "temm_layer"))
