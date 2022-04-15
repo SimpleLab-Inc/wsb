@@ -41,6 +41,7 @@ output:
 library(knitr)
 library(here)
 library(ggplot2)
+library(bookdown)
 
 # env vars
 epsg <- as.numeric(Sys.getenv("WSB_EPSG"))
@@ -88,7 +89,7 @@ This report builds on a previous technical memorandum (`eda_february.html`) that
 
 Below is a conceptual diagram of the three tiers in the TEMM approach. Tier 1 **explicit** boundaries always supersede Tier 2 **matched** proxy boundaries, which in turn always supersede Tier 3 **modeled** boundaries. Thus, the resulting the resulting water service boundary layer described in this report is combination of all three tiers, and depends on data availability for the water system, and whether or not it matches to a TIGER place.
 
-```{r conceptual model, echo = FALSE}
+```{r conceptual model, echo = FALSE, fig.cap = "Fig 1. Conceptual diagram of water service boundary tiers"}
 include_graphics(here("docs/img/tiers_diagram.png"))
 ```
 
@@ -100,8 +101,10 @@ Finally, we encourage the reader to consider the TEMM water service boundary lay
 
 ## Data Sources
 
+Table 1. Data sources for TEMM layer.
+
 | Data Source                                              | Description                                                                                                             | Link                                                                                                                                                                                                          |
-|-------------------|--------------------|----------------------------------|
+|-------------------|--------------------|---------------------------------|
 | EPA Safe Drinking Water Information Systems              | Public water systems "master list" with key attribute data and some tabular geographic data like cities served          | [SDWIS MODEL](https://www.epa.gov/enviro/sdwis-model)                                                                                                                                                         |
 | EPA Enforcement and Compliance History Online            | Public water system facilities archive, drawing lat/long data for facilities centroids from FRS                         | [ECHO Exporter](https://echo.epa.gov/tools/data-downloads#exporter)                                                                                                                                           |
 | EPA Facilities Registry Service                          | FRS regularly updates facilities data with lat/long information, which pipes into ECHO                                  | [FRS Geospatial](https://www.epa.gov/frs/geospatial-data-download-service)                                                                                                                                    |
@@ -187,9 +190,7 @@ acws <- read_csv(path(staging_path, "sdwis_water_system.csv")) %>%
 n_acws <- acws %>% nrow()
 
 # population served by active, community water systems in SDWIS
-pop_acws <- acws %>% 
-  summarise(pop = sum(population_served_count)) %>%
-  pull(pop)
+pop_acws <- sum(acws$population_served_count)
 
 ```
 
@@ -226,7 +227,7 @@ The following outline reflects a summary of key findings, followed by a descript
 
 ***Tier 3: Modeled boundaries***
 
--   Models are based on centroids provided by ECHO and FRS. Where geometry accuracy is low (i.e. county centroid or state centroid), centroids of zip codes served from UCMR or mobile home park centroids are used.
+-   Models are based on centroids provided by ECHO and FRS. Where geometry accuracy is low (i.e. county centroid or state centroid), centroids of zip codes served from UCMR or mobile home park centroids are used, if available. 
 
 -   Random Forest, xgboost, and multiple linear regression models were fit to Tier 1 labeled boundaries to develop a model that estimates water system radii and spatial boundaries at all systems nationwide.
 
@@ -238,7 +239,7 @@ The following outline reflects a summary of key findings, followed by a descript
 
 ***Combine Tiers***
 
--   After boundaries from all three Tiers are assimilated, matched, or modeled, they are combined into a final spatial data layer. As depicted in the figure above, Tier 1 boundaries always supersede Tier 2 boundaries, which always supersede Tier 3 boundaries.
+-   After boundaries from all three Tiers are assimilated, matched, or modeled, they are combined into a final spatial data layer. As depicted in Figure 1 above, Tier 1 boundaries always supersede Tier 2 boundaries, which always supersede Tier 3 boundaries.
 
 ***Limitations***
 
@@ -280,16 +281,19 @@ Together, around `r str_sub(sum((as.numeric(str_remove_all(pop$count[1:2], ","))
 pop %>% 
   kable(col.names = c("Tier", "Population count", 
                       "Population proportion (%)"), 
-        align = rep("l", 3)) %>% 
+        align = rep("l", 3),
+        caption = "Table 2. Population coverage by tier") %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
-Together, around `r sum(sys$count[1:2])` community water systems (`r sum(sys$prop[1:2])`% of systems in layer) are covered by either a Tier 1 or a Tier 2a spatial boundary. The remaining approximately `r str_split(sys$count[3:4], ",", simplify = TRUE)[1]` water systems (`r sum(sys$prop[3:4])`%) are covered by a Tier 2b or Tier 3 boundary. 
+Together, around `r sum(sys$count[1:2])` community water systems (`r sum(sys$prop[1:2])`% of systems in layer) are covered by either a Tier 1 or a Tier 2a spatial boundary. The remaining approximately `r sum(sys$count[3:4])` water systems (`r sum(sys$prop[3:4])`%) are covered by a Tier 2b or Tier 3 boundary.
+
 ```{r temm nationwide cws kable}
 sys %>% 
-  kable(col.names = c("Tier", "Community Water Systems\ncount", 
-                      "Community Water Systems\nproportion (%)"), 
-        align = rep("l", 3)) %>% 
+  kable(col.names = c("Tier", "CWS\ncount", 
+                      "CWS\nproportion (%)"), 
+        align = rep("l", 3),
+        caption = "Table 3. Community water system (CWS) coverage by tier") %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
@@ -303,7 +307,7 @@ Next, we show the proportion of population covered in the *final spatial layer* 
 -   Together, Tiers 2a/2b (teal and dark blue bars below) cover more population than Tier 3 across nearly all states. In some states, Tier 2a is more common than Tier 2b.\
 -   Tier 3 coverage (orange bars below) is not uniform across states. This implies that the Tier 2 matching algorithm may perform better in some states, and may depend on factors that vary across states, like centroid accuracy and water system type (e.g., municipal).
 
-```{r geofacet temm tier distribution per state}
+```{r geofacet temm tier distribution per state, fig.cap = "Fig 2. TEMM Tier distribution by state"}
 # dataframe for barplot geofacet: population prop served by each tier
 dg <- d %>% 
   group_by(primacy_agency_code) %>%
@@ -342,9 +346,9 @@ dg %>%
   theme(panel.grid.minor.x = element_blank())
 ```
 
-Native American primacy codes show missing Tier 1 data and a generally higher proportion of Tier 3 data compared to state primacy codes.
+Native American water systems are designated in their water system id (pwsid) by their respective EPA region. For a full map of EPA regions see [here](https://www.epa.gov/aboutepa/regional-and-geographic-offices). Below we show that most of these systems lack Tier 1 data and have generally higher proportion of Tier 3 data compared to state primacy codes.
 
-```{r facet temm distribution native american}
+```{r facet temm distribution native american, fig.cap = "Fig 3. TEMM Tier distribution of systems in Native American territories-by EPA agency"}
 dg %>% 
   # filter to Native American primacy codes
   filter(! primacy_agency_code %in% c(state.abb, "DC")) %>% 
@@ -359,13 +363,19 @@ dg %>%
   guides(fill = "none") +
   theme_minimal(base_size = 6) +
   theme(panel.grid.minor.x = element_blank())
+
+# Data on number of native american territory systems overall vs. final set
+nam_rep <- d %>% filter(! primacy_agency_code %in% c(state.abb, "DC"),
+                        ! primacy_agency_code %in% c("PR", "VI", "NN", "AS", "MP", "GU")) %>% nrow()
+nam <- acws %>% filter(! primacy_agency_code %in% c(state.abb, "DC"), 
+                ! primacy_agency_code %in% c("PR", "VI", "NN", "AS", "MP", "GU")) %>% nrow()
 ```
 
 <br>
 
-A data table of the the above plots is provided below.
+In total, of the `r nam` systems in Native American territories nationwide, the final database after data loss due to missing centroids represents `r nam_rep` (`r round(nam_rep/nam*100,2)`%) systems in Native American territories. A data table of the the above plots is provided below.
 
-```{r datatable temm tier distribution per state}
+```{r datatable temm tier distribution per state, fig.cap="Table 4. TEMM tier distribution by state"}
 dg %>% 
   mutate(
     prop  = ifelse(is.na(prop), 0, prop),
@@ -382,20 +392,21 @@ Next, for each state, we quantify the proportion of systems in each Tier by wate
 
 ```{r epa sys size}
 tribble(
-~`EPA classification`, ~`Connection count`,
+~`EPA classification`, ~`Population Size`,
  "Very Small",            "500 or less",
  "Small",                 "501 - 3,300",
  "Medium",                "3,301 - 10,000",
  "Large",                 "10,001 - 100,000",
  "Very Large",            ">100,000"
 ) %>% 
-  kable(align = rep("l", 2)) %>% 
+  kable(align = rep("l", 2),
+        caption = "Table 5. EPA system size categorization") %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
 In states that lack Tier 1 boundaries, "Very Small" and "Small" systems tend to have higher proportions of Tier 3 boundaries (grey bars) compared to larger systems. This result is unsurprising because Tier 2 spatial matches hinge on connecting water systems to Census "Places" which tend to be more populous areas. We therefore expect that smaller systems lack a Tier 2 match, and are hence covered by Tier 3 boundaries. When Tier 1 data is present, it seems to cover all system sizes (i.e., CA, NJ, TX), with a slight bias towards covering larger systems (e.g., OK, WA, CT).
 
-```{r temm statewide system size}
+```{r temm statewide system size, fig.cap = "Fig 4. TEMM Tier distribution by system size"}
 # water system size levels in table above
 size_lvls <- c("Very Small", "Small", "Medium", "Large", "Very Large")
 
@@ -403,11 +414,11 @@ size_lvls <- c("Very Small", "Small", "Medium", "Large", "Very Large")
 dg2 <- d %>% 
   mutate(
     size_class = case_when(
-      service_connections_count <= 500 ~ "Very Small",
-      service_connections_count > 500 & service_connections_count <= 3300 ~ "Small",
-      service_connections_count > 3300 & service_connections_count <= 10000 ~ "Medium",
-      service_connections_count > 10000 & service_connections_count <= 100000 ~ "Large",
-      service_connections_count > 100000 ~ "Very Large"),
+      population_served_count <= 500 ~ "Very Small",
+      population_served_count > 500 & population_served_count <= 3300 ~ "Small",
+      population_served_count > 3300 & population_served_count <= 10000 ~ "Medium",
+      population_served_count > 10000 & population_served_count <= 100000 ~ "Large",
+      population_served_count > 100000 ~ "Very Large"),
     size_class = factor(size_class, levels = size_lvls)
   ) %>% 
   group_by(primacy_agency_code, size_class) %>%
@@ -431,7 +442,7 @@ dg2 %>%
   ggplot(aes(size_class, prop, fill = tier)) + 
   geom_col(position = "stack") + 
   coord_flip() +
-  scale_fill_carto_d() +
+  scale_fill_carto_d(direction = -1) +
   scale_y_continuous(breaks = c(0, 1, 0.5), 
                      labels = c(0, 1, 0.5)) +
   geofacet::facet_geo(~primacy_agency_code) +
@@ -442,9 +453,9 @@ dg2 %>%
   theme(panel.grid.minor.x = element_blank(), legend.position = c(0.95, 0.15))
 ```
 
-Repeating the above analysis for Native American primacy codes, we see that Native American systems are generally small or very small according to EPA size classification.
+Repeating the above analysis for primacy codes indicating Native American territories, we see that Native American systems are generally small or very small according to EPA size classification.
 
-```{r temm statewide system size native american}
+```{r temm statewide system size native american, fig.cap = "Fig 5. TEMM Tier distribution of systems in Native American territories-by system size"}
 dg2 %>% 
   filter(! primacy_agency_code %in% c(state.abb, "DC")) %>% 
   ggplot(aes(size_class, prop, fill = tier)) + 
@@ -455,7 +466,7 @@ dg2 %>%
                      labels = c(0, 1, 0.5)) +
   facet_wrap(~primacy_agency_code) +
   labs(x = "", 
-       y = "Proportion of Systems Covered by Each Tier, Split by System Size",
+       y = "Proportion of Systems Covered by Each Tier, Split by System Size (Population)",
        fill = "Tier") +
   theme_minimal(base_size = 6) +
   theme(panel.grid.minor.x = element_blank())
@@ -465,16 +476,16 @@ dg2 %>%
 
 A data table of Tier categories across system sizes, nationwide, is provided below. Proportion represents the proportion of Tier within the size class.
 
-```{r datatable temm tier distribution by system size}
+```{r datatable temm tier distribution by system size, fig.cap = "Table 6. TEMM Tier distribution by system size" }
 # dataframe for barplot geofacet: prop of each each tier per size class
 d %>% 
   mutate(
     size_class = case_when(
-      service_connections_count <= 500 ~ "Very Small",
-      service_connections_count > 500 & service_connections_count <= 3300 ~ "Small",
-      service_connections_count > 3300 & service_connections_count <= 10000 ~ "Medium",
-      service_connections_count > 10000 & service_connections_count <= 100000 ~ "Large",
-      service_connections_count > 100000 ~ "Very Large"),
+      population_served_count <= 500 ~ "Very Small",
+      population_served_count > 500 & population_served_count <= 3300 ~ "Small",
+      population_served_count > 3300 & population_served_count <= 10000 ~ "Medium",
+      population_served_count > 10000 & population_served_count <= 100000 ~ "Large",
+      population_served_count > 100000 ~ "Very Large"),
     size_class = factor(size_class, levels = size_lvls)
   ) %>% 
   group_by(size_class) %>%
@@ -495,10 +506,9 @@ d %>%
   dt_make()
 ```
 
-
 A data table of the the above plots, looking at Tier counts by primacy agency code, is provided below.
 
-```{r datatable temm tier distribution per state and system size}
+```{r datatable temm tier distribution per state and system size, fig.cap = "Table 7. TEMM Tier distribution by system size and primacy agency code"}
 dg2 %>% 
   mutate(
     prop  = ifelse(is.na(prop), 0, prop),
@@ -513,7 +523,7 @@ dg2 %>%
 
 The national water service boundary layer is too large (i.e., around 400 MB) to plot in this interactive report, thus we show a static map below to illustrate the coverage provided by the Tiers 1-3 in the proportions described above, and direct the reader to the TEMM spatial layer in the project repository.
 
-```{r temm nationwide wsb}
+```{r temm nationwide wsb, fig.cap = "Fig 6. Nationwide TEMM water system boundary layer "}
 include_graphics(here("docs/img/temm-nation.png"))
 ```
 
@@ -535,7 +545,7 @@ Next, we review the construction of each Tier.
 
 Tier 1 boundaries are the most straightforward to understand: states provide explicit data, and when they do, these boundaries tend to cover nearly the entire population served by water systems. Tier 1 data *missingness* challenges the accuracy of downstream Tier 2 and 3 boundary estimates. At the time of writing, Tier 1 data is present for `r wsb_labeled_clean$state %>% unique() %>% length()` states (`r wsb_labeled_clean$state %>% unique() %>% sort() %>% paste(collapse = ", ")`).
 
-```{r tier 1 presence absence}
+```{r tier 1 presence absence, fig.cap = "Fig 7. Presence/absence of explicit boundaries in US"}
 # summarize missing and present states in a dataframe
 states_missing <- state.abb[!state.abb %in% unique(wsb_labeled_clean$state)]
 states_present <- unique(wsb_labeled_clean$state)
@@ -654,7 +664,7 @@ t1 <- read_rds(path(staging_path, "t1_jacard.rds"))
 
 We calculate that `r round(100*(nrow(filter(t1, jacard > 0))/nrow(t1)), 2)`% of Tier 2 matched Tiger Place boundaries spatially intersect their assigned explicit Tier 1 boundary (when present). The proportion of overlap (Modified Jacard) for the `r round(100*(nrow(filter(t1, jacard != 0))/nrow(t1)), 2)`% of intersecting Tier 1 and 2 geometries is generally left-skewed, which indicates high overlap. A Jacard of 1 indicates complete overlap (i.e., the TIGER Place sufficient covers the explicit water system boundary), a Jacard of 0.1 indicates that only 10% of the Tier 1 explicit boundary is covered by the Tier 2 boundary, and a Jacard of 0 indicates zero percent overlap (i.e., non-intersection).
 
-```{r jacard histogram}
+```{r jacard histogram, fig.cap = "Fig 8. Histogram of modified jacard similarity index"}
 t1 %>% 
   filter(jacard != 0) %>% 
   ggplot(aes(jacard)) +
@@ -665,7 +675,7 @@ t1 %>%
 
 `r round(100*(nrow(filter(t1, jacard == 0))/nrow(t1)), 2)`% of Tier 1 and 2 boundaries do not intersect, however we show that the vast majority of these geometries are very close to one another, which is unsurprising, as matches are constrained within state. The distribution of distance between centroids of non-intersecting matches is shown below.
 
-```{r jacard zeros how far from one another}
+```{r jacard zeros how far from one another, fig.cap = "Fig 9. Distance between matched Tier 1 and Tier 2 polygon centroids"}
 # a substantial portion (almost half) of matched tier 2 geoms don't intersect
 # tier 1 explicit boundaries but are they close by? calculate centroid distances
 t1_zero <- t1 %>% 
@@ -683,6 +693,7 @@ t2_zero <- t2 %>%
 
 # calculate pairwise distances between Tier 1-2 non-intersecting centroids
 # with "zero jacard" (zd)
+# output distance is in kilometers, because NAD83 is in meters and we divide by 1000
 f_distance <- function(x){
   res = st_distance(t1_zero[x, ], t2_zero[x, ])
   return(as.numeric(res)/1000)
@@ -693,16 +704,19 @@ f_distance <- function(x){
 #write_rds(zjd, path(staging_path, "zero_dist_non_intersects.rds"))
 zjd <- read_rds(path(staging_path, "zero_dist_non_intersects.rds"))
 
-# histogram of distances in km
+# histogram of distances in miles 
+# 1 km = 0.621371 miles
+km_to_mi = 0.621371
+
 tibble(dist = zjd) %>% 
-  ggplot(aes(dist)) +
+  ggplot(aes(dist*km_to_mi)) +
   geom_histogram(color = "white", bins = 200) +
-  labs(x = "Distance between matched Tier 2 and Tier 1 polygon centroids (km)") +
+  labs(x = "Distance (mi)") +
   coord_cartesian(xlim = c(0, 500)) + 
   theme_report 
 ```
 
-The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd), 2)` km and the interquartile range is `r round(quantile(zjd, 0.25), 2)` - `r round(quantile(zjd, 0.75), 2)` km. This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a few kilometers is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries. In the absence of a Tier 1 boundary, where Tier 2 boundaries do not spatially intersect the provided ECHO centroid, we may decide at a later date to prefer the Tier 3 boundary, for instance, if the distance between the ECHO centroid and matched Tiger Place exceeds some reasonable threshold.
+The median distance between matching Tier 1 and 2 geometries is `r round(median(zjd*km_to_mi), 2)` mi and the interquartile range is `r round(quantile(zjd*km_to_mi, 0.25), 2)` - `r round(quantile(zjd*km_to_mi, 0.75), 2)` mi This suggests that non-spatially intersecting matches are *still very close together* and hence, may be considered adequate preliminary water service boundaries. However, if spatial accuracy close than a several miles is paramount, it may be determined that Tier 3 boundaries should be used instead of Tier 2 boundaries. In the absence of a Tier 1 boundary, where Tier 2 boundaries do not spatially intersect the provided ECHO centroid, we may decide at a later date to prefer the Tier 3 boundary, for instance, if the distance between the ECHO centroid and matched Tiger Place exceeds some reasonable threshold.
 
 Results suggest that matching water system spatial boundaries and attributes (i.e., name) to TIGER Places is a valid approach to construct "proxy" water system boundaries. These findings are relatively consistent with findings by [Patterson et al. (2022)](https://nicholasinstitute.duke.edu/publications/sensitivity-analysis-using-municipal-boundaries-proxy-service-area-boundaries-when){target="_blank"}, who showed that Census TIGER Places generally agree with municipal boundaries and that these municipal boundaries are valid proxies for water service areas.
 
@@ -730,13 +744,13 @@ In this section of the report, we expand on important data pre-processing steps,
 
 ### Right skewed response {#right-skewed-response}
 
-The response variable (radius) from the `r length(unique(wsb_labeled_clean$state))` labeled Tier 1 states (`r paste(unique(wsb_labeled_clean$state), collapse = ", ")`) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE), 2)` km, and the maximum radius is `r round(max(d$radius, na.rm = TRUE), 2)` km. Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
+The response variable (radius) from the `r length(unique(wsb_labeled_clean$state))` labeled Tier 1 states (`r paste(unique(wsb_labeled_clean$state), collapse = ", ")`) is right-skewed. The median radius is `r round(median(d$radius, na.rm = TRUE)*km_to_mi, 2)` mi, and the maximum radius is `r round(max(d$radius, na.rm = TRUE)*km_to_mi, 2)` mi Linear models assumes constant variance and normality, thus we log-transform the response to [stabilize its variance](https://en.wikipedia.org/wiki/Variance-stabilizing_transformation){target="_blank"}, enable regression and inference approaches, prevent high-leverage radii from exerting too much influence on the model fit, and disallow predicted negative radii.
 
-```{r radius tier 1 distribution}
+```{r radius tier 1 distribution, fig.cap = "Fig 10. Distribution of water system radius in Tier 1 systems"}
 d %>% 
-  ggplot(aes(radius)) + 
+  ggplot(aes(radius*km_to_mi)) + 
   geom_histogram(bins = 100, col = "white") +
-  labs(x = "Radius (km)") +
+  labs(x = "Radius (mi)") +
   theme_report
 ```
 
@@ -746,21 +760,21 @@ The main drawback of log-transformation is that model coefficient units (e.g., s
 
 Moreover, to avoid over-fitting a model on a training set that over-represents the more common low-radius observations, we perform a *stratified random sample* on the response variable. This samples equal proportions of training observations from each of quartiles of the radius distribution, delineated by red dashed lines in the figure below.
 
-```{r stratified random sampling}
+```{r stratified random sampling, fig.cap = "Fig 11. Distribution of system radii with quartiles"}
 d %>% 
   # calculate quantiles to show stratified random sampling
   mutate(
-    p25 = quantile(radius, 0.25, na.rm = TRUE),
-    p50 = quantile(radius, 0.50, na.rm = TRUE),
-    p75 = quantile(radius, 0.75, na.rm = TRUE)
+    p25 = quantile(radius, 0.25, na.rm = TRUE)*km_to_mi,
+    p50 = quantile(radius, 0.50, na.rm = TRUE)*km_to_mi,
+    p75 = quantile(radius, 0.75, na.rm = TRUE*km_to_mi)
   ) %>% 
-  ggplot(aes(radius)) + 
+  ggplot(aes(radius*km_to_mi)) + 
   geom_histogram(bins = 100, col= "white") + 
   geom_vline(aes(xintercept = p25), linetype = "dashed", color = "red") +
   geom_vline(aes(xintercept = p50), linetype = "dashed", color = "red") +
   geom_vline(aes(xintercept = p75), linetype = "dashed", color = "red") +
   scale_x_log10() +
-  labs(x = "Radius (km)") +
+  labs(x = "Radius (mi)") +
   theme_report
 ```
 
@@ -772,7 +786,7 @@ Population served and service connections are highly correlated ($r$ $=$ `r roun
 
 [^7]: **Both dependent/response variable and independent/predictor variable(s) are log-transformed:** Interpret the coefficient as the percent increase in the dependent variable for every 1% increase in the independent variable. Example: the coefficient is 0.198. For every 1% increase in the independent variable, our dependent variable increases by about 0.20%. For x percent increase, calculate 1.x to the power of the coefficient, subtract 1, and multiply by 100. Example: For every 20% increase in the independent variable, our dependent variable increases by about (1.20 ^0.198^ -- 1) \* 100 = 3.7 percent.
 
-```{r correlation of service connections and pop served}
+```{r correlation of service connections and pop served, fig.cap="Fig 12. Service connections vs. population served"}
 d %>% 
   ggplot(aes(population_served_count, service_connections_count)) + 
   geom_point(aes(color = owner_type_code), alpha = 0.2) +
@@ -787,7 +801,7 @@ d %>%
 
 Same as above, but broken down by owner type code, it is clear to see that this correlation persists across ownership types. Importantly, although we lack Tier 1 data for Native American systems (owner type code = "N"), the population and service connection scaling is present, and so models trained on different Tier 1 ownership types are likely to generalize well to these systems.
 
-```{r correlation of service connections and pop served facet}
+```{r correlation of service connections and pop served facet, fig.cap="Fig 13. Service connections vs. population served, faceted"}
 d %>% 
   ggplot(aes(population_served_count, service_connections_count)) + 
   geom_point(aes(color = owner_type_code), alpha = 0.2) +
@@ -818,18 +832,18 @@ Regression slopes differ for the service connections based on **owner type code*
 
 [^8]: There are 2 Tier 1 native american systems, which heavily impacts modeling: meaningful models can't be fit to data with only two observations. Thus, we re-code the 2 existing "N" systems to "M" to train the Tier 3 models. With the addition of an appreciable number (e.g., \> 50) labeled Tier 1 Native American boundaries, we can revert this re-coding step.
 
-```{r interaction owner type code}
+```{r interaction owner type code, fig.cap="Fig 13. Interaction plot: owner type code vs. service connections"}
 d %>% 
   # remove 2 "N" codes that are not meaningful
   filter(owner_type_code != "N") %>% 
-  ggplot(aes(service_connections_count, radius)) + 
+  ggplot(aes(service_connections_count, radius*km_to_mi)) + 
   geom_point(alpha = 0.2) + 
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~owner_type_code) + 
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Service Connections", 
-       y = "Radius (km)") +
+       y = "Radius (mi)") +
   theme_report
 ```
 
@@ -839,16 +853,16 @@ d %>%
 
 As before with owner type code, wholesaler status interacts with service connections, thus we include an interaction effect for it in the linear model.
 
-```{r interaction wholesaler}
+```{r interaction wholesaler, fig.cap="Fig 14. Interaction plot: wholesaler vs. service connections"}
 d %>% 
-  ggplot(aes(service_connections_count, radius)) + 
+  ggplot(aes(service_connections_count, radius*km_to_mi)) + 
   geom_point(alpha = 0.2) + 
   geom_smooth(method = "lm", se = FALSE) +
   facet_wrap(~is_wholesaler_ind) + 
   scale_x_log10() +
   scale_y_log10() +
   labs(x = "Service Connections", 
-       y = "Radius (km)") +
+       y = "Radius (mi)") +
   theme_report
 ```
 
@@ -875,7 +889,7 @@ d <- d %>%
 
 After cleaning, there are `r length((table(d$satc)))` unique service area type code combinations, and most are "RA" or "MH", indicating that most water systems serve residential areas and areas that include mobile home parks. Regression slopes appear similar, but with different y intercepts, which suggest that some service area types are larger for an equal service connection count. We may consider cleaning this further in a future iteration if domain knowledge indicates predictive power, although preliminary visual inspection (below) suggests little explanatory power.
 
-```{r service conn v radius}
+```{r service conn v radius, fig.cap="Fig 14. Interaction plot: service area type code vs. service connections"}
 # plot service connections v radius and facet by top 3 service area type code
 d %>% 
   mutate(
@@ -883,13 +897,13 @@ d %>%
     satc = as.character(satc), 
     satc = ifelse(is.na(satc), "Other", satc)
   ) %>%
-  ggplot(aes(service_connections_count, radius)) + 
+  ggplot(aes(service_connections_count, radius*km_to_mi)) + 
   geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) + 
   facet_wrap(~satc) +
   scale_x_log10() +
   scale_y_log10() +
-  labs(x = "Service connections", y = "Radius (km)") +
+  labs(x = "Service connections", y = "Radius (mi)") +
   theme_report
 ```
 
@@ -907,7 +921,7 @@ We first fit a random forest to the Tier 1 labeled data because the algorithm ha
 
 We fit the rand forest regression to predict radius from service connections, population, owner type, service area type code, and wholesaler status. Service connections, population served, and owner type code appear important in segmenting the feature space, and service area type code and wholesaler status appear less predictive.
 
-```{r rf vip}
+```{r rf vip, fig.cap="Fig 15. Random forest variable importance"}
 library(tidymodels)
 library(vip)
 
@@ -960,7 +974,7 @@ rf_fit %>%
 
 Next we fit the model on the test set, plot residuals and calculate an $R^2$ goodness of fit metric and two standard metrics of error, the RMSE and MAE. For our purposes, the MAE is likely more important because it doesn't penalize outliers as much as RMSE, and we care more about the overall appropriateness of the boundary than we do about preventing large outlying errors.
 
-```{r rf fit test residuals and error}
+```{r rf fit test residuals and error, fig.cap="Fig 16. Random forest test residuals, highlighted by ownership type"}
 # predict on test set
 rf_test_res <- test %>% 
   # select(radius) %>% 
@@ -968,7 +982,7 @@ rf_test_res <- test %>%
 
 # plot residuals
 rf_test_res %>% 
-  ggplot(aes(log10(radius), log10(.pred), color = owner_type_code)) + 
+  ggplot(aes(log10(radius*km_to_mi), log10(.pred*km_to_mi), color = owner_type_code)) + 
   geom_point(alpha = 0.4) + 
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)",
@@ -991,7 +1005,7 @@ rf_metrics(rf_test_res, truth = log10(radius), estimate = log10(.pred)) %>%
 
 Like random forest, xgboost is a tree-based method that is relatively easy to fit, and unconstrained by linear model assumptions. Variable importance metrics were consistent with those examined in the random forest model. We tuned xgboost hyperparamaters across a grid of inputs (see plot below, used to select the best xgboost model) and actually found that -- on the holdout test set -- it performed worse than the random forest in terms of goodness of fit and error. At first surprising, this result makes sense given the nature of the more flexible xgboost model, the lack of adequate data that a more flexible model like xgboost would benefit from, and the underlying functional form of the relationship we aim to model.
 
-```{r xgboost hyperparameter}
+```{r xgboost hyperparameter, fig.cap="Fig 17. XGBoost model performance across tuning grid"}
 # load hyperparameter tune space
 xgb_res <- read_rds(here("src/analysis/sandbox/model_explore/etc/xgb_res.rds"))
 
@@ -1013,7 +1027,7 @@ xgb_res %>%
 
 xgboost is a flexble machine learning model: it tends to outperform random forest when there is sufficient data to segment the feature space and learn from residuals. However, in our example, we lack substantial data with only a few tens of thousands of water systems, and only 3 high importance predictors, 2 of which are highly correlated. Thus, the similar performance of xgboost and random forest may be explained by not being able to improve on random forest, and slightly overfitting to the training set, which a less flexible model like linear regression will not suffer from. In statistical terms, low flexibility models also tend to maintain low variance, meaning they perform similarly across new test sets (i.e., less bias). Finally, because the underlying functional form of the relationship being modeled is strongly linear (see the section on [Interaction Effects](#interaction-effects)), there is not a great advantage in straying from linear methods.
 
-```{r xgboost vip and residuals and performance}
+```{r xgboost vip and residuals and performance, fig.cap="Fig 18. XGBoost variable importance"}
 # load the best fit model
 final_xgb <- read_rds(here("src/analysis/sandbox/model_explore/etc/final_xgb.rds"))
 
@@ -1026,6 +1040,9 @@ xgb_fit %>%
   vip(geom = "point") +
   theme_report
 
+```
+
+```{r xgboost residuals and performance, fig.cap="Fig 19. XGBoost test residuals"}
 # predict on test set
 xgb_test_res <- test %>% 
   select(radius) %>% 
@@ -1033,7 +1050,7 @@ xgb_test_res <- test %>%
 
 # plot residuals
 xgb_test_res %>% 
-  ggplot(aes(log10(radius), log10(.pred))) + 
+  ggplot(aes(log10(radius*km_to_mi), log10(.pred*km_to_mi))) + 
   geom_point(alpha = 0.4) + 
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
@@ -1057,7 +1074,7 @@ As explained in the review of random forest and xgboost models above, there is s
 
 Unlike the random forest and xgboost models, we are careful to log transform log-normal predictors and response, and specify interaction terms where present. We experimented with different model specifications, including a model which combined the correlated population and service connection variables, however, this led to negligible improvement in the model fit and less interpretable model coefficients -- thus in the final model specification we regress only on service connection. Interaction terms are added for owner type, service area type code, and wholesaler status. A simple linear regression on service connections alone has an $R^2$ of 0.56; including these extra terms substantially improves the model fit ($R^2 = 0.66$) and reduces test error.
 
-```{r lm fit}
+```{r lm fit, fig.cap="Fig 20. Linear model residuals"}
 # re-read dataset and log transform the response - only for linear model
 df <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
   mutate(radius  = log10(radius),
@@ -1119,7 +1136,7 @@ lm_test_res <- test %>%
 
 # plot residuals
 lm_test_res %>% 
-  ggplot(aes(radius, .pred)) + 
+  ggplot(aes(radius*km_to_mi, .pred*km_to_mi)) + 
   geom_point(alpha = 0.4) + 
   geom_abline(lty = 2, color = "red") + 
   labs(y = "Predicted radius (log10)", x = "Radius (log10)") +
@@ -1143,9 +1160,9 @@ lm_metrics(lm_test_res, truth = radius, estimate = .pred) %>%
 
 #### Spatial residuals
 
-We examine model residuals across space (i.e., Tier 3 predictions - Tier 1 explicit labels) to test for spatial autocorrelation in the model residuals. Although we do not calculate standard autocorrelation metrics, a high-level examination of the residuals across states shows that Tier 3 estimates are generally consistent with observed radii (most residuals are near 0 km - indicating strong agreement and consistent with the 1:1 predicted vs observed plot above). Notable exceptions include MO and OK, which show systematic under-estimation (negative values indicate a smaller estimated radius compared to the observed radius) on the order of around 5 km (3.1 miles).
+We examine model residuals across space (i.e., Tier 3 predictions - Tier 1 explicit labels) to test for spatial autocorrelation in the model residuals. Although we do not calculate standard autocorrelation metrics, a high-level examination of the residuals across states shows that Tier 3 estimates are generally consistent with observed radii (most residuals are near 0 mi - indicating strong agreement and consistent with the 1:1 predicted vs observed plot above). Notable exceptions include MO and OK, which show systematic under-estimation (negative values indicate a smaller estimated radius compared to the observed radius) on the order of around 3 miles.
 
-```{r lm spatial autocorrelation residuals}
+```{r lm spatial autocorrelation residuals, fig.cap="Fig 21. Spatial residuals (Tier 1 states)"}
 # Tier 3: Modeled boundaries: read and construct geometry
 t3 <- path(staging_path, "tier3_median.geojson") %>% st_read(quiet = TRUE)
 
@@ -1157,7 +1174,7 @@ t3 %>%
   mutate(state = str_sub(pwsid, 1, 2)) %>% 
   ggplot() +
   geom_vline(xintercept = 1, color = "black", linetype = "dashed") +
-  geom_line(aes(r/1e3, color = state), stat = "density") + 
+  geom_line(aes(r*km_to_mi, color = state), stat = "density") + 
   rcartocolor::scale_color_carto_d() +
   facet_wrap(~state, scales = "free_y") +
   guides(color = "none") +
@@ -1169,10 +1186,10 @@ t3 %>%
 
 #### Confidence intervals
 
-Linear model 5 and 95% confidence intervals are calculated and provided as an output with the median radius. Importantly, the range of these predictions is relatively narrow, and generally less than 1 km.
+Linear model 5 and 95% confidence intervals are calculated and provided as an output with the median radius. Importantly, the range of these predictions is relatively narrow, and generally less than 0.6 mi.
 
-```{r lm ci range distribution}
-df %>% 
+```{r lm ci range distribution, fig.cap="Fig 22. Distribution of confidence interval range for modeled boundaries"}
+t<- df %>% 
   select(pwsid, radius) %>% 
   bind_cols(predict(lm_fit, df)) %>% 
   bind_cols(predict(lm_fit, df, type = "conf_int", level = 0.95)) %>% 
@@ -1182,14 +1199,14 @@ df %>%
     # calculate CI range to plot distribution
     .pred_range = .pred_upper - .pred_lower
   ) %>% 
-  ggplot(aes(.pred_range/1000)) +
-  geom_histogram(bins = 500, color = "white") +
-  coord_cartesian(xlim = c(0, 2)) +
-  labs(x = "CI range (km)") +
+  ggplot(aes((.pred_range)*km_to_mi)) +
+  geom_histogram(bins = 100, color = "white") +
+  #coord_cartesian(xlim = c(0, 2)) +
+  labs(x = "CI range (mi)") +
   theme_report
 ```
 
-Below is an example of one Tier 3 with a typical CI range (around 1 km). Toggle to the `Esri.WorldImagery` basemap to view satellite imagery of the underlying location and compare this to the estimated range of the Tier 3 estimates.
+Below is an example of one Tier 3 with a typical CI range (around 0.6 mi). Toggle to the `Esri.WorldImagery` basemap to view satellite imagery of the underlying location and compare this to the estimated range of the Tier 3 estimates.
 
 ```{r tier 3 cis}
 # lm CI layers
@@ -1230,7 +1247,7 @@ It is also worth noting the high prevalence of high p-value coefficients, which 
 lm_fit %>% 
   extract_fit_engine() %>% 
   tidy() %>% 
-  knitr::kable() %>% 
+  knitr::kable(caption = "Table 8. Linear model coefficients for water system radii") %>% 
   kableExtra::kable_styling(full_width = FALSE)  
 ```
 
@@ -1296,14 +1313,15 @@ pancake_count_prop <- temm %>%
   arrange(desc(percent_tier3)) 
 ```
 
-Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, geometry_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, geometry_quality == "COUNTY CENTROID    ") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, geometry_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
+Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, geometry_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, geometry_quality == "COUNTY CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, geometry_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
 
 ```{r count pancakes by centroid accuracy}
 pancake_count_prop %>% 
   knitr::kable(col.names = c("Geometry Quality", 
                              "Count", 
                              "Percent"), 
-               align = rep("l", 3)) %>% 
+               align = rep("l", 3),
+               caption = "Table 9. Geometry quality of centroids systems with Tier 3 boundary") %>% 
   kableExtra::kable_styling(full_width = FALSE)  
 ```
 
@@ -1318,9 +1336,12 @@ We lack labeled Tier 1 data and hence radii for tribal primacy types (and territ
 ```{r primacy type proportions}
 d %>% 
   group_by(primacy_type) %>% 
+  filter(tier == "Tier 1") %>%
+  # Filter for Tier 1
   summarise(proportion_present = sum(!is.na(radius))/n(),
             proportion_present = round(proportion_present, 2)) %>% 
-  knitr::kable(col.names = c("Primacy Type", "Proportion Present")) %>% 
+  knitr::kable(col.names = c("Primacy Type", "Proportion Present"),
+               caption = "Table 10. Proportion of primacy type for water systems in Tier 1") %>% 
   kableExtra::kable_styling(full_width = FALSE)
 ```
 
