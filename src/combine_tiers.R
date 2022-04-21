@@ -25,7 +25,8 @@ t1 <- path(staging_path, "wsb_labeled_clean.geojson") %>%
 # Tier 2: MATCHED TIGER Place boundaries
 t2 <- path(staging_path, "tigris_places_clean.geojson") %>% 
   st_read(quiet = TRUE) %>% 
-  select(tiger_match_geoid = geoid)
+  select(tiger_match_geoid = geoid,
+         tiger_name)
 
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 <- path(staging_path, "tier3_median.geojson") %>% 
