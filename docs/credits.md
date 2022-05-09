@@ -21,4 +21,11 @@ Environmental Policy Innovation Center (EPIC) financed and supported engagement 
 
 [EPIC website](https://www.policyinnovation.org/)
 
+Internet of Water (IoW) provided technical advising and feedback on the approach and is collaborating with as part of the broader effort to expand use and improvement of water service boundaries.
+
+<img src="img/iow_logo.png" width="348">
+
+
+[IoW](https://internetofwater.org/)
+
 For more information about this project, please contact Jess Goddard at \<jess at gosimplelab dot com\>.
