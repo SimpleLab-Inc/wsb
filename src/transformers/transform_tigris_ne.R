@@ -29,8 +29,7 @@ places <- read_rds(path(data_path, "tigris/tigris_places.rds")) %>%
 places_clean <- places %>% 
   st_intersection(ocean) %>% 
   st_make_valid() %>% 
-  janitor::clean_names() %>% 
-  mutate(statefp = as.numeric(statefp))
+  janitor::clean_names() 
 
 # sanity check that oceans are removed
 # mapview::mapview(places_clean)
