@@ -38,11 +38,9 @@ From command line in your repositories folder you can:
 
     cd wsb
     touch .Renviron
-
-    cd src
     touch .env
 
-Note: `.Renviron` needs to be set up in the root directory, `wsb/` to work with projects. `.env` needs to be set up in `wsb/src`.
+Note: The files `.Renviron` and `.env` need to be set up in the root directory, `wsb/` to work with projects.
 
 To add variables, open both environment files, copy and paste into each:
 
