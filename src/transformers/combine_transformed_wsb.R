@@ -52,7 +52,8 @@ wsb_labeled_multi <- wsb_labeled %>%
     geometry       = st_union(geometry),
     # new area is the sum of the area of all polygons
     st_areashape   = sum(st_areashape),
-    area_hull      = sum(area_hull),
+    convex_hull    = st_geometry(st_convex_hull(geometry)),
+    area_hull      = st_area(convex_hull),
     # new radius is calculated from the new area
     radius         = sqrt(area_hull/pi),
     # combine data into list-formatted strings for character columns
@@ -72,8 +73,8 @@ wsb_labeled_multi <- wsb_labeled %>%
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2]
   ) %>% 
-  # remove centroid and area_hull columns
-  select(-c(centroid, area_hull))
+  # remove centroid, convex_hull, and area_hull columns
+  select(-c(centroid, convex_hull, area_hull))
 
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
