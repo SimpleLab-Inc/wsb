@@ -3,7 +3,7 @@
 import os
 import pandas as pd
 import geopandas as gpd
-import helpers
+import match.helpers as helpers
 from dotenv import load_dotenv
 
 load_dotenv()

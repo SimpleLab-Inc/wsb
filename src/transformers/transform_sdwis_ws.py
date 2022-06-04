@@ -13,7 +13,7 @@ import os, sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from transform_sdwis_helpers import clean_up_columns, trim_whitespace, date_type
+from transformers.transform_sdwis_helpers import clean_up_columns, trim_whitespace, date_type
 
 from dotenv import load_dotenv
 

@@ -3,10 +3,10 @@
 # This executes each of the mappings in this folder.
 # You can also execute them as one-offs, only when necessary.
 
-import map_sdwis
-import map_frs
-import map_echo
-import map_mhp
-import map_tiger
-import map_ucmr
-import map_labeled
+import match.map_sdwis
+import match.map_frs
+import match.map_echo
+import match.map_mhp
+import match.map_tiger
+import match.map_ucmr
+import match.map_labeled

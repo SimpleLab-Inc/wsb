@@ -10,8 +10,8 @@ Created on Tue Feb  1 11:06:58 2022
 # Libraries
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from download_helpers import create_dir, get_row_count
-from download_helpers import download_with_aria, stitch_files
+from downloaders.download_helpers import create_dir, get_row_count
+from downloaders.download_helpers import download_with_aria, stitch_files
 from dotenv import load_dotenv
 
 load_dotenv()

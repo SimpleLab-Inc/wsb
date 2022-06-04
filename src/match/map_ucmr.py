@@ -4,7 +4,7 @@ import os
 import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
-import helpers
+import match.helpers as helpers
 
 load_dotenv()
 

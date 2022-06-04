@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 import pandas as pd
 import geopandas as gpd
 from dotenv import load_dotenv
-import helpers
+import match.helpers as helpers
 
 load_dotenv()
 
