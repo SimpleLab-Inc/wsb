@@ -126,7 +126,7 @@ df = gpd.GeoDataFrame().assign(
     primacy_agency_code        = sdwis["primacy_agency_code"],
     primacy_type               = sdwis["primacy_type"],
     population_served_count    = sdwis["population_served_count"],
-    service_connections_count  = sdwis["service_connections_count"],
+    service_connections_count  = sdwis["service_connections_count"].astype("float").astype("int"),
     owner_type_code            = sdwis["owner_type_code"],
     service_area_type_code     = sdwis["service_area_type_code"].astype("str"),
 )
