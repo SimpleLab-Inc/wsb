@@ -156,7 +156,7 @@ run_task(
 # Match
 ###################################
 
-# Mappings
+# Mappings (5 min)
 run_task(
     "Mapping data to postgres",
     "match/1-mappings.py")
