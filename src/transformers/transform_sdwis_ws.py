@@ -1,3 +1,4 @@
+#%%
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -64,7 +65,7 @@ water_system["zip_code"] = water_system["zip_code"].str[0:5]
 
 # %% Raise duplication issue on key fields
 
-if (water_system.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()):
+if not water_system["pwsid"].is_unique:
     raise Exception("pwsid is not unique.")
 
 # %% Save csv in staging

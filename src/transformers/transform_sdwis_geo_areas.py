@@ -1,3 +1,4 @@
+#%%
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -77,9 +78,9 @@ geo_area = trim_whitespace(geo_area)
 
 # %% Raise duplication issue on key fields
 
-if (geo_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()):
+if not geo_area["pwsid"].is_unique:
     raise Exception("pwsid is not unique.")
-     
- # %% Save csv in staging
+#%% 
+# Save csv in staging
 
 geo_area.to_csv(os.path.join(staging_path, "sdwis_geographic_area.csv"), index = False)

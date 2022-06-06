@@ -1,3 +1,4 @@
+#%%
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -59,7 +60,7 @@ date_type(water_system_facility, date_cols)
 
 # %% Raise duplication issue on key fields
 
-if (water_system_facility.duplicated(subset = ['pwsid','facility_id'], keep = False).rename("Unique").all()):
+if (water_system_facility[["pwsid", "facility_id"]].duplicated().any()):
     raise Exception("pwsid and facility_id are not unique.")
     
 # %% Save csv in staging

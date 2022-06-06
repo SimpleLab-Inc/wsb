@@ -1,3 +1,4 @@
+#%%
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -53,7 +54,7 @@ for i in bool_cols:
 
 # %% Raise duplication issue on key fields
 
-if (service_area.duplicated(subset = ['pwsid'], keep = False).rename("Unique").all()):
+if service_area[["pwsid", "service_area_type_code"]].duplicated().any():
     raise Exception("pwsid is not unique.")
 
 # %% Save csv in staging
