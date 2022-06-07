@@ -13,10 +13,11 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 # list, read, and combine all staged state wsb files
 wsb_labeled <- dir_ls(staging_path, 
                       regex = "_wsb_labeled.geojson$", 
-                      recursive = TRUE) %>% 
-  map_df(~st_read(.)) %>% 
+                      recurse = TRUE) %>% 
+  map_df(~st_read(., quiet = TRUE)) %>% 
   # remove NA pwsid
-  filter(!is.na(pwsid))
+  filter(!is.na(pwsid)) %>%
+  suppressMessages() 
 
 # combine data and merge geometries for rows with duplicate pwsids --------
 
@@ -34,7 +35,7 @@ cat("Added `is_multi` field to wsb labeled data.\n")
 
 # separate rows without duplicated pwsids
 wsb_labeled_no_multi <- wsb_labeled %>% 
-  filter(is_multi == FALSE)
+  filter(is_multi == FALSE) 
 
 # for rows with duplicated pwsids: 
 # union geometries, recalculate area, centroids, radius
@@ -51,8 +52,9 @@ wsb_labeled_multi <- wsb_labeled %>%
     # combine all fragmented geometries
     geometry       = st_union(geometry),
     # new area is the sum of the area of all polygons
-    st_areashape   = sum(st_areashape),
-    area_hull      = sum(area_hull),
+    st_areashape   = st_area(geometry),
+    convex_hull    = st_geometry(st_convex_hull(geometry)),
+    area_hull      = st_area(convex_hull),
     # new radius is calculated from the new area
     radius         = sqrt(area_hull/pi),
     # combine data into list-formatted strings for character columns
@@ -72,8 +74,14 @@ wsb_labeled_multi <- wsb_labeled %>%
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2]
   ) %>% 
-  # remove centroid and area_hull columns
-  select(-c(centroid, area_hull))
+  # remove centroid, convex_hull, and area_hull columns
+  select(-c(centroid, convex_hull, area_hull)) %>%
+  # replace empty or string "NA" cells with NA
+  mutate(across(where(is.character), ~ gsub("^$|^ $|^NA$", NA, .))) %>%
+  # convert columns with class units to numeric
+  # before this, cols st_areashape and radius are
+  # numeric, but have the class "units"
+  mutate(across(where(is.numeric), as.numeric))
 
 cat("Recalculated area, radius, centroids for multipolygon pwsids.\n")
 cat("Combined string values for multipolygon pwsids.\n")
@@ -82,7 +90,9 @@ cat("Combined string values for multipolygon pwsids.\n")
 # mapview::mapview(wsb_labeled_multi, zcol = "pwsid", burst = TRUE)
 
 # combine wsb labeled data with corrected rows
-wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi)
+wsb_labeled_clean <- bind_rows(wsb_labeled_no_multi, wsb_labeled_multi) %>%
+  # remove is_multi column
+  select(-is_multi)
 
 # verify that there is only one pwsid per geometry
 n <- wsb_labeled_clean %>%
