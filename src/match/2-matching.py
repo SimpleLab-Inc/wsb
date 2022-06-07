@@ -33,7 +33,7 @@ regex = r"\b(?:MOBILE|TRAILER|MHP|TP|CAMPGROUND|RV)\b"
 supermodel["likely_mhp"] = (
     (supermodel["source_system"] == "mhp") |
     (
-        supermodel["source_system"].isin(["echo", "sdwis"]) &
+        supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
         supermodel["name"].notna() &
         supermodel["name"].fillna("").str.contains(regex, regex=True)
     ))
@@ -43,9 +43,9 @@ regex = r"\b(?:VILLAGE|MANOR|ACRES|ESTATES)\b"
 
 supermodel["possible_mhp"] = (
     (supermodel["source_system"] == "mhp") |
-    (supermodel["likely_mhp"] == "mhp") |
+    (supermodel["likely_mhp"]) |
     (
-        supermodel["source_system"].isin(["echo", "sdwis"]) &
+        supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
         supermodel["name"].notna() &
         supermodel["name"].fillna("").str.contains(regex, regex=True)
     ))
@@ -241,7 +241,7 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: UCMR to TIGER Spatial matches
-# 
+# 2,999 matches
 
 left_mask = tokens["source_system"].isin(["ucmr"])
 right_mask = tokens["source_system"].isin(["tiger"])
@@ -258,7 +258,7 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match MHP's by tokenized name
-# 887 matches. Not great, but then again, not all MHP's will have water systems.
+# 2081 matches. Not great, but then again, not all MHP's will have water systems.
 
 # We get a few hundred more matches if we exclude the county, and it *seems* like
 # MHP names should be relatively unique within the state...but I spot checked
@@ -285,7 +285,7 @@ matches = pd.concat([matches, new_matches])
 # Rule: match MHP's by state + city + address
 
 # Unfortunately, half of the "MHP" system has no names, so we try this rule.
-# 84 matches. Meh.
+# 220 matches
 
 new_matches = run_match(
     "mhp state+address",
