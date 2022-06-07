@@ -163,32 +163,55 @@ tokens.drop(columns="geometry").to_sql("tokens", conn, index=False)
 print("Saved token table to database (for later analysis)")
 
 #%% #########################
-# Rule: Match on state + name
-# 25,206 matches
+# Rule: Match on state + name to SDWIS/ECHO/FRS -> TIGER
+# 23,489 matches
 
 new_matches = run_match(
-    "state+name",
+    "state+name_tiger",
+    ["state", "name_tkn"],
+    left_mask = (
+        tokens["source_system"].isin(["sdwis", "echo", "frs"]) &
+        tokens["state"].notna() &
+        tokens["name_tkn"].notna() &
+        (~tokens["likely_mhp"])),
+    right_mask = (
+        tokens["source_system"].isin(["tiger"]) &
+        tokens["state"].notna() &
+        tokens["name_tkn"].notna()))
+
+print(f"State+Name to Tiger matches: {len(new_matches)}")
+
+matches = new_matches
+
+#%% #########################
+# Rule: Match on state + name to MHP
+# 1,875 matches
+
+new_matches = run_match(
+    "state+name_mhp",
     ["state", "name_tkn"],
     left_mask = (
         tokens["source_system"].isin(["sdwis", "echo", "frs"]) &
         tokens["state"].notna() &
         tokens["name_tkn"].notna()),
     right_mask = (
-        tokens["source_system"].isin(["tiger", "mhp"]) &
+        tokens["source_system"].isin(["mhp"]) &
         tokens["state"].notna() &
         tokens["name_tkn"].notna()))
 
-print(f"State+Name matches: {len(new_matches)}")
+print(f"State+Name MHP matches: {len(new_matches)}")
 
-matches = new_matches
+matches = pd.concat([matches, new_matches])
+
 
 #%% #########################
 # Rule: Spatial matches
-# 12,003 matches between echo/frs and tiger
+# 11,941 matches between echo/frs and tiger
 # (Down from 22,200 before excluding state, county, and zip centroids)
 
 left_mask = (
     tokens["source_system"].isin(["echo", "frs"]) &
+    (~tokens["likely_mhp"]) &
     (~tokens["geometry_quality"].isin([
         "STATE CENTROID",
         "COUNTY CENTROID",
@@ -220,7 +243,7 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match state+city_served to state&name
-# 16,755 matches
+# 16,550 matches
 
 new_matches = run_match(
     "state+city_served",
@@ -229,7 +252,8 @@ new_matches = run_match(
     left_mask = (
         tokens["source_system"].isin(["sdwis"]) &
         tokens["state"].notna() &
-        tokens["city_served"].notna()),
+        tokens["city_served"].notna() &
+        (~tokens["likely_mhp"])),
     right_mask = (
         tokens["source_system"].isin(["tiger"]) &
         tokens["state"].notna() &
