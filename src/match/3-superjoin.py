@@ -70,9 +70,10 @@ tiger_to_pws_match_counts = (matches
 tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
 
 # Augment matches with these TIGER match stats
-matches = (matches
-    .join(pws_to_tiger_match_counts, on="master_key")
-    .join(tiger_to_pws_match_counts, on="candidate_contributor_id"))
+# We don't use these downstream; they're just useful for debugging
+# matches = (matches
+#     .join(pws_to_tiger_match_counts, on="master_key")
+#     .join(tiger_to_pws_match_counts, on="candidate_contributor_id"))
 
 # 1850 situations with > 1 match
 print(f"{(pws_to_tiger_match_counts > 1).sum()} PWS's matched to multiple TIGERs")
@@ -158,8 +159,7 @@ matches_ranked = matches.join(match_ranks[["rank"]], on="match_rule", how="left"
 best_match = (matches_ranked
     .sort_values(["master_key", "rank"])
     .drop_duplicates(subset=["master_key", "source_system"], keep="first")
-    [["master_key", "candidate_contributor_id", "source_system", "source_system_id",
-    "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
+    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
 
 print("Picked the 'best' TIGER and MHP matches.")
 
@@ -168,9 +168,22 @@ tiger_best_match = (best_match
     .loc[best_match["source_system"] == "tiger"]
     .rename(columns={"source_system_id": "tiger_match_geoid"})
     .set_index("master_key")
-    [["tiger_match_geoid", "pws_to_tiger_match_count", "tiger_to_pws_match_count"]])
+    [["tiger_match_geoid"]])
 
 print("Pulled useful information for the best TIGER match.")
+
+# Now that we've removed a bunch of matches by taking the "best" pws->tiger,
+# we also need to recalculate the tiger->pws match count
+# We DO need this one downstream in order to differentiate "Tier 2a" and
+# "Tier 2b"
+
+tiger_to_pws_match_counts = (tiger_best_match
+    .groupby("tiger_match_geoid")
+    .size())
+
+tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
+
+tiger_best_match = tiger_best_match.join(tiger_to_pws_match_counts, on="tiger_match_geoid")
 
 mhp_best_match = (best_match
     .loc[best_match["source_system"] == "mhp"]
