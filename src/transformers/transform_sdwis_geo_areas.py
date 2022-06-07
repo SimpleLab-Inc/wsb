@@ -27,7 +27,23 @@ staging_path = os.environ["WSB_STAGING_PATH"]
 sdwis_data_path = os.path.join(data_path, "sdwis")
 
 file = "GEOGRAPHIC_AREA.CSV"
-geo_area = pd.read_csv(os.path.join(sdwis_data_path, file))
+
+# We only use a few columns from this data. Most other columns
+# are better in the primary SDWIS file.
+
+# Though, these columns are potentially valuable, just currently unused:
+# area_type_code
+# tribal_code
+
+usecols = [
+    "SDWISDM_B.GEOGRAPHIC_AREA.PWSID",
+    "SDWISDM_B.GEOGRAPHIC_AREA.CITY_SERVED",
+    "SDWISDM_B.GEOGRAPHIC_AREA.COUNTY_SERVED"
+]
+
+geo_area = pd.read_csv(
+    os.path.join(sdwis_data_path, file),
+    usecols = usecols)
 
 # %% Basic cleaning
 
@@ -44,37 +60,38 @@ geo_area = geo_area.drop_duplicates()
 geo_area = geo_area.dropna(how='all', axis=1)
 
 
-# %% Clean state served column from pwsid
-
-geo_area["state_served_temp"] = geo_area["pwsid"].str[0:2].astype("str")
-
-diffs = geo_area.loc[geo_area["state_served"] != geo_area["state_served_temp"]]
-
-geo_area["state_served_fin"] = np.where(geo_area["state_served"].isna(), \
-                                      geo_area["state_served_temp"], geo_area["state_served"])
-
-geo_area = geo_area.drop(columns = ["state_served_temp", "state_served"]) \
-                .rename(columns = {"state_served_fin": "state_served"})
-                
 # %% Clean city_served column
 
-# Remove "-" followed by 0 or 1 ".", 0 or more spaces, and four digits
-geo_area["city_served"] = geo_area["city_served"].str.replace("\.?-\.?\s*\d{4}", 
-                                                              "", regex=True)
-# Replace "&apos;" with "'"
-geo_area["city_served"] = geo_area["city_served"].str.replace("&apos;", 
-                                                              "'", regex=True)
-                                                              
-# Replace parenthetical with single letter (plus any spaces) in it, e.g. (V) or (T)
-geo_area["city_served"] = geo_area["city_served"].str.replace("\(\s*[A-Z]\s*\)", 
-                                                              "", regex=True)
-                                                              
-# Replace excess whitespace within line with a single space
-geo_area["city_served"] = geo_area["city_served"].str.replace("\s\s+", 
-                                                              " ", regex=True)
+geo_area["city_served"] = (geo_area["city_served"]
+    .str.replace(r"\.?-\.?\s*\d{4}", "", regex=True)    # Remove "-" followed by 0 or 1 ".", 0 or more spaces, and four digits
+    .str.replace(r"&apos;", "'", regex=True)            # Replace "&apos;" with "'"
+    .str.replace(r"\(\s*[A-Z]\s*\)", "", regex=True)    # Replace parenthetical with single letter (plus any spaces) in it, e.g. (V) or (T)
+    .str.replace(r"\s\s+", " ", regex=True))            # Replace excess whitespace within line with a single space
 
 # Trim whitespace again
 geo_area = trim_whitespace(geo_area)
+
+#%% Deduplicate
+
+# In a previous SDWIS download, the records with area_type_code = "TR" were
+# excluded. Now they're included.
+
+# But records with area_type_code = "TR" are contributing duplicates;
+# there's often another record of a different area_type_code.
+
+# Some notes about these duplicates:
+# The ones with area_type_code = "TR" also have the tribal_code attribute populated.
+# city_served and county_served is only populated when area_type_code != "TR".
+
+# How to eliminate these duplicates?
+# Since we specifically need the city_served and county_served data
+# downstream, we can eliminate records that have NA's in both fields.
+# This also eliminates the duplicates.
+
+geo_area = geo_area[
+    geo_area["city_served"].notna() |
+    geo_area["county_served"].notna()]
+
 
 # %% Raise duplication issue on key fields
 
