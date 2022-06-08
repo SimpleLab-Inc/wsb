@@ -32,11 +32,16 @@ regex = r"\b(?:MOBILE|TRAILER|MHP|TP|CAMPGROUND|RV)\b"
 
 supermodel["likely_mhp"] = (
     (supermodel["source_system"] == "mhp") |
-    (
-        supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
-        supermodel["name"].notna() &
-        supermodel["name"].fillna("").str.contains(regex, regex=True)
-    ))
+    # If ANY of systems with the same PWSID have a name that indicates likely MHP,
+    # then mark the whole set as likely MHP
+    supermodel["pwsid"].isin(
+        supermodel[
+            supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
+            supermodel["name"].notna() &
+            supermodel["name"].fillna("").str.contains(regex, regex=True)
+        ]["pwsid"]
+    )
+)
 
 # These words often (but not always) indicate a mobile home park
 regex = r"\b(?:VILLAGE|MANOR|ACRES|ESTATES)\b"
@@ -44,10 +49,12 @@ regex = r"\b(?:VILLAGE|MANOR|ACRES|ESTATES)\b"
 supermodel["possible_mhp"] = (
     (supermodel["source_system"] == "mhp") |
     (supermodel["likely_mhp"]) |
-    (
-        supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
-        supermodel["name"].notna() &
-        supermodel["name"].fillna("").str.contains(regex, regex=True)
+    supermodel["pwsid"].isin(
+        supermodel[
+            supermodel["source_system"].isin(["echo", "sdwis", "frs"]) &
+            supermodel["name"].notna() &
+            supermodel["name"].fillna("").str.contains(regex, regex=True)
+        ]["pwsid"]
     ))
 
 print("Labeled likely and possible MHP's.")
@@ -164,7 +171,7 @@ print("Saved token table to database (for later analysis)")
 
 #%% #########################
 # Rule: Match on state + name to SDWIS/ECHO/FRS -> TIGER
-# 23,489 matches
+# 23,286 matches
 
 new_matches = run_match(
     "state+name_tiger",
@@ -243,7 +250,7 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match state+city_served to state&name
-# 16,550 matches
+# 16,265 matches
 
 new_matches = run_match(
     "state+city_served",
@@ -282,7 +289,7 @@ matches = pd.concat([matches, new_matches])
 
 #%% #########################
 # Rule: match MHP's by tokenized name
-# 2081 matches. Not great, but then again, not all MHP's will have water systems.
+# 20897 matches. Not great, but then again, not all MHP's will have water systems.
 
 # We get a few hundred more matches if we exclude the county, and it *seems* like
 # MHP names should be relatively unique within the state...but I spot checked
@@ -309,7 +316,7 @@ matches = pd.concat([matches, new_matches])
 # Rule: match MHP's by state + city + address
 
 # Unfortunately, half of the "MHP" system has no names, so we try this rule.
-# 220 matches
+# 228 matches
 
 new_matches = run_match(
     "mhp state+address",
