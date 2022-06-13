@@ -197,4 +197,4 @@ run_task(
 # Combine tiers (2 mins)
 run_task(
     "Combining tiers into one spatial wsb layer",
-    "combine_tiers.R")
+    "combine_tiers.py")

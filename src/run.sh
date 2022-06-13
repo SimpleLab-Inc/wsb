@@ -51,7 +51,7 @@ Rscript -e "source('src/model/02_linear.R');"
 echo -e "\n\n======================================\n\n"
 echo -e "Combining tiers into one spatial wsb layer"
 echo -e "\n\n======================================\n\n"
-Rscript -e "source('src/combine_tiers.R');"
+python src/combine_tiers.py
 
 # end the timer
 t=$SECONDS
