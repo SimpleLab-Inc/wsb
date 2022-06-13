@@ -53,7 +53,7 @@ cols_select <- c(
 # read and format matched output
 cat("Reading matched output...")
 
-d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>%
+d <- read_csv(path(staging_path, "matched_output.csv")) %>%
   mutate(
     # indicate the tier to use for each pwsid
     tier = case_when(
