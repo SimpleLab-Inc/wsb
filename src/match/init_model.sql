@@ -21,6 +21,8 @@ CREATE TABLE pws_contributors (
     service_connections_count INT,
     owner_type_code           CHAR(1),
     service_area_type_code    TEXT,
+    is_wholesaler_ind         BOOLEAN,
+    primary_source_code       TEXT,
     geometry_lat        DECIMAL(10, 8),
     geometry_long       DECIMAL(11, 8),
     geometry            GEOMETRY(GEOMETRY, 4326),

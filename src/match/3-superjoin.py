@@ -213,7 +213,10 @@ output = pd.DataFrame().assign(
     population_served_count    = sdwis["population_served_count"],
     service_connections_count  = sdwis["service_connections_count"],
     service_area_type_code     = sdwis["service_area_type_code"],
-    owner_type_code            = sdwis["owner_type_code"]
+    owner_type_code            = sdwis["owner_type_code"],
+    is_wholesaler_ind          = sdwis["is_wholesaler_ind"], 
+    primacy_type               = sdwis["primacy_type"], 
+    primary_source_code        = sdwis["primary_source_code"], 
 )
 
 # Supplement with echo centroid
@@ -225,20 +228,6 @@ output = (output
         "geometry_lat",
         "geometry_long",
         "geometry_quality",
-        #"geometry"
-        # Does the model need these extra columns? I can pull them in from the raw file if so...
-        # "fac_collection_method",
-        # "fac_street",
-        # "fac_city",
-        # "fac_state",
-        # "fac_zip",
-        # "fac_county",
-        # 'fac_reference_point',
-        # 'fac_accuracy_meters',
-        # 'fac_indian_cntry_flg',
-        # 'fac_percent_minority',
-        # 'fac_pop_den',
-        # 'ejscreen_flag_us'
     ]], on="pwsid", how="left"))
 
 # Add in the TIGER geoid and pws --> TIGER match counts

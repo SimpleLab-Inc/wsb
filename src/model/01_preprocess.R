@@ -101,21 +101,11 @@ wsb_labeled_clean_df <- wsb_labeled_clean %>%
 cols_keep <- c("pwsid", "is_wholesaler_ind", 
                "primacy_type", "primary_source_code")
 
-# read sdwis data and only keep the specified columns
-sdwis <- path(staging_path, "sdwis_water_system.csv") %>%
-  read_csv(col_select = all_of(cols_keep)) %>% 
-  suppressMessages()
-
-# ensure non-duplicate pwsid in SDIWS pre-join
-cat("Detected", length(unique(sdwis$pwsid)), "unique pwsids", "and", 
-    nrow(sdwis), "rows in SDWIS. Numbers must equal for safe join.\n")
-
 # join to matched output, and lose 378/13435 (2.8% of labeled data) which
 # is not in combined_output.csv
 d <- j %>% 
-  left_join(wsb_labeled_clean_df, by = "pwsid") %>% 
-  left_join(sdwis)
-cat("Joined matched output, labeled data, and sdwis data.\n")
+  left_join(wsb_labeled_clean_df, by = "pwsid")
+cat("Joined matched output and labeled data.\n")
 
 # sanity row count equivalence pre and post join (this is FALSE when, for 
 # instance, duplicate pwsid are present)
