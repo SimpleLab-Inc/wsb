@@ -102,8 +102,8 @@ if not os.path.exists(os.path.join(OUTPUT_PATH, "temm_layer", "shp")):
     os.makedirs(os.path.join(OUTPUT_PATH, "temm_layer", "shp"))
 
 # write geojson, shp, and csv
-# temm.to_file(path_geojson, driver="GeoJSON")
-# temm.to_file(path_shp, driver="ESRI Shapefile")
+temm.to_file(path_geojson, driver="GeoJSON")
+temm.to_file(path_shp, driver="ESRI Shapefile")
 temm.drop(columns="geometry").to_csv(path_csv)
 
 print("Wrote data to geojson, shp, csv.\n\n\n")
