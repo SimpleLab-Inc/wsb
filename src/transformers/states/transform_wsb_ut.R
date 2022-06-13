@@ -20,6 +20,12 @@ ut_wsb <- st_read(dsn = path(data_path, "boundary/ut/ut.geojson"),
                   quiet = TRUE) %>% 
   # clean whitespace
   f_clean_whitespace_nas() %>%
+  # drop rows where DWSYSNUM is NA
+  drop_na(DWSYSNUM) %>%
+  # filter for DWSYSNUM matching pattern
+  filter(str_detect(DWSYSNUM, "^UTAH\\d{5}$")) %>%
+  # replace missing DWNAME with WRENAME
+  mutate(DWNAME = ifelse(is.na(DWNAME), WRENAME, DWNAME)) %>%
   # transform to area weighted CRS
   st_transform(epsg_aw) %>%
   # correct invalid geometries
@@ -49,7 +55,7 @@ ut_wsb <- ut_wsb %>%
   select(
     # data source columns
     pwsid          = DWSYSNUM,
-    pws_name       = WRENAME,
+    pws_name       = DWNAME,
     state,
     county         = COUNTY,
     #    city,
