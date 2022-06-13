@@ -86,6 +86,9 @@ dt3 = df[df["tier"] == "Tier 3"].merge(t3, on="pwsid", how="left")
 
 temm = gpd.GeoDataFrame(pd.concat([dt1, dt2, dt3]))
 
+# Fix data types
+temm["tiger_match_geoid"] = temm["tiger_match_geoid"].astype(pd.Int64Dtype())
+
 print("Combined a spatial layer using best available tiered data.\n")
 
 
