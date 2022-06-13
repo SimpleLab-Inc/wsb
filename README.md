@@ -47,7 +47,7 @@ To add variables, open both environment files, copy and paste into each:
 ```
 WSB_DATA_PATH = "path to save raw data from downloaders"
 WSB_STAGING_PATH = "path to stage post-transformer data for EDA and modeling"
-WSB_OUTPUTS_PATH = "path to output matching artifacts, like reports"
+WSB_OUTPUT_PATH = "path to output matching artifacts, like reports"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
 POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
