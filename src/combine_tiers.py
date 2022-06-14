@@ -30,7 +30,7 @@ t1 = (gpd
 # Tier 2: MATCHED TIGER Place boundaries
 t2 = (gpd
     .read_file(os.path.join(STAGING_PATH, "tigris_places_clean.geojson"))
-    [["geoid", "name"]]
+    [["geoid", "name", "geometry"]]
     .rename(columns={
         "geoid": "tiger_match_geoid",
         "name":  "tiger_name"})
@@ -95,6 +95,24 @@ print("Combined a spatial layer using best available tiered data.\n")
 #%%
 # write to multiple output formats ----------------------------------------
 
+# SHP files can only have 10 character column names
+renames = {
+    "primacy_agency_code":       "primacy_ag",
+    "city_served":               "city_serve",
+    "county_served":             "cnty_serve",
+    "population_served_count":   "ppln_serve",
+    "service_connections_count": "srvc_conn",
+    "service_area_type_code":    "srvc_area",
+    "owner_type_code":           "owner_type",
+    "geometry_lat":              "gmtry_lat",
+    "geometry_long":             "gmtry_lon",
+    "geometry_quality":          "gmtry_qual",
+    "tiger_match_geoid":         "tgr_geoid",
+    "is_wholesaler_ind":         "is_whlslr",
+    "primacy_type":              "prmcy_type",
+    "primary_source_code":       "prmry_src",
+}
+
 # paths to write
 path_geojson  = os.path.join(OUTPUT_PATH, "temm_layer", "temm.geojson")
 path_shp      = os.path.join(OUTPUT_PATH, "temm_layer", "shp", "temm.shp")
@@ -106,7 +124,7 @@ if not os.path.exists(os.path.join(OUTPUT_PATH, "temm_layer", "shp")):
 
 # write geojson, shp, and csv
 temm.to_file(path_geojson, driver="GeoJSON")
-temm.to_file(path_shp, driver="ESRI Shapefile")
+temm.rename(columns=renames).to_file(path_shp, driver="ESRI Shapefile")
 temm.drop(columns="geometry").to_csv(path_csv)
 
 print("Wrote data to geojson, shp, csv.\n\n\n")
