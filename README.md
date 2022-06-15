@@ -170,17 +170,11 @@ You have now initialized the PostGIS database in a docker container and can run 
 
 To run the entire pipeline, a bash script that works through the entire pipeline can be from the project root directory (`wsb/`):
 
-    bash src/run.sh
+    python run_pipeline.py
 
-To run only downloaders, from the project root directory (`wsb/`) run:
+To run only a portion of the pipeline, open `src/run_pipeline.py` in an interactive Python IDE (such as Spyder or VSCode). Run the top cell to set up the session, then run the relevant cells.
 
-    bash src/run_downloaders.sh
-
-To run only transformers, from the project root directory (`wsb/`) run:
-
-    bash src/run_transformers.sh
-
-To work step-wise through the pipeline, run all files in the following directories, following each repository's README, in this order:
+Or, you can work with the specific scripts directly. Run all files in the following directories, following each repository's README, in this order:
 
 1.  `src/downloaders`
 2.  `src/transformers`

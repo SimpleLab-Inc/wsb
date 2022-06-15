@@ -19,7 +19,7 @@ _________________
 ### Running the downloaders
 _________________
 
-Download a data set before running its corresponding transformer. To run all the downloaders at once, run `bash run_downloaders.sh` from the `wsb` directory. Some data must be downloaded manually or retrieved from a state administrator (namely WSB Shapefiles for TX and CA). All data downloads save to a path file specified in your environment variable `WSB_DATA_PATH`.
+Download a data set before running its corresponding transformer. To run all the downloaders easily, step through the downloads section of `src/run_pipeline.py`. Some data must be downloaded manually or retrieved from a state administrator (namely WSB Shapefiles for TX and CA). All data downloads save to a path file specified in your environment variable `WSB_DATA_PATH`.
 
 
 ### State water service boundary downloaders
