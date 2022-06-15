@@ -56,22 +56,19 @@ t3 = (gpd
         ".pred":       "pred_50",
         ".pred_upper": "pred_95"}))
 
-print("Retrieved Tier 3: modeled boundaries.")
+print("Retrieved Tier 3: Modeled boundaries.")
 
 #%%
 
 # Assign tier labels
-geoid_counts = t2.groupby("tiger_match_geoid").size()
-duplicated_geoid = geoid_counts[geoid_counts > 1].index
+tiger_dupe_mask = t2["tiger_match_geoid"].dropna().duplicated(keep=False)
 
 t1["tier"] = "Tier 1"
-t2["tier"] = np.where(
-    t2["tiger_match_geoid"].isin(duplicated_geoid), "Tier 2b", "Tier 2a")
+t2["tier"] = np.where(tiger_dupe_mask, "Tier 2b", "Tier 2a")
 t3["tier"] = "Tier 3"
 
 #%%
-
-# matched output and tier classification ----------------------------------
+# Pull in base "master data" ----------------------------------
 
 # columns to keep in final df
 columns = [
@@ -83,7 +80,7 @@ columns = [
     "primary_source_code"]
 
 # read and format matched output
-print("Reading matched output...")
+print("Reading masters...")
 
 base = pd.read_sql(f"""
     SELECT {','.join(columns)}
