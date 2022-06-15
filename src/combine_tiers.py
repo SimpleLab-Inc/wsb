@@ -91,7 +91,7 @@ base = pd.read_sql(f"""
     WHERE source_system = 'master';""", conn)
 
 # Backwards compatibility
-base.rename(columns={
+base = base.rename(columns={
     "name": "pws_name",
     "state": "state_code",
     "county": "county_served"
