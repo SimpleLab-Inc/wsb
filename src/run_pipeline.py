@@ -162,16 +162,22 @@ run_task(
     "match/1-mappings.py")
 
 #%%
-# Matching (1 min)
+# Matching Tiger and MHP (1 min)
 run_task(
     "Running match algorithms",
     "match/2-matching.py")
 
 #%%
-# Superjoin & Output (40 secs)
+# Create masters (20 secs)
 run_task(
-    "Running superjoin",
-    "match/3-superjoin.py")
+    "Creating Masters",
+    "match/3-create_masters.py")
+
+#%%
+# Selecting best TIGER matches (20 secs)
+run_task(
+    "Finding best tiger matches",
+    "match/4-find_best_tiger_matches.py")
 
 
 #%% ###############################
