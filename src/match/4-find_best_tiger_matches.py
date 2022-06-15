@@ -18,22 +18,20 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 
 
 #%%
-# Load up the data sources
+# Load up the TIGER and LABELED data
 
 print("Pulling in data from database...", end="")
 
-supermodel = gpd.GeoDataFrame.from_postgis(
-    "SELECT * FROM pws_contributors;",
+supermodel = gpd.GeoDataFrame.from_postgis("""
+        SELECT *
+        FROM pws_contributors
+        WHERE source_system IN ('labeled', 'tiger');""",
     conn, geom_col="geometry")
 
 print("done.")
 
-sdwis = supermodel[supermodel["source_system"] == "sdwis"]
-echo = supermodel[supermodel["source_system"] == "echo"]
 labeled = supermodel[supermodel["source_system"] == "labeled"]
-ucmr = supermodel[supermodel["source_system"] == "ucmr"]
 tiger = supermodel[supermodel["source_system"] == "tiger"].set_index("contributor_id")
-mhp = supermodel[supermodel["source_system"] == "mhp"].set_index("contributor_id")
 
 #%%
 matches = pd.read_sql("""
@@ -41,10 +39,10 @@ matches = pd.read_sql("""
         m.master_key,
         m.candidate_contributor_id,
         m.match_rule,
-        c.source_system,
         c.source_system_id
     FROM matches m
-    JOIN pws_contributors c ON m.candidate_contributor_id = c.contributor_id;
+    JOIN pws_contributors c ON m.candidate_contributor_id = c.contributor_id
+    WHERE c.source_system = 'tiger';
     """, conn)
 
 print("Read matches from database.")
@@ -55,7 +53,6 @@ print("Read matches from database.")
 
 # How often do we match to multiple tigers?
 pws_to_tiger_match_counts = (matches
-    .loc[matches["source_system"] == "tiger"]
     .groupby("master_key")
     .size())
 
@@ -63,7 +60,6 @@ pws_to_tiger_match_counts.name = "pws_to_tiger_match_count"
 
 # Let's also do it the other direction
 tiger_to_pws_match_counts = (matches
-    .loc[matches["source_system"] == "tiger"]
     .groupby("candidate_contributor_id")
     .size())
 
@@ -98,12 +94,12 @@ s1 = gpd.GeoSeries(
     .set_index("pwsid")
     ["geometry"])
 
-# TIGER and MHP candidates (note that this index will not be unique)
+# TIGER candidates (note that this index will not be unique)
 candidate_matches = gpd.GeoDataFrame(matches
     .join(tiger["geometry"], on="candidate_contributor_id")
     .rename(columns={"master_key": "pwsid"})
     .set_index("pwsid")
-    [["geometry", "match_rule", "source_system"]])
+    [["geometry", "match_rule"]])
 
 # Filter to only the PWS's that appear in both series
 # 7,423 match
@@ -133,7 +129,6 @@ candidate_matches["score"] = candidate_matches["distance"] < PROXIMITY_BUFFER
 
 # Assign a "rank" to each match rule and combo of match rules
 match_ranks = (candidate_matches
-    .loc[candidate_matches["source_system"] == "tiger"]
     .groupby(["match_rule"])
     .agg(
         points = ("score", "sum"),
@@ -147,25 +142,22 @@ match_ranks["rank"] = np.arange(len(match_ranks))
 print("Identified best match rules based on labeled data.")
 
 #%% ###########################
-# Pick the best TIGER and MHP match
+# Pick the best TIGER match
 ###############################
 
 # Assign the rank back to the matches
 matches_ranked = matches.join(match_ranks[["rank"]], on="match_rule", how="left")
 
 # Sort by rank, then take the first one
-# Since we only ranked the TIGER match rules, the best MHP match is selected arbitrarily
-# This is fine, because multiple MHP matches are rare.
 best_match = (matches_ranked
     .sort_values(["master_key", "rank"])
-    .drop_duplicates(subset=["master_key", "source_system"], keep="first")
-    [["master_key", "candidate_contributor_id", "source_system", "source_system_id"]])
+    .drop_duplicates(subset=["master_key"], keep="first")
+    [["master_key", "candidate_contributor_id", "source_system_id"]])
 
-print("Picked the 'best' TIGER and MHP matches.")
+print("Picked the 'best' TIGER matches.")
 
-# For TIGER only, take the best match (ignore MHP for now)
+# Take the best match (ignore MHP for now)
 tiger_best_match = (best_match
-    .loc[best_match["source_system"] == "tiger"]
     .rename(columns={"source_system_id": "tiger_match_geoid"})
     .set_index("master_key")
     [["tiger_match_geoid"]])
@@ -185,97 +177,6 @@ tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
 
 tiger_best_match = tiger_best_match.join(tiger_to_pws_match_counts, on="tiger_match_geoid")
 
-mhp_best_match = (best_match
-    .loc[best_match["source_system"] == "mhp"]
-    .join(mhp[["geometry_lat", "geometry_long"]], on="candidate_contributor_id")
-    .rename(columns={
-        "source_system_id": "mhp_match_id",
-        "geometry_lat": "mhp_geometry_lat",
-        "geometry_long": "mhp_geometry_long"
-    })
-    .set_index("master_key")
-    [["mhp_match_id", "mhp_geometry_lat", "mhp_geometry_long"]])
-
-print("Pulled useful information for the best MHP match.")
-
-
-#%% ##########################
-# Generate the final table
-##############################
-
-output = pd.DataFrame().assign(
-    pwsid                      = sdwis["pwsid"],
-    pws_name                   = sdwis["name"],
-    primacy_agency_code        = sdwis["primacy_agency_code"],
-    state_code                 = sdwis["state"],
-    city_served                = sdwis["city_served"],
-    county_served              = sdwis["county"],
-    population_served_count    = sdwis["population_served_count"],
-    service_connections_count  = sdwis["service_connections_count"],
-    service_area_type_code     = sdwis["service_area_type_code"],
-    owner_type_code            = sdwis["owner_type_code"],
-    is_wholesaler_ind          = sdwis["is_wholesaler_ind"], 
-    primacy_type               = sdwis["primacy_type"], 
-    primary_source_code        = sdwis["primary_source_code"], 
-)
-
-# Supplement with echo centroid
-# TODO later - Pick the best lat/long from echo, mhp, or UCMR
-
-output = (output
-    .merge(echo[[
-        "pwsid",
-        "geometry_lat",
-        "geometry_long",
-        "geometry_quality",
-    ]], on="pwsid", how="left"))
-
-# Add in the TIGER geoid and pws --> TIGER match counts
-output = output.join(tiger_best_match, on="pwsid")
-
-# If the PWS has a UCMR, and the echo quality is state or county centroid,
-# overwrite the lat/long
-
-output = (output
-    .merge(
-        ucmr[["pwsid", "geometry_lat", "geometry_long"]]
-        .rename(columns={"geometry_lat": "ucmr_lat", "geometry_long": "ucmr_long"}),
-        on="pwsid", how="left"))
-
-mask = (
-    output["geometry_quality"].isin(["STATE CENTROID", "COUNTY CENTROID"]) &
-    output["ucmr_lat"].notna())
-
-output.loc[mask, "geometry_lat"] = output[mask]["ucmr_lat"]
-output.loc[mask, "geometry_long"] = output[mask]["ucmr_long"]
-output.loc[mask, "geometry_quality"] = "UCMR CENTROID"
-
-# If there's an MHP match, add matched ID and overwrite the lat/long
-output = output.join(mhp_best_match, on="pwsid", how="left")
-
-mask = output["mhp_match_id"].notna()
-output.loc[mask, "geometry_lat"] = output[mask]["mhp_geometry_lat"]
-output.loc[mask, "geometry_long"] = output[mask]["mhp_geometry_long"]
-output.loc[mask, "geometry_quality"] = "MHP MATCH"
-
-# Mark whether each one has a labeled boundary
-output["has_labeled_bound"] = output["pwsid"].isin(labeled["pwsid"])
-
-# Verify: We should still have exactly the number of pwsid's as we started with
-if not (len(output) == len(sdwis)):
-    raise Exception("Output was filtered or denormalized")
-
-print("Joined several data sources into final output.")
 
 #%%
-# A little cleanup
-output = output.drop(columns=["ucmr_lat", "ucmr_long", "mhp_geometry_lat", "mhp_geometry_long"])
-
-
-#%% ########################
-# Save the results to a file
-############################
-
-output.to_csv(os.path.join(STAGING_PATH, "matched_output.csv"), index=False)
-
-print("Saved matched_output.csv")
+tiger_best_match.to_sql("tiger_best_match", conn, if_exists="replace")

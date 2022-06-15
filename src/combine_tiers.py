@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
+from shapely.geometry import Polygon
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,18 +24,28 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 print("Loading geometries for Tiers 1-3...") 
 
 # Tier 1: ASSIMILATED labeled boundaries
-t1 = (gpd
-    .read_file(os.path.join(STAGING_PATH, "wsb_labeled_clean.geojson"))
-    [["pwsid", "geometry"]])
+t1 = gpd.GeoDataFrame.from_postgis("""
+            SELECT pwsid, geometry
+            FROM pws_contributors
+            WHERE source_system = 'labeled';""",
+        conn, geom_col="geometry")
+
+print("Retrieved Tier 1: Labeled boundaries.")
 
 # Tier 2: MATCHED TIGER Place boundaries
-t2 = (gpd
-    .read_file(os.path.join(STAGING_PATH, "tigris_places_clean.geojson"))
-    [["geoid", "name", "geometry"]]
-    .rename(columns={
-        "geoid": "tiger_match_geoid",
-        "name":  "tiger_name"})
-    .astype({"tiger_match_geoid": "float64"}))
+t2 = gpd.GeoDataFrame.from_postgis("""
+        SELECT
+            m.master_key        AS pwsid,
+            t.source_system_id  AS tiger_match_geoid,
+            t.name              AS tiger_name,
+            t.geometry
+        FROM tiger_best_match m
+        JOIN pws_contributors t ON
+            t.source_system = 'tiger' AND
+            t.source_system_id = m.tiger_match_geoid""",
+        conn, geom_col="geometry")
+
+print("Retrieved Tier 2: Tiger boundaries.")
 
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 = (gpd
@@ -45,49 +56,80 @@ t3 = (gpd
         ".pred":       "pred_50",
         ".pred_upper": "pred_95"}))
 
-print("done.\n") 
+print("Retrieved Tier 3: modeled boundaries.")
+
+#%%
+
+# Assign tier labels
+geoid_counts = t2.groupby("tiger_match_geoid").size()
+duplicated_geoid = geoid_counts[geoid_counts > 1].index
+
+t1["tier"] = "Tier 1"
+t2["tier"] = np.where(
+    t2["tiger_match_geoid"].isin(duplicated_geoid), "Tier 2b", "Tier 2a")
+t3["tier"] = "Tier 3"
 
 #%%
 
 # matched output and tier classification ----------------------------------
 
 # columns to keep in final df
-keep_columns = [
-    "pwsid", "pws_name", "primacy_agency_code", "state_code", "city_served", 
-    "county_served", "population_served_count", "service_connections_count", 
+columns = [
+    "pwsid", "name", "primacy_agency_code", "state", "city_served", 
+    "county", "population_served_count", "service_connections_count", 
     "service_area_type_code", "owner_type_code", "geometry_lat", 
-    "geometry_long", "geometry_quality", "tiger_match_geoid", 
-    "has_labeled_bound", "is_wholesaler_ind", "primacy_type",
-    "primary_source_code", "tier"]
+    "geometry_long", "geometry_quality",
+    "is_wholesaler_ind", "primacy_type",
+    "primary_source_code"]
 
 # read and format matched output
 print("Reading matched output...")
 
-df = pd.read_csv(os.path.join(STAGING_PATH, "matched_output.csv"))
+base = pd.read_sql(f"""
+    SELECT {','.join(columns)}
+    FROM pws_contributors
+    WHERE source_system = 'master';""", conn)
 
+# Backwards compatibility
+base.rename(columns={
+    "name": "pws_name",
+    "state": "state_code",
+    "county": "county_served"
+})
 
-df["tier"] = (
-    np.where(df["has_labeled_bound"], "Tier 1",
-    np.where(~df["has_labeled_bound"] & (df["tiger_to_pws_match_count"] == 1), "Tier 2a",
-    np.where(~df["has_labeled_bound"] & (df["tiger_to_pws_match_count"] > 1), "Tier 2b",
-    "Tier 3"))))
+print("done.\n")
 
-df = df[keep_columns]
-
-print("done.\n") 
 
 #%%
 # combine tiers -----------------------------------------------------------
 
-# Separate Tiers 1-3 from matched output, join to spatial data, and bind
-dt1 = df[df["tier"] == "Tier 1"].merge(t1, on="pwsid")
-dt2 = df[df["tier"].isin(["Tier 2a", "Tier 2b"])].merge(t2, on="tiger_match_geoid")
-dt3 = df[df["tier"] == "Tier 3"].merge(t3, on="pwsid", how="left")
+# Combine geometries from Tiers 1-3
+# Where we have duplicates, prefer Tier 1 > 2 > 3
+combined = gpd.GeoDataFrame(pd
+    .concat([t1, t2, t3])
+    .sort_values(by="tier") #type:ignore
+    .drop_duplicates(subset="pwsid", keep="first")
+    [["pwsid", "tier", "geometry", "pred_05", "pred_50", "pred_95"]])
 
-temm = gpd.GeoDataFrame(pd.concat([dt1, dt2, dt3]))
+# Join again to get tiger info
+# we do this to get tiger info for ALL tiers
+combined = combined.merge(
+    t2[["pwsid", "tiger_match_geoid", "tiger_name"]], on="pwsid", how="left")
 
 # Fix data types
-temm["tiger_match_geoid"] = temm["tiger_match_geoid"].astype(pd.Int64Dtype())
+combined["tiger_match_geoid"] = combined["tiger_match_geoid"].astype(pd.Int64Dtype())
+
+# Join to base
+temm = gpd.GeoDataFrame(base.merge(combined, on="pwsid", how="left"))
+
+# Where we don't have data from any tier, mark as tier "None"
+# and set geometry empty
+mask = temm["tier"].isna()
+temm.loc[mask, "tier"] = "None"
+temm.loc[mask, "geometry"] = Polygon([]) # type:ignore
+
+# Verify - We should have the same number of rows in df and in temm
+assert len(temm) == len(base)
 
 print("Combined a spatial layer using best available tiered data.\n")
 
