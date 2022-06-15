@@ -122,11 +122,9 @@ combined["tiger_match_geoid"] = combined["tiger_match_geoid"].astype(pd.Int64Dty
 # Join to base
 temm = gpd.GeoDataFrame(base.merge(combined, on="pwsid", how="left"))
 
-# Where we don't have data from any tier, mark as tier "None"
-# and set geometry empty
-mask = temm["tier"].isna()
-temm.loc[mask, "tier"] = "None"
-temm.loc[mask, "geometry"] = Polygon([]) # type:ignore
+# Where we don't have data from any tier, mark as tier "none"
+# (lower case to differentiate from Python's None)
+temm.loc[temm["tier"].isna(), "tier"] = "none"
 
 # Verify - We should have the same number of rows in df and in temm
 assert len(temm) == len(base)
