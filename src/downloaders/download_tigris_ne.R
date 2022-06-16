@@ -6,6 +6,8 @@ library(tigris)
 library(rmapshaper)
 library(readr)
 library(tidyverse)
+library(tidycensus)
+
 
 # path to save raw data
 data_path <- Sys.getenv("WSB_DATA_PATH")
@@ -18,7 +20,8 @@ dir_create(path(data_path, "tigris"))
 dir_create(path(data_path, "ne/ocean"))
 
 # download all TIGRIS places, simplify polygons, save
-places <- c(state.abb, "DC") %>% 
+states <- c(state.abb, "DC")
+places <- states %>% 
   tigris::places()
 
 places <- places %>% 
@@ -31,6 +34,22 @@ places <- places %>%
 
 write_rds(places, path(data_path, "tigris/tigris_places.rds"))
 cat("Downloaded and wrote TIGRIS places.\n")
+
+# download and write population data for TIGRIS places
+pop <- get_decennial(
+  geography = "place",     # census-designated places
+  state = states,
+  year = 2020,
+  variables = "P1_001N",   # selects population data for 2020
+  geometry = FALSE,
+  cb = FALSE               
+) %>%
+  select(
+    geoid        = GEOID,
+    name         = NAME,
+    population   = value
+  ) %>%
+  write_csv(., path(data_path, "tigris/tigris_pop.csv"))
 
 # download and unzip Natural Earth oceans polygons, used to 
 # remove water bodies from TIGRIS places in the transformer
