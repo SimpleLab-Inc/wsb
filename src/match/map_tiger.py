@@ -50,6 +50,7 @@ df = gpd.GeoDataFrame().assign(
     name                = tiger["name"],
     state               = tiger["state"],
     county              = tiger["county"],
+    population_served_count = tiger["population"],
     geometry            = tiger["geometry"],
     geometry_quality    = "Tiger boundary"
 )
