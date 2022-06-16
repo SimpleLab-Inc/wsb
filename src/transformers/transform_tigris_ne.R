@@ -35,6 +35,14 @@ places_clean <- places %>%
 # sanity check that oceans are removed
 # mapview::mapview(places_clean)
 
+# download tigris population data
+pop <- read_csv(path(data_path, "tigris/tigris_pop.csv")) %>%
+  select(geoid, population)
+
+# join population data to places_clean
+places_clean <- places_clean %>%
+  left_join(pop, by = "geoid")
+
 # write clean TIGRIS places
 path_out <- path(staging_path, "tigris_places_clean.geojson")
 if(file_exists(path_out)) file_delete(path_out)
