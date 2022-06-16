@@ -164,19 +164,5 @@ tiger_best_match = (best_match
 
 print("Pulled useful information for the best TIGER match.")
 
-# Now that we've removed a bunch of matches by taking the "best" pws->tiger,
-# we also need to recalculate the tiger->pws match count
-# We DO need this one downstream in order to differentiate "Tier 2a" and
-# "Tier 2b"
-
-tiger_to_pws_match_counts = (tiger_best_match
-    .groupby("tiger_match_geoid")
-    .size())
-
-tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
-
-tiger_best_match = tiger_best_match.join(tiger_to_pws_match_counts, on="tiger_match_geoid")
-
-
 #%%
 tiger_best_match.to_sql("tiger_best_match", conn, if_exists="replace")
