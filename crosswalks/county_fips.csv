@@ -1,320 +1,320 @@
 code,county,state
-1001,Autauga County,AL
-1003,Baldwin County,AL
-1005,Barbour County,AL
-1007,Bibb County,AL
-1009,Blount County,AL
-1011,Bullock County,AL
-1013,Butler County,AL
-1015,Calhoun County,AL
-1017,Chambers County,AL
-1019,Cherokee County,AL
-1021,Chilton County,AL
-1023,Choctaw County,AL
-1025,Clarke County,AL
-1027,Clay County,AL
-1029,Cleburne County,AL
-1031,Coffee County,AL
-1033,Colbert County,AL
-1035,Conecuh County,AL
-1037,Coosa County,AL
-1039,Covington County,AL
-1041,Crenshaw County,AL
-1043,Cullman County,AL
-1045,Dale County,AL
-1047,Dallas County,AL
-1049,DeKalb County,AL
-1051,Elmore County,AL
-1053,Escambia County,AL
-1055,Etowah County,AL
-1057,Fayette County,AL
-1059,Franklin County,AL
-1061,Geneva County,AL
-1063,Greene County,AL
-1065,Hale County,AL
-1067,Henry County,AL
-1069,Houston County,AL
-1071,Jackson County,AL
-1073,Jefferson County,AL
-1075,Lamar County,AL
-1077,Lauderdale County,AL
-1079,Lawrence County,AL
-1081,Lee County,AL
-1083,Limestone County,AL
-1085,Lowndes County,AL
-1087,Macon County,AL
-1089,Madison County,AL
-1091,Marengo County,AL
-1093,Marion County,AL
-1095,Marshall County,AL
-1097,Mobile County,AL
-1099,Monroe County,AL
-1101,Montgomery County,AL
-1103,Morgan County,AL
-1105,Perry County,AL
-1107,Pickens County,AL
-1109,Pike County,AL
-1111,Randolph County,AL
-1113,Russell County,AL
-1115,St. Clair County,AL
-1117,Shelby County,AL
-1119,Sumter County,AL
-1121,Talladega County,AL
-1123,Tallapoosa County,AL
-1125,Tuscaloosa County,AL
-1127,Walker County,AL
-1129,Washington County,AL
-1131,Wilcox County,AL
-1133,Winston County,AL
-2013,Aleutians East Borough,AK
-2016,Aleutians West Census Area,AK
-2020,Anchorage Municipality,AK
-2050,Bethel Census Area,AK
-2060,Bristol Bay Borough,AK
-2068,Denali Borough,AK
-2070,Dillingham Census Area,AK
-2090,Fairbanks North Star Borough,AK
-2100,Haines Borough,AK
-2105,Hoonah-Angoon Census Area,AK
-2110,Juneau City and Borough,AK
-2122,Kenai Peninsula Borough,AK
-2130,Ketchikan Gateway Borough,AK
-2150,Kodiak Island Borough,AK
-2164,Lake and Peninsula Borough,AK
-2170,Matanuska-Susitna Borough,AK
-2180,Nome Census Area,AK
-2185,North Slope Borough,AK
-2188,Northwest Arctic Borough,AK
-2195,Petersburg Borough,AK
-2198,Prince of Wales-Hyder Census Area,AK
-2220,Sitka City and Borough,AK
-2230,Skagway Municipality,AK
-2240,Southeast Fairbanks Census Area,AK
-2261,Valdez-Cordova Census Area,AK
-2270,Wade Hampton Census Area,AK
-2275,Wrangell City and Borough,AK
-2282,Yakutat City and Borough,AK
-2290,Yukon-Koyukuk Census Area,AK
-4001,Apache County,AZ
-4003,Cochise County,AZ
-4005,Coconino County,AZ
-4007,Gila County,AZ
-4009,Graham County,AZ
-4011,Greenlee County,AZ
-4012,La Paz County,AZ
-4013,Maricopa County,AZ
-4015,Mohave County,AZ
-4017,Navajo County,AZ
-4019,Pima County,AZ
-4021,Pinal County,AZ
-4023,Santa Cruz County,AZ
-4025,Yavapai County,AZ
-4027,Yuma County,AZ
-5001,Arkansas County,AR
-5003,Ashley County,AR
-5005,Baxter County,AR
-5007,Benton County,AR
-5009,Boone County,AR
-5011,Bradley County,AR
-5013,Calhoun County,AR
-5015,Carroll County,AR
-5017,Chicot County,AR
-5019,Clark County,AR
-5021,Clay County,AR
-5023,Cleburne County,AR
-5025,Cleveland County,AR
-5027,Columbia County,AR
-5029,Conway County,AR
-5031,Craighead County,AR
-5033,Crawford County,AR
-5035,Crittenden County,AR
-5037,Cross County,AR
-5039,Dallas County,AR
-5041,Desha County,AR
-5043,Drew County,AR
-5045,Faulkner County,AR
-5047,Franklin County,AR
-5049,Fulton County,AR
-5051,Garland County,AR
-5053,Grant County,AR
-5055,Greene County,AR
-5057,Hempstead County,AR
-5059,Hot Spring County,AR
-5061,Howard County,AR
-5063,Independence County,AR
-5065,Izard County,AR
-5067,Jackson County,AR
-5069,Jefferson County,AR
-5071,Johnson County,AR
-5073,Lafayette County,AR
-5075,Lawrence County,AR
-5077,Lee County,AR
-5079,Lincoln County,AR
-5081,Little River County,AR
-5083,Logan County,AR
-5085,Lonoke County,AR
-5087,Madison County,AR
-5089,Marion County,AR
-5091,Miller County,AR
-5093,Mississippi County,AR
-5095,Monroe County,AR
-5097,Montgomery County,AR
-5099,Nevada County,AR
-5101,Newton County,AR
-5103,Ouachita County,AR
-5105,Perry County,AR
-5107,Phillips County,AR
-5109,Pike County,AR
-5111,Poinsett County,AR
-5113,Polk County,AR
-5115,Pope County,AR
-5117,Prairie County,AR
-5119,Pulaski County,AR
-5121,Randolph County,AR
-5123,St. Francis County,AR
-5125,Saline County,AR
-5127,Scott County,AR
-5129,Searcy County,AR
-5131,Sebastian County,AR
-5133,Sevier County,AR
-5135,Sharp County,AR
-5137,Stone County,AR
-5139,Union County,AR
-5141,Van Buren County,AR
-5143,Washington County,AR
-5145,White County,AR
-5147,Woodruff County,AR
-5149,Yell County,AR
-6001,Alameda County,CA
-6003,Alpine County,CA
-6005,Amador County,CA
-6007,Butte County,CA
-6009,Calaveras County,CA
-6011,Colusa County,CA
-6013,Contra Costa County,CA
-6015,Del Norte County,CA
-6017,El Dorado County,CA
-6019,Fresno County,CA
-6021,Glenn County,CA
-6023,Humboldt County,CA
-6025,Imperial County,CA
-6027,Inyo County,CA
-6029,Kern County,CA
-6031,Kings County,CA
-6033,Lake County,CA
-6035,Lassen County,CA
-6037,Los Angeles County,CA
-6039,Madera County,CA
-6041,Marin County,CA
-6043,Mariposa County,CA
-6045,Mendocino County,CA
-6047,Merced County,CA
-6049,Modoc County,CA
-6051,Mono County,CA
-6053,Monterey County,CA
-6055,Napa County,CA
-6057,Nevada County,CA
-6059,Orange County,CA
-6061,Placer County,CA
-6063,Plumas County,CA
-6065,Riverside County,CA
-6067,Sacramento County,CA
-6069,San Benito County,CA
-6071,San Bernardino County,CA
-6073,San Diego County,CA
-6075,San Francisco County,CA
-6077,San Joaquin County,CA
-6079,San Luis Obispo County,CA
-6081,San Mateo County,CA
-6083,Santa Barbara County,CA
-6085,Santa Clara County,CA
-6087,Santa Cruz County,CA
-6089,Shasta County,CA
-6091,Sierra County,CA
-6093,Siskiyou County,CA
-6095,Solano County,CA
-6097,Sonoma County,CA
-6099,Stanislaus County,CA
-6101,Sutter County,CA
-6103,Tehama County,CA
-6105,Trinity County,CA
-6107,Tulare County,CA
-6109,Tuolumne County,CA
-6111,Ventura County,CA
-6113,Yolo County,CA
-6115,Yuba County,CA
-8001,Adams County,CO
-8003,Alamosa County,CO
-8005,Arapahoe County,CO
-8007,Archuleta County,CO
-8009,Baca County,CO
-8011,Bent County,CO
-8013,Boulder County,CO
-8014,Broomfield County,CO
-8015,Chaffee County,CO
-8017,Cheyenne County,CO
-8019,Clear Creek County,CO
-8021,Conejos County,CO
-8023,Costilla County,CO
-8025,Crowley County,CO
-8027,Custer County,CO
-8029,Delta County,CO
-8031,Denver County,CO
-8033,Dolores County,CO
-8035,Douglas County,CO
-8037,Eagle County,CO
-8039,Elbert County,CO
-8041,El Paso County,CO
-8043,Fremont County,CO
-8045,Garfield County,CO
-8047,Gilpin County,CO
-8049,Grand County,CO
-8051,Gunnison County,CO
-8053,Hinsdale County,CO
-8055,Huerfano County,CO
-8057,Jackson County,CO
-8059,Jefferson County,CO
-8061,Kiowa County,CO
-8063,Kit Carson County,CO
-8065,Lake County,CO
-8067,La Plata County,CO
-8069,Larimer County,CO
-8071,Las Animas County,CO
-8073,Lincoln County,CO
-8075,Logan County,CO
-8077,Mesa County,CO
-8079,Mineral County,CO
-8081,Moffat County,CO
-8083,Montezuma County,CO
-8085,Montrose County,CO
-8087,Morgan County,CO
-8089,Otero County,CO
-8091,Ouray County,CO
-8093,Park County,CO
-8095,Phillips County,CO
-8097,Pitkin County,CO
-8099,Prowers County,CO
-8101,Pueblo County,CO
-8103,Rio Blanco County,CO
-8105,Rio Grande County,CO
-8107,Routt County,CO
-8109,Saguache County,CO
-8111,San Juan County,CO
-8113,San Miguel County,CO
-8115,Sedgwick County,CO
-8117,Summit County,CO
-8119,Teller County,CO
-8121,Washington County,CO
-8123,Weld County,CO
-8125,Yuma County,CO
-9001,Fairfield County,CT
-9003,Hartford County,CT
-9005,Litchfield County,CT
-9007,Middlesex County,CT
-9009,New Haven County,CT
-9011,New London County,CT
-9013,Tolland County,CT
-9015,Windham County,CT
+01001,Autauga County,AL
+01003,Baldwin County,AL
+01005,Barbour County,AL
+01007,Bibb County,AL
+01009,Blount County,AL
+01011,Bullock County,AL
+01013,Butler County,AL
+01015,Calhoun County,AL
+01017,Chambers County,AL
+01019,Cherokee County,AL
+01021,Chilton County,AL
+01023,Choctaw County,AL
+01025,Clarke County,AL
+01027,Clay County,AL
+01029,Cleburne County,AL
+01031,Coffee County,AL
+01033,Colbert County,AL
+01035,Conecuh County,AL
+01037,Coosa County,AL
+01039,Covington County,AL
+01041,Crenshaw County,AL
+01043,Cullman County,AL
+01045,Dale County,AL
+01047,Dallas County,AL
+01049,DeKalb County,AL
+01051,Elmore County,AL
+01053,Escambia County,AL
+01055,Etowah County,AL
+01057,Fayette County,AL
+01059,Franklin County,AL
+01061,Geneva County,AL
+01063,Greene County,AL
+01065,Hale County,AL
+01067,Henry County,AL
+01069,Houston County,AL
+01071,Jackson County,AL
+01073,Jefferson County,AL
+01075,Lamar County,AL
+01077,Lauderdale County,AL
+01079,Lawrence County,AL
+01081,Lee County,AL
+01083,Limestone County,AL
+01085,Lowndes County,AL
+01087,Macon County,AL
+01089,Madison County,AL
+01091,Marengo County,AL
+01093,Marion County,AL
+01095,Marshall County,AL
+01097,Mobile County,AL
+01099,Monroe County,AL
+01101,Montgomery County,AL
+01103,Morgan County,AL
+01105,Perry County,AL
+01107,Pickens County,AL
+01109,Pike County,AL
+01111,Randolph County,AL
+01113,Russell County,AL
+01115,St. Clair County,AL
+01117,Shelby County,AL
+01119,Sumter County,AL
+01121,Talladega County,AL
+01123,Tallapoosa County,AL
+01125,Tuscaloosa County,AL
+01127,Walker County,AL
+01129,Washington County,AL
+01131,Wilcox County,AL
+01133,Winston County,AL
+02013,Aleutians East Borough,AK
+02016,Aleutians West Census Area,AK
+02020,Anchorage Municipality,AK
+02050,Bethel Census Area,AK
+02060,Bristol Bay Borough,AK
+02068,Denali Borough,AK
+02070,Dillingham Census Area,AK
+02090,Fairbanks North Star Borough,AK
+02100,Haines Borough,AK
+02105,Hoonah-Angoon Census Area,AK
+02110,Juneau City and Borough,AK
+02122,Kenai Peninsula Borough,AK
+02130,Ketchikan Gateway Borough,AK
+02150,Kodiak Island Borough,AK
+02164,Lake and Peninsula Borough,AK
+02170,Matanuska-Susitna Borough,AK
+02180,Nome Census Area,AK
+02185,North Slope Borough,AK
+02188,Northwest Arctic Borough,AK
+02195,Petersburg Borough,AK
+02198,Prince of Wales-Hyder Census Area,AK
+02220,Sitka City and Borough,AK
+02230,Skagway Municipality,AK
+02240,Southeast Fairbanks Census Area,AK
+02261,Valdez-Cordova Census Area,AK
+02270,Wade Hampton Census Area,AK
+02275,Wrangell City and Borough,AK
+02282,Yakutat City and Borough,AK
+02290,Yukon-Koyukuk Census Area,AK
+04001,Apache County,AZ
+04003,Cochise County,AZ
+04005,Coconino County,AZ
+04007,Gila County,AZ
+04009,Graham County,AZ
+04011,Greenlee County,AZ
+04012,La Paz County,AZ
+04013,Maricopa County,AZ
+04015,Mohave County,AZ
+04017,Navajo County,AZ
+04019,Pima County,AZ
+04021,Pinal County,AZ
+04023,Santa Cruz County,AZ
+04025,Yavapai County,AZ
+04027,Yuma County,AZ
+05001,Arkansas County,AR
+05003,Ashley County,AR
+05005,Baxter County,AR
+05007,Benton County,AR
+05009,Boone County,AR
+05011,Bradley County,AR
+05013,Calhoun County,AR
+05015,Carroll County,AR
+05017,Chicot County,AR
+05019,Clark County,AR
+05021,Clay County,AR
+05023,Cleburne County,AR
+05025,Cleveland County,AR
+05027,Columbia County,AR
+05029,Conway County,AR
+05031,Craighead County,AR
+05033,Crawford County,AR
+05035,Crittenden County,AR
+05037,Cross County,AR
+05039,Dallas County,AR
+05041,Desha County,AR
+05043,Drew County,AR
+05045,Faulkner County,AR
+05047,Franklin County,AR
+05049,Fulton County,AR
+05051,Garland County,AR
+05053,Grant County,AR
+05055,Greene County,AR
+05057,Hempstead County,AR
+05059,Hot Spring County,AR
+05061,Howard County,AR
+05063,Independence County,AR
+05065,Izard County,AR
+05067,Jackson County,AR
+05069,Jefferson County,AR
+05071,Johnson County,AR
+05073,Lafayette County,AR
+05075,Lawrence County,AR
+05077,Lee County,AR
+05079,Lincoln County,AR
+05081,Little River County,AR
+05083,Logan County,AR
+05085,Lonoke County,AR
+05087,Madison County,AR
+05089,Marion County,AR
+05091,Miller County,AR
+05093,Mississippi County,AR
+05095,Monroe County,AR
+05097,Montgomery County,AR
+05099,Nevada County,AR
+05101,Newton County,AR
+05103,Ouachita County,AR
+05105,Perry County,AR
+05107,Phillips County,AR
+05109,Pike County,AR
+05111,Poinsett County,AR
+05113,Polk County,AR
+05115,Pope County,AR
+05117,Prairie County,AR
+05119,Pulaski County,AR
+05121,Randolph County,AR
+05123,St. Francis County,AR
+05125,Saline County,AR
+05127,Scott County,AR
+05129,Searcy County,AR
+05131,Sebastian County,AR
+05133,Sevier County,AR
+05135,Sharp County,AR
+05137,Stone County,AR
+05139,Union County,AR
+05141,Van Buren County,AR
+05143,Washington County,AR
+05145,White County,AR
+05147,Woodruff County,AR
+05149,Yell County,AR
+06001,Alameda County,CA
+06003,Alpine County,CA
+06005,Amador County,CA
+06007,Butte County,CA
+06009,Calaveras County,CA
+06011,Colusa County,CA
+06013,Contra Costa County,CA
+06015,Del Norte County,CA
+06017,El Dorado County,CA
+06019,Fresno County,CA
+06021,Glenn County,CA
+06023,Humboldt County,CA
+06025,Imperial County,CA
+06027,Inyo County,CA
+06029,Kern County,CA
+06031,Kings County,CA
+06033,Lake County,CA
+06035,Lassen County,CA
+06037,Los Angeles County,CA
+06039,Madera County,CA
+06041,Marin County,CA
+06043,Mariposa County,CA
+06045,Mendocino County,CA
+06047,Merced County,CA
+06049,Modoc County,CA
+06051,Mono County,CA
+06053,Monterey County,CA
+06055,Napa County,CA
+06057,Nevada County,CA
+06059,Orange County,CA
+06061,Placer County,CA
+06063,Plumas County,CA
+06065,Riverside County,CA
+06067,Sacramento County,CA
+06069,San Benito County,CA
+06071,San Bernardino County,CA
+06073,San Diego County,CA
+06075,San Francisco County,CA
+06077,San Joaquin County,CA
+06079,San Luis Obispo County,CA
+06081,San Mateo County,CA
+06083,Santa Barbara County,CA
+06085,Santa Clara County,CA
+06087,Santa Cruz County,CA
+06089,Shasta County,CA
+06091,Sierra County,CA
+06093,Siskiyou County,CA
+06095,Solano County,CA
+06097,Sonoma County,CA
+06099,Stanislaus County,CA
+06101,Sutter County,CA
+06103,Tehama County,CA
+06105,Trinity County,CA
+06107,Tulare County,CA
+06109,Tuolumne County,CA
+06111,Ventura County,CA
+06113,Yolo County,CA
+06115,Yuba County,CA
+08001,Adams County,CO
+08003,Alamosa County,CO
+08005,Arapahoe County,CO
+08007,Archuleta County,CO
+08009,Baca County,CO
+08011,Bent County,CO
+08013,Boulder County,CO
+08014,Broomfield County,CO
+08015,Chaffee County,CO
+08017,Cheyenne County,CO
+08019,Clear Creek County,CO
+08021,Conejos County,CO
+08023,Costilla County,CO
+08025,Crowley County,CO
+08027,Custer County,CO
+08029,Delta County,CO
+08031,Denver County,CO
+08033,Dolores County,CO
+08035,Douglas County,CO
+08037,Eagle County,CO
+08039,Elbert County,CO
+08041,El Paso County,CO
+08043,Fremont County,CO
+08045,Garfield County,CO
+08047,Gilpin County,CO
+08049,Grand County,CO
+08051,Gunnison County,CO
+08053,Hinsdale County,CO
+08055,Huerfano County,CO
+08057,Jackson County,CO
+08059,Jefferson County,CO
+08061,Kiowa County,CO
+08063,Kit Carson County,CO
+08065,Lake County,CO
+08067,La Plata County,CO
+08069,Larimer County,CO
+08071,Las Animas County,CO
+08073,Lincoln County,CO
+08075,Logan County,CO
+08077,Mesa County,CO
+08079,Mineral County,CO
+08081,Moffat County,CO
+08083,Montezuma County,CO
+08085,Montrose County,CO
+08087,Morgan County,CO
+08089,Otero County,CO
+08091,Ouray County,CO
+08093,Park County,CO
+08095,Phillips County,CO
+08097,Pitkin County,CO
+08099,Prowers County,CO
+08101,Pueblo County,CO
+08103,Rio Blanco County,CO
+08105,Rio Grande County,CO
+08107,Routt County,CO
+08109,Saguache County,CO
+08111,San Juan County,CO
+08113,San Miguel County,CO
+08115,Sedgwick County,CO
+08117,Summit County,CO
+08119,Teller County,CO
+08121,Washington County,CO
+08123,Weld County,CO
+08125,Yuma County,CO
+09001,Fairfield County,CT
+09003,Hartford County,CT
+09005,Litchfield County,CT
+09007,Middlesex County,CT
+09009,New Haven County,CT
+09011,New London County,CT
+09013,Tolland County,CT
+09015,Windham County,CT
 10001,Kent County,DE
 10003,New Castle County,DE
 10005,Sussex County,DE
