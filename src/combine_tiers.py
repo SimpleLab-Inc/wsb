@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
-from shapely.geometry import Polygon
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,7 +22,7 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 
 print("Loading geometries for Tiers 1-3...") 
 
-# Tier 1: ASSIMILATED labeled boundaries
+# Tier 1: LABELED boundaries
 t1 = gpd.GeoDataFrame.from_postgis("""
             SELECT pwsid, geometry
             FROM pws_contributors
@@ -32,20 +31,19 @@ t1 = gpd.GeoDataFrame.from_postgis("""
 
 print("Retrieved Tier 1: Labeled boundaries.")
 
-# Tier 2: MATCHED TIGER Place boundaries
+# Tier 2: MATCHED boundaries
 t2 = gpd.GeoDataFrame.from_postgis("""
-        SELECT
-            m.master_key        AS pwsid,
-            t.source_system_id  AS tiger_match_geoid,
-            t.name              AS tiger_name,
-            t.geometry
-        FROM tiger_best_match m
-        JOIN pws_contributors t ON
-            t.source_system = 'tiger' AND
-            t.source_system_id = m.tiger_match_geoid""",
+            SELECT
+                m.master_key        AS pwsid,
+                t.source_system_id  AS matched_bound_geoid,
+                t.name              AS matched_bound_name,
+                t.geometry
+            FROM best_match m
+            JOIN pws_contributors t ON m.candidate_contributor_id = t.contributor_id
+            WHERE t.source_system = 'tiger'""",
         conn, geom_col="geometry")
 
-print("Retrieved Tier 2: Tiger boundaries.")
+print("Retrieved Tier 2: Matched boundaries.")
 
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 = (gpd
@@ -61,10 +59,10 @@ print("Retrieved Tier 3: Modeled boundaries.")
 #%%
 
 # Assign tier labels
-tiger_dupe_mask = t2["tiger_match_geoid"].dropna().duplicated(keep=False)
+tier2_dupe_mask = t2["matched_bound_geoid"].dropna().duplicated(keep=False)
 
 t1["tier"] = "Tier 1"
-t2["tier"] = np.where(tiger_dupe_mask, "Tier 2b", "Tier 2a")
+t2["tier"] = np.where(tier2_dupe_mask, "Tier 2b", "Tier 2a")
 t3["tier"] = "Tier 3"
 
 #%%
@@ -108,13 +106,13 @@ combined = gpd.GeoDataFrame(pd
     .drop_duplicates(subset="pwsid", keep="first")
     [["pwsid", "tier", "geometry", "pred_05", "pred_50", "pred_95"]])
 
-# Join again to get tiger info
-# we do this to get tiger info for ALL tiers
+# Join again to get matched boundary info
+# we do this to get boundary info for ALL tiers
 combined = combined.merge(
-    t2[["pwsid", "tiger_match_geoid", "tiger_name"]], on="pwsid", how="left")
+    t2[["pwsid", "matched_bound_geoid", "matched_bound_name"]], on="pwsid", how="left")
 
 # Fix data types
-combined["tiger_match_geoid"] = combined["tiger_match_geoid"].astype(pd.Int64Dtype())
+combined["matched_bound_geoid"] = combined["matched_bound_geoid"].astype(pd.Int64Dtype())
 
 # Join to base
 temm = gpd.GeoDataFrame(base.merge(combined, on="pwsid", how="left"))
@@ -144,7 +142,8 @@ renames = {
     "geometry_lat":              "gmtry_lat",
     "geometry_long":             "gmtry_lon",
     "geometry_quality":          "gmtry_qual",
-    "tiger_match_geoid":         "tgr_geoid",
+    "matched_bound_geoid":       "bnd_geoid",
+    "matched_bound_name":        "bnd_name",
     "is_wholesaler_ind":         "is_whlslr",
     "primacy_type":              "prmcy_type",
     "primary_source_code":       "prmry_src",

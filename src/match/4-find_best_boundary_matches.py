@@ -152,17 +152,9 @@ matches_ranked = matches.join(match_ranks[["rank"]], on="match_rule", how="left"
 best_match = (matches_ranked
     .sort_values(["master_key", "rank"])
     .drop_duplicates(subset=["master_key"], keep="first")
-    [["master_key", "candidate_contributor_id", "source_system_id"]])
+    [["master_key", "candidate_contributor_id"]])
 
-print("Picked the 'best' TIGER matches.")
-
-# Take the best match (ignore MHP for now)
-tiger_best_match = (best_match
-    .rename(columns={"source_system_id": "tiger_match_geoid"})
-    .set_index("master_key")
-    [["tiger_match_geoid"]])
-
-print("Pulled useful information for the best TIGER match.")
+print(f"Picked the 'best' TIGER matches: {len(best_match)} rows.")
 
 #%%
-tiger_best_match.to_sql("tiger_best_match", conn, if_exists="replace")
+best_match.to_sql("best_match", conn, if_exists="replace")
