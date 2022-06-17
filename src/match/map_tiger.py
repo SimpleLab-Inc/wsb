@@ -42,6 +42,8 @@ df = gpd.GeoDataFrame().assign(
     state               = tiger["state"],
     population_served_count = tiger["population"].astype(pd.Int64Dtype()),
     geometry            = tiger["geometry"],
+    geometry_lat        = tiger["intptlat"],
+    geometry_long       = tiger["intptlon"],
     geometry_quality    = "Tiger boundary"
 )
 
