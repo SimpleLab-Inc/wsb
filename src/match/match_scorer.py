@@ -70,7 +70,7 @@ class MatchScorer:
         distances = known_geometries.distance(candidate_matches, align=True)
         print("Calculated distances.")
 
-        # Not sure what causes NA. Filter only non-NA
+        # A few empty labeled geometries cause NA distances. Filter only non-NA
         distances = distances[distances.notna()]
         distances.name = "distance"
 
