@@ -46,7 +46,7 @@ ga.county_served - Maybe this will be helpful?
 keep_columns = ["pwsid", "pws_name", "primacy_agency_code", 
     "address_line1", "address_line2", "city_name", "zip_code", "state_code",
     "population_served_count", "service_connections_count", "owner_type_code",
-    "primacy_type"]
+    "primacy_type", "is_wholesaler_ind", "primary_source_code"]
 
 sdwis = pd.read_csv(
     os.path.join(DATA_PATH, "sdwis_water_system.csv"),
@@ -129,6 +129,8 @@ df = gpd.GeoDataFrame().assign(
     service_connections_count  = sdwis["service_connections_count"].astype("float").astype("int"),
     owner_type_code            = sdwis["owner_type_code"],
     service_area_type_code     = sdwis["service_area_type_code"].astype("str"),
+    is_wholesaler_ind          = sdwis["is_wholesaler_ind"],
+    primary_source_code        = sdwis["primary_source_code"],
 )
 
 df = df.set_crs(epsg=EPSG, allow_override=True)

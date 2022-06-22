@@ -20,7 +20,7 @@ _________________
 ### Running the transformers
 _________________
 
-After downloading a dataset, its corresponding transformer must be run to clean the data. To run all transformers at once, run `bash run_transformers.sh` from the `wsb` directory. All transformed data save to a path file specified in the environment variable `WSB_STAGING_PATH`.
+After downloading a dataset, its corresponding transformer must be run to clean the data. To run all the transformers easily, step through the transformers section of `src/run_pipeline.py`. All transformed data save to a path file specified in the environment variable `WSB_STAGING_PATH`.
 
 
 ### State water service boundary transformers

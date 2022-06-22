@@ -15,11 +15,16 @@ EPSG = os.environ["WSB_EPSG"]
 
 ucmr = pd.read_csv(os.path.join(DATA_PATH, "ucmr.csv"))
 
-#%%
 ucmr = gpd.GeoDataFrame(
     ucmr,
     geometry=gpd.points_from_xy(ucmr["centroid_long"], ucmr["centroid_lat"]),
     crs="EPSG:4326")
+
+print("Loaded UCMR")
+
+pwsids = helpers.get_pwsids_of_interest()
+ucmr = ucmr[ucmr["pwsid"].isin(pwsids)]
+print("Filtered to PWSID's of interest.")
 
 #%%
 

@@ -9,12 +9,18 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # read dataset and log transform the response - only for linear model
-d <- read_csv(path(staging_path, "matched_output_clean.csv")) %>% 
+d <- read_csv(path(staging_path, "model_input_clean.csv")) %>% 
   mutate(radius  = log10(radius),
-         # multiply correlated predictors
-         density = population_served_count * service_connections_count)
+  # multiply correlated predictors
+  density = population_served_count * service_connections_count)
 
-cat("\n\nRead `matched_output_clean.csv` from preprocess script.\n")
+# Stash lat/long
+lat_long <- d %>%
+  select(pwsid, geometry_long, geometry_lat) %>% 
+  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg) %>% 
+  suppressMessages()
+
+cat("\n\nRead `model_input_clean.csv` from preprocess script.\n")
 
 # unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
@@ -87,13 +93,6 @@ cat("Fit model on training set.\n")
 
 # apply modeled radii to centroids for all data and write -----------------
 
-# read matched output for centroid lat/lng
-matched_output_clean <- path(staging_path, "matched_output_clean.csv") %>% 
-  read_csv(col_select = c("pwsid", "geometry_lat", "geometry_long")) %>% 
-  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg) %>% 
-  suppressMessages()
-cat("Read labeled and unlabeled data to fit model on.\n")
-
 # fit the model on all data, apply the spatial buffer, and write
 t3m <- d %>% 
   select(pwsid, radius) %>% 
@@ -102,7 +101,7 @@ t3m <- d %>%
   # exponentiate results back to median (unbiased), and 5/95 CIs
   mutate(across(where(is.numeric), ~10^(.x))) %>% 
   # add matched output lat/lng centroids and make spatial
-  left_join(matched_output_clean, by = "pwsid") %>% 
+  left_join(lat_long, by = "pwsid") %>% 
   st_as_sf() %>% 
   # convert to projected metric CRS for accurate, efficient buffer. 
   # The project CRS (4326) is inappropriate because units are degrees.

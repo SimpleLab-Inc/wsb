@@ -10,7 +10,7 @@ load_dotenv()
 
 pd.options.display.max_columns = None
 
-OUTPUT_PATH = os.environ["WSB_OUTPUTS_PATH"]
+OUTPUT_PATH = os.environ["WSB_OUTPUT_PATH"]
 EPSG = os.environ["WSB_EPSG"]
 
 # Connect to local PostGIS instance
