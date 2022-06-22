@@ -176,8 +176,8 @@ run_task(
 #%%
 # Selecting best TIGER matches (20 secs)
 run_task(
-    "Finding best tiger matches",
-    "match/4-find_best_tiger_matches.py")
+    "Finding best boundary matches",
+    "match/4-find_best_boundary_matches.py")
 
 
 #%% ###############################
