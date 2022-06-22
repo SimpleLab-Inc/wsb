@@ -29,11 +29,18 @@ places <- read_rds(path(data_path, "tigris/tigris_places.rds")) %>%
 places_clean <- places %>% 
   st_intersection(ocean) %>% 
   st_make_valid() %>% 
-  janitor::clean_names() %>% 
-  mutate(statefp = as.numeric(statefp))
+  janitor::clean_names() 
 
 # sanity check that oceans are removed
 # mapview::mapview(places_clean)
+
+# download tigris population data
+pop <- read_csv(path(data_path, "tigris/tigris_pop.csv")) %>%
+  select(geoid, population)
+
+# join population data to places_clean
+places_clean <- places_clean %>%
+  left_join(pop, by = "geoid")
 
 # write clean TIGRIS places
 path_out <- path(staging_path, "tigris_places_clean.geojson")

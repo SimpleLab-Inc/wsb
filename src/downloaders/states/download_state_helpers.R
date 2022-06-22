@@ -7,7 +7,8 @@ suppressWarnings(suppressMessages(library(fs)))
 data_path <- Sys.getenv("WSB_DATA_PATH")
 
 # function to download url
-download_wsb <- function(url, state) {
+# file_ext argument is optional; if not provided, generated from url ending
+download_wsb <- function(url, state, file_ext) {
 
   cat("Starting download for", toupper(state), "boundary data...\n\n")
   
@@ -16,7 +17,9 @@ download_wsb <- function(url, state) {
   dir_create(dir_path)
   
   # get file extension to create outputted file name and path
-  file_ext  <- sub(".*\\.", "", url)
+  if (missing(file_ext)) {
+    file_ext  <- sub(".*\\.", "", url)
+  }
   file_name <- paste0(state, ".", file_ext)
   file_path <- path(dir_path, file_name)
   

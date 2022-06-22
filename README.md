@@ -51,7 +51,7 @@ WSB_OUTPUT_PATH = "path to output matching artifacts, like reports"
 WSB_EPSG = "4326"
 WSB_EPSG_AW = "ESRI:102003"
 POSTGIS_CONN_STR = "postgresql://postgres:postgres@localhost:5433/wsb"
-
+CENSUS_API_KEY="<Get a census API key from https://api.census.gov/data/key_signup.html>"
 ```
 Don't forget to leave a blank line at the end of `.Renviron` before saving.
 
