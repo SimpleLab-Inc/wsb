@@ -105,7 +105,7 @@ def _sql_cleanse(source_system: Optional[str] = None):
     # Upper-case columns
     for col in [
             "name", "address_line_1", "address_line_2", "city", "state",
-            "county", "city_served", "geometry_quality"
+            "county", "city_served", "centroid_quality"
         ]:
         _run_cleanse_rule(conn,
             f"Upper-case {col}",
@@ -187,10 +187,10 @@ def _sql_cleanse(source_system: Optional[str] = None):
         "Standardize geometry quality",
         f"""
             UPDATE pws_contributors
-            SET geometry_quality = 'ZIP CODE CENTROID'
+            SET centroid_quality = 'ZIP CODE CENTROID'
             WHERE
                 {source_system_filter}
-                geometry_quality = 'ZIP CODE-CENTROID';
+                centroid_quality = 'ZIP CODE-CENTROID';
         """)
 
 

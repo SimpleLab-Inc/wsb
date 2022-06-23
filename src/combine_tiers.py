@@ -74,8 +74,8 @@ t3["tier"] = "Tier 3"
 columns = [
     "pwsid", "name", "primacy_agency_code", "state", "city_served", 
     "county", "population_served_count", "service_connections_count", 
-    "service_area_type_code", "owner_type_code", "geometry_lat", 
-    "geometry_long", "geometry_quality",
+    "service_area_type_code", "owner_type_code", "centroid_lat", 
+    "centroid_lon", "centroid_quality",
     "is_wholesaler_ind", "primacy_type",
     "primary_source_code"]
 
@@ -141,9 +141,9 @@ renames = {
     "service_connections_count": "srvc_conn",
     "service_area_type_code":    "srvc_area",
     "owner_type_code":           "owner_type",
-    "geometry_lat":              "gmtry_lat",
-    "geometry_long":             "gmtry_lon",
-    "geometry_quality":          "gmtry_qual",
+    "centroid_lat":              "cntrd_lat",
+    "centroid_lon":              "cntrd_lon",
+    "centroid_quality":          "cntrd_qual",
     "matched_bound_geoid":       "bnd_geoid",
     "matched_bound_name":        "bnd_name",
     "is_wholesaler_ind":         "is_whlslr",

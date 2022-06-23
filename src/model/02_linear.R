@@ -16,8 +16,8 @@ d <- read_csv(path(staging_path, "model_input_clean.csv")) %>%
 
 # Stash lat/long
 lat_long <- d %>%
-  select(pwsid, geometry_long, geometry_lat) %>% 
-  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg) %>% 
+  select(pwsid, centroid_lon, centroid_lat) %>% 
+  st_as_sf(coords = c("centroid_lon", "centroid_lat"), crs = epsg) %>% 
   suppressMessages()
 
 cat("\n\nRead `model_input_clean.csv` from preprocess script.\n")

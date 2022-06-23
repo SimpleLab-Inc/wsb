@@ -17,7 +17,7 @@ cat("Preparing to mean impute service connection count",
 # j stands for joined data, read and rm rownumber column, then drop
 # observations without a centroid or with nonsensical service connections
 j <- read_csv(path(staging_path, "matched_output.csv")) %>% 
-  filter(!is.na(geometry_lat) | !is.na(geometry_long)) %>% 
+  filter(!is.na(centroid_lat) | !is.na(centroid_lon)) %>% 
   # filter out systems with < n_max population count - 243 (0.5%),
   filter(population_served_count > n_max) 
 cat("Read", nrow(j), "matched outputs with >=", 

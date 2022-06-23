@@ -38,14 +38,14 @@ pws = dbGetQuery(conn,"
   SELECT
     pwsid, is_wholesaler_ind, primacy_type, primary_source_code,
     service_connections_count, population_served_count, primacy_agency_code,
-    owner_type_code, service_area_type_code, geometry_lat, geometry_long
+    owner_type_code, service_area_type_code, centroid_lat, centroid_lon
   FROM pws_contributors
   WHERE source_system = 'master';")
 
 # j stands for joined data, read and rm rownumber column, then drop
 # observations without a centroid or with nonsensical service connections
 j <- pws %>% 
-  filter(!is.na(geometry_lat) | !is.na(geometry_long)) %>% 
+  filter(!is.na(centroid_lat) | !is.na(centroid_lon)) %>% 
   # filter to CWS and assume each connection must serve at least 1 person
   filter(service_connections_count >= n_max_sc,
          population_served_count   >= n_max_pop) %>% 

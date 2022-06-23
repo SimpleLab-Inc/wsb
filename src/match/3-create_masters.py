@@ -75,14 +75,15 @@ best_match = (matches
     [["master_key", "candidate_contributor_id", "source_system_id"]])
 
 mhp_best_match = (best_match
-    .join(mhp[["geometry_lat", "geometry_long"]], on="candidate_contributor_id")
+    .join(mhp[["centroid_lat", "centroid_lon", "centroid_quality"]], on="candidate_contributor_id")
     .rename(columns={
         "source_system_id": "mhp_match_id",
-        "geometry_lat": "mhp_geometry_lat",
-        "geometry_long": "mhp_geometry_long"
+        "centroid_lat": "mhp_lat",
+        "centroid_lon": "mhp_lon",
+        "centroid_quality": "mhp_quality"
     })
     .set_index("master_key")
-    [["mhp_match_id", "mhp_geometry_lat", "mhp_geometry_long"]])
+    [["mhp_match_id", "mhp_lat", "mhp_lon", "mhp_quality"]])
 
 print("Pulled useful information for the best MHP match.")
 
@@ -93,7 +94,7 @@ print("Pulled useful information for the best MHP match.")
 
 # Start with SDWIS as the base, but drop/override a few columns
 output = (sdwis
-    .drop(columns=["geometry_lat", "geometry_long", "geometry_quality"])
+    .drop(columns=["centroid_lat", "centroid_lon", "centroid_quality"])
     .assign(
         contributor_id             = "master." + sdwis["pwsid"],
         source_system              = "master",
@@ -106,9 +107,9 @@ output = (sdwis
 output = (output
     .merge(echo[[
         "pwsid",
-        "geometry_lat",
-        "geometry_long",
-        "geometry_quality",
+        "centroid_lat",
+        "centroid_lon",
+        "centroid_quality",
     ]], on="pwsid", how="left"))
 
 # If the PWS has a UCMR, and the echo quality is state or county centroid,
@@ -116,25 +117,28 @@ output = (output
 
 output = (output
     .merge(
-        ucmr[["pwsid", "geometry_lat", "geometry_long"]]
-        .rename(columns={"geometry_lat": "ucmr_lat", "geometry_long": "ucmr_long"}),
+        ucmr[["pwsid", "centroid_lat", "centroid_lon", "centroid_quality"]]
+        .rename(columns={
+            "centroid_lat": "ucmr_lat",
+            "centroid_lon": "ucmr_lon",
+            "centroid_quality": "ucmr_quality"}),
         on="pwsid", how="left"))
 
 mask = (
-    output["geometry_quality"].isin(["STATE CENTROID", "COUNTY CENTROID"]) &
+    output["centroid_quality"].isin(["STATE CENTROID", "COUNTY CENTROID"]) &
     output["ucmr_lat"].notna())
 
-output.loc[mask, "geometry_lat"] = output[mask]["ucmr_lat"]
-output.loc[mask, "geometry_long"] = output[mask]["ucmr_long"]
-output.loc[mask, "geometry_quality"] = "UCMR CENTROID"
+output.loc[mask, "centroid_lat"] = output[mask]["ucmr_lat"]
+output.loc[mask, "centroid_lon"] = output[mask]["ucmr_lon"]
+output.loc[mask, "centroid_quality"] = output[mask]["ucmr_quality"]
 
 # If there's an MHP match, add matched ID and overwrite the lat/long
 output = output.join(mhp_best_match, on="pwsid", how="left")
 
 mask = output["mhp_match_id"].notna()
-output.loc[mask, "geometry_lat"] = output[mask]["mhp_geometry_lat"]
-output.loc[mask, "geometry_long"] = output[mask]["mhp_geometry_long"]
-output.loc[mask, "geometry_quality"] = "MHP MATCH"
+output.loc[mask, "centroid_lat"] = output[mask]["mhp_lat"]
+output.loc[mask, "centroid_lon"] = output[mask]["mhp_lon"]
+output.loc[mask, "centroid_quality"] = output[mask]["mhp_quality"]
 
 # Verify: We should still have exactly the number of pwsid's as we started with
 if not (len(output) == len(sdwis)):
@@ -145,7 +149,10 @@ print("Joined several data sources into final output.")
 
 #%%
 # A little cleanup
-output = output.drop(columns=["ucmr_lat", "ucmr_long", "mhp_geometry_lat", "mhp_geometry_long", "mhp_match_id"])
+output = output.drop(columns=[
+    "ucmr_lat", "ucmr_lon", "ucmr_quality",
+    "mhp_lat", "mhp_lon", "mhp_quality", "mhp_match_id"])
+
 #%%
 output = gpd.GeoDataFrame(output)
 output["geometry"] = Polygon([])

@@ -119,8 +119,8 @@ population_served_count  | SDWIS           |
 service_connections_count| SDWIS           |
 service_area_type_code   | SDWIS           |
 owner_type_code          | SDWIS           |
-geometry_lat             | MHP, UCMR, ECHO | Lat / Long from the best system is available
-geometry_long            | MHP, UCMR, ECHO | Lat / Long from the best system is available
+centroid_lat             | MHP, UCMR, ECHO | Lat / Long from the best system is available
+centroid_lon             | MHP, UCMR, ECHO | Lat / Long from the best system is available
 tiger_match_geoid        | TIGER           | ID of the best match in the TIGER system
 pws_to_tiger_match_count | Match Algorithm | Count of how many TIGER records this PWS matched to
 tiger_to_pws_match_count | Match Algorithm | Count of how many other PWS records this TIGER matched to

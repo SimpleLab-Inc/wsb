@@ -23,10 +23,10 @@ CREATE TABLE pws_contributors (
     service_area_type_code    TEXT,
     is_wholesaler_ind         BOOLEAN,
     primary_source_code       TEXT,
-    geometry_lat        DECIMAL(10, 8),
-    geometry_long       DECIMAL(11, 8),
-    geometry            GEOMETRY(GEOMETRY, 4326),
-    geometry_quality    TEXT
+    centroid_lat        DECIMAL(10, 8),
+    centroid_lon        DECIMAL(11, 8),
+    centroid_quality    TEXT,
+    geometry            GEOMETRY(GEOMETRY, 4326)
 );
 
 CREATE INDEX ix__pws_contributors__source_system ON pws_contributors (source_system);

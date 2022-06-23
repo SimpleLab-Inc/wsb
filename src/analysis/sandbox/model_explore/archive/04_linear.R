@@ -82,8 +82,8 @@ lm_metrics(lm_test_res, truth = radius, estimate = .pred)
 
 # read matched output for centroid lat/lng
 matched_output_clean <- path(staging_path, "matched_output_clean.csv") %>% 
-  read_csv(col_select = c("pwsid", "geometry_lat", "geometry_long")) %>% 
-  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg)
+  read_csv(col_select = c("pwsid", "centroid_lat", "centroid_lon")) %>% 
+  st_as_sf(coords = c("centroid_lon", "centroid_lat"), crs = epsg)
 
 # fit the model on all data, apply the spatial buffer, and write
 t3m <- d %>% 
