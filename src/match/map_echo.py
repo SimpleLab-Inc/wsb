@@ -64,10 +64,10 @@ df = gpd.GeoDataFrame().assign(
     county                  = echo["fac_county"],
     zip                     = echo["fac_zip"],
     primacy_agency_code     = echo["pwsid"].str[0:2],
-    geometry_lat            = echo["fac_lat"],
-    geometry_long           = echo["fac_long"],
+    centroid_lat            = echo["fac_lat"],
+    centroid_lon            = echo["fac_long"],
     geometry                = echo["geometry"],
-    geometry_quality        = echo["fac_collection_method"],
+    centroid_quality        = echo["fac_collection_method"],
 )
 
 #%%

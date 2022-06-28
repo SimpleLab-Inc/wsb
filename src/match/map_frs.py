@@ -78,10 +78,10 @@ df = gpd.GeoDataFrame().assign(
     zip                     = frs["postal_code"],
     county                  = frs["county_name"],
     primacy_agency_code     = frs["pwsid"].str[0:2],
-    geometry_lat            = frs["latitude83"],
-    geometry_long           = frs["longitude83"],
+    centroid_lat            = frs["latitude83"],
+    centroid_lon            = frs["longitude83"],
     geometry                = frs["geometry"],
-    geometry_quality        = frs["ref_point_desc"],
+    centroid_quality        = frs["ref_point_desc"],
 )
 
 # Some light cleansing

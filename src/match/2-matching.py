@@ -147,7 +147,7 @@ def run_match(match_rule:str, left_on: List[str], right_on: Optional[List[str]] 
 tokens = supermodel[[
     "source_system", "contributor_id", "master_key", "state", "name", "city_served",
     "address_line_1", "city", "zip", "county", 
-    "geometry", "geometry_quality", "likely_mhp", "possible_mhp"
+    "geometry", "centroid_quality", "likely_mhp", "possible_mhp"
     ]].copy()
 
 tokens["name_tkn"] = tokenize_ws_name(tokens["name"])
@@ -219,7 +219,7 @@ matches = pd.concat([matches, new_matches])
 left_mask = (
     tokens["source_system"].isin(["echo", "frs"]) &
     (~tokens["likely_mhp"]) &
-    (~tokens["geometry_quality"].isin([
+    (~tokens["centroid_quality"].isin([
         "STATE CENTROID",
         "COUNTY CENTROID",
         "ZIP CODE CENTROID"

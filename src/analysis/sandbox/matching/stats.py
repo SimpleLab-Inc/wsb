@@ -38,7 +38,7 @@ labeled = labeled.to_crs(PROJ)
 # Q: Which match type leads to the best results?
 # Q: Are MHP matches good?
 # Q: Are MHP points better than ECHO points?
-# Q: What geometry_quality's result in good vs bad spatial matches? Perhaps there are some we could exclude.
+# Q: What centroid_quality's result in good vs bad spatial matches? Perhaps there are some we could exclude.
 
 #%%
 

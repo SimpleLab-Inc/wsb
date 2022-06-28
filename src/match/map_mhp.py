@@ -30,10 +30,10 @@ df = gpd.GeoDataFrame().assign(
     state               = mhp["state"],
     zip                 = mhp["zipcode"],
     county              = mhp["county"],
-    geometry_lat        = mhp["latitude"],
-    geometry_long       = mhp["longitude"],
+    centroid_lat        = mhp["latitude"],
+    centroid_lon        = mhp["longitude"],
     geometry            = mhp["geometry"],
-    geometry_quality    = mhp["val_method"]
+    centroid_quality    = mhp["val_method"]
 )
 
 #%%

@@ -53,10 +53,10 @@ df = gpd.GeoDataFrame().assign(
 #    zip                     = labeled["postal_code"],
     county                  = labeled["county"],
     # Need to convert these to EPSG:4326 before we can save them
-    geometry_lat            = labeled["centroid_lat"],
-    geometry_long           = labeled["centroid_long"],
+    centroid_lat            = labeled["centroid_lat"],
+    centroid_lon            = labeled["centroid_long"],
     geometry                = labeled["geometry"],
-    geometry_quality        = "Labeled",
+    centroid_quality        = "CALCULATED FROM GEOMETRY",
 )
 
 # %%

@@ -35,10 +35,10 @@ df = gpd.GeoDataFrame().assign(
     master_key          = ucmr["pwsid"],
     pwsid               = ucmr["pwsid"],
     zip                 = ucmr["zipcode"].str[0:5],
-    geometry_lat        = ucmr["centroid_lat"],
-    geometry_long       = ucmr["centroid_long"],
+    centroid_lat        = ucmr["centroid_lat"],
+    centroid_lon        = ucmr["centroid_long"],
     geometry            = ucmr["geometry"],
-    geometry_quality    = "ZIP CODE CENTROID"
+    centroid_quality    = "ZIP CODE CENTROID"
 )
 
 #%%

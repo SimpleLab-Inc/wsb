@@ -16,8 +16,8 @@ d <- read_csv(path(staging_path, "model_input_clean.csv")) %>%
 
 # Stash lat/long
 lat_long <- d %>%
-  select(pwsid, geometry_long, geometry_lat) %>% 
-  st_as_sf(coords = c("geometry_long", "geometry_lat"), crs = epsg) %>% 
+  select(pwsid, centroid_lon, centroid_lat) %>% 
+  st_as_sf(coords = c("centroid_lon", "centroid_lat"), crs = epsg) %>% 
   suppressMessages()
 
 cat("\n\nRead `model_input_clean.csv` from preprocess script.\n")
@@ -95,11 +95,11 @@ cat("Fit model on training set.\n")
 
 # fit the model on all data, apply the spatial buffer, and write
 t3m <- d %>% 
-  select(pwsid, radius) %>% 
+  select(pwsid, radius, centroid_lat, centroid_lon, centroid_quality) %>% 
   bind_cols(predict(lm_fit, d)) %>% 
   bind_cols(predict(lm_fit, d, type = "conf_int", level = 0.95)) %>% 
   # exponentiate results back to median (unbiased), and 5/95 CIs
-  mutate(across(where(is.numeric), ~10^(.x))) %>% 
+  mutate(across(starts_with("."), ~10^(.x))) %>% 
   # add matched output lat/lng centroids and make spatial
   left_join(lat_long, by = "pwsid") %>% 
   st_as_sf() %>% 

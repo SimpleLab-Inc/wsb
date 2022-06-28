@@ -1296,7 +1296,7 @@ Where water systems match to the same TIGER boundary, the proxy boundary for tho
 ```{r pancake-problem-query}
 # filter for pancake stacks
 pancakes <- df %>% 
-  filter(geometry_quality == "COUNTY CENTROID" & 
+  filter(centroid_quality == "COUNTY CENTROID" & 
          has_labeled_bound == FALSE & 
          is.na(tiger_match_geoid)) 
 
@@ -1325,7 +1325,7 @@ nrow_tier3 <- temm %>% filter(tier == "Tier 3") %>% nrow()
 pancake_count_prop <- temm %>% 
   st_drop_geometry() %>% 
   filter(tier == "Tier 3") %>%
-  group_by(geometry_quality) %>% 
+  group_by(centroid_quality) %>% 
   summarise(
     count = n(),
     percent_tier3 = round((count/nrow_tier3), 3)*100
@@ -1333,7 +1333,7 @@ pancake_count_prop <- temm %>%
   arrange(desc(percent_tier3)) 
 ```
 
-Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, geometry_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, geometry_quality == "COUNTY CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, geometry_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
+Next, we quantify the count and percent of "geometry quality" values for all **Tier 3** spatial boundaries. State centroid "geometry quality" (`r filter(pancake_count_prop, centroid_quality == "STATE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) is an extreme example of the centroid accuracy issues observed in the dataset. County centroids (`r filter(pancake_count_prop, centroid_quality == "COUNTY CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) are more resolved than state-level centroids and are the most common scale at which pancake stacks form. Zip code centroids (`r filter(pancake_count_prop, centroid_quality == "ZIP CODE CENTROID") %>% pull(percent_tier3)`% of Tier 3 data) form a large proportion of Tier 3 data, but pancakes at this scale are not as inaccurate as county or state centroids and may be appropriately acceptable error for most analytical purposes. Finally, not all "geometry quality" values are associated with pancakes (for example, "GPS - UNSPECIFIED" points, when plotted, clearly do not form pancake stacks), but these make up a small proportion of Tier 3 data. Most Tier 3 systems suffer from the pancake problem.
 
 ```{r count-pancakes-by-centroid-accuracy}
 pancake_count_prop %>% 

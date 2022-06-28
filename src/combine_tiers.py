@@ -24,7 +24,7 @@ print("Loading geometries for Tiers 1-3...")
 
 # Tier 1: LABELED boundaries
 t1 = gpd.GeoDataFrame.from_postgis("""
-            SELECT pwsid, geometry
+            SELECT pwsid, centroid_lat, centroid_lon, centroid_quality, geometry
             FROM pws_contributors
             WHERE
                 source_system = 'labeled' AND
@@ -39,6 +39,9 @@ t2 = gpd.GeoDataFrame.from_postgis("""
                 m.master_key        AS pwsid,
                 t.source_system_id  AS matched_bound_geoid,
                 t.name              AS matched_bound_name,
+                t.centroid_lat,
+                t.centroid_lon,
+                t.centroid_quality,
                 t.geometry
             FROM best_match m
             JOIN pws_contributors t ON m.candidate_contributor_id = t.contributor_id
@@ -50,7 +53,8 @@ print("Retrieved Tier 2: Matched boundaries.")
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 = (gpd
     .read_file(os.path.join(STAGING_PATH, "tier3_median.geojson"))
-    [["pwsid", ".pred_lower", ".pred", ".pred_upper", "geometry"]]
+    [["pwsid", ".pred_lower", ".pred", ".pred_upper",
+    "centroid_lat", "centroid_lon", "centroid_quality", "geometry"]]
     .rename(columns={
         ".pred_lower": "pred_05",
         ".pred":       "pred_50",
@@ -74,8 +78,7 @@ t3["tier"] = "Tier 3"
 columns = [
     "pwsid", "name", "primacy_agency_code", "state", "city_served", 
     "county", "population_served_count", "service_connections_count", 
-    "service_area_type_code", "owner_type_code", "geometry_lat", 
-    "geometry_long", "geometry_quality",
+    "service_area_type_code", "owner_type_code",
     "is_wholesaler_ind", "primacy_type",
     "primary_source_code"]
 
@@ -106,7 +109,8 @@ combined = gpd.GeoDataFrame(pd
     .concat([t1, t2, t3])
     .sort_values(by="tier") #type:ignore
     .drop_duplicates(subset="pwsid", keep="first")
-    [["pwsid", "tier", "geometry", "pred_05", "pred_50", "pred_95"]])
+    [["pwsid", "tier", "centroid_lat", "centroid_lon", "centroid_quality",
+    "geometry", "pred_05", "pred_50", "pred_95"]])
 
 # Join again to get matched boundary info
 # we do this to get boundary info for ALL tiers
@@ -141,9 +145,9 @@ renames = {
     "service_connections_count": "srvc_conn",
     "service_area_type_code":    "srvc_area",
     "owner_type_code":           "owner_type",
-    "geometry_lat":              "gmtry_lat",
-    "geometry_long":             "gmtry_lon",
-    "geometry_quality":          "gmtry_qual",
+    "centroid_lat":              "cntrd_lat",
+    "centroid_lon":              "cntrd_lon",
+    "centroid_quality":          "cntrd_qual",
     "matched_bound_geoid":       "bnd_geoid",
     "matched_bound_name":        "bnd_name",
     "is_wholesaler_ind":         "is_whlslr",
