@@ -95,7 +95,7 @@ cat("Fit model on training set.\n")
 
 # fit the model on all data, apply the spatial buffer, and write
 t3m <- d %>% 
-  select(pwsid, radius) %>% 
+  select(pwsid, radius, centroid_lat, centroid_lon, centroid_quality) %>% 
   bind_cols(predict(lm_fit, d)) %>% 
   bind_cols(predict(lm_fit, d, type = "conf_int", level = 0.95)) %>% 
   # exponentiate results back to median (unbiased), and 5/95 CIs
