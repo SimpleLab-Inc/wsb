@@ -99,7 +99,7 @@ t3m <- d %>%
   bind_cols(predict(lm_fit, d)) %>% 
   bind_cols(predict(lm_fit, d, type = "conf_int", level = 0.95)) %>% 
   # exponentiate results back to median (unbiased), and 5/95 CIs
-  mutate(across(where(is.numeric), ~10^(.x))) %>% 
+  mutate(across(starts_with("."), ~10^(.x))) %>% 
   # add matched output lat/lng centroids and make spatial
   left_join(lat_long, by = "pwsid") %>% 
   st_as_sf() %>% 
