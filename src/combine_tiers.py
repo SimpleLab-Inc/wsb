@@ -26,7 +26,9 @@ print("Loading geometries for Tiers 1-3...")
 t1 = gpd.GeoDataFrame.from_postgis("""
             SELECT pwsid, geometry
             FROM pws_contributors
-            WHERE source_system = 'labeled';""",
+            WHERE
+                source_system = 'labeled' AND
+                NOT st_isempty(geometry);""",
         conn, geom_col="geometry")
 
 print("Retrieved Tier 1: Labeled boundaries.")
