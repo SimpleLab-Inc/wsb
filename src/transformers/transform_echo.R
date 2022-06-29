@@ -15,7 +15,7 @@ data_path       <- Sys.getenv("WSB_DATA_PATH")
 echo_data_path  <- path(data_path, "echo")
 echo_file       <- path(echo_data_path, "ECHO_EXPORTER.CSV")
 staging_path    <- Sys.getenv("WSB_STAGING_PATH")
-path_out        <- path(staging_path, "echo.geojson")
+path_out        <- path(staging_path, "echo.csv")
 epsg            <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 cols <- c('REGISTRY_ID', 'FAC_NAME', 'FAC_NAME', 'FAC_STREET',
@@ -96,4 +96,5 @@ echo <- echo %>%
 # write clean echo data to geojson
 if(file_exists(path_out)) file_delete(path_out)
 
-st_write(echo, path_out)
+# Drop geometry and write as a CSV
+echo %>% st_drop_geometry() %>% write_csv(path_out)

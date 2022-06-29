@@ -13,16 +13,15 @@ EPSG = os.environ["WSB_EPSG"]
 
 #%%
 
-echo_df = gpd.read_file(
-    os.path.join(DATA_PATH, "echo.geojson"))
-
 usecols=[
     "pwsid", "fac_lat", "fac_long", "fac_name",
     "fac_street", "fac_city", "fac_state", "fac_zip", "fac_county", 
     "fac_collection_method", "fac_reference_point", "fac_accuracy_meters", 
     "fac_indian_cntry_flg", "fac_percent_minority", "fac_pop_den", "ejscreen_flag_us"]
 
-echo_df = echo_df[usecols]
+echo_df = pd.read_csv(
+    os.path.join(DATA_PATH, "echo.csv"),
+    usecols=usecols, dtype="str")
 
 #%%
 
