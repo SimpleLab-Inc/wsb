@@ -130,7 +130,7 @@ mask = (
 
 output.loc[mask, "centroid_lat"] = output[mask]["ucmr_lat"]
 output.loc[mask, "centroid_lon"] = output[mask]["ucmr_lon"]
-output.loc[mask, "centroid_quality"] = output[mask]["ucmr_quality"]
+output.loc[mask, "centroid_quality"] = "UCMR MATCH: " + output[mask]["ucmr_quality"]
 
 # If there's an MHP match, add matched ID and overwrite the lat/long
 output = output.join(mhp_best_match, on="pwsid", how="left")
@@ -138,7 +138,7 @@ output = output.join(mhp_best_match, on="pwsid", how="left")
 mask = output["mhp_match_id"].notna()
 output.loc[mask, "centroid_lat"] = output[mask]["mhp_lat"]
 output.loc[mask, "centroid_lon"] = output[mask]["mhp_lon"]
-output.loc[mask, "centroid_quality"] = output[mask]["mhp_quality"]
+output.loc[mask, "centroid_quality"] = "MHP MATCH: " + output[mask]["mhp_quality"].fillna("(unknown quality)")
 
 # Verify: We should still have exactly the number of pwsid's as we started with
 if not (len(output) == len(sdwis)):
