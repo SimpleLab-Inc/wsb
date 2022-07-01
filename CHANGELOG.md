@@ -2,7 +2,7 @@
 
 # 2.0.0 (2022-07-01)
 * No longer dropping any PWS's (but some results have tier "none", indicating no geometry)
-* Added Utah labeled boundaries
+* Added Utah and Illinois labeled boundaries
 * Eliminated Tier 2b by implement ranking and selection of best PWS per Tiger. Roughly 3000 became Tier 2a, remaining 7000 became Tier 3
 * Renamed some columns:
   * geometry_lat -> centroid_lat
@@ -17,7 +17,7 @@
 
 | Tier 1  | Tier 2a | Tier 2b  | Tier 3  | None   | Total  |
 |---------|---------|----------|---------|--------|--------|
-| 15,784  | 12,436  | 0        | 17,722  | 3,482  | 49,424 |
+| 16,896  | 11,526  | 0        | 17,526  | 3,476  | 49,424 |
 
 
 # 1.0.0 (2022-05-02)
