@@ -9,7 +9,7 @@ library(vip)
 staging_path <- Sys.getenv("WSB_STAGING_PATH")
 
 # read full dataset 
-d <- read_csv(path(staging_path, "matched_output_clean.csv")) 
+d <- read_csv(path(staging_path, "model_input_clean.csv")) 
 
 # unlabeled data (du) and labeled data (dl)
 du <- d %>% filter(is.na(radius))
