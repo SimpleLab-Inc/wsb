@@ -12,7 +12,6 @@ load_dotenv()
 STAGING_PATH = os.environ["WSB_STAGING_PATH"]
 OUTPUT_PATH = os.environ["WSB_OUTPUT_PATH"]
 EPSG = os.environ["WSB_EPSG"]
-PROJ = os.environ["WSB_EPSG_AW"]
 
 # Connect to local PostGIS instance
 conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
@@ -121,7 +120,9 @@ combined = combined.merge(
 combined["matched_bound_geoid"] = combined["matched_bound_geoid"].astype(pd.Int64Dtype())
 
 # Join to base
-temm = gpd.GeoDataFrame(base.merge(combined, on="pwsid", how="left"))
+temm = gpd.GeoDataFrame(
+    base.merge(combined, on="pwsid", how="left"),
+    crs=f"epsg:{EPSG}")
 
 # Where we don't have data from any tier, mark as tier "none"
 # (lower case to differentiate from Python's None)
