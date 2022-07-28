@@ -24,9 +24,8 @@ pwsids = helpers.get_pwsids_of_interest()
 print("Retrieved PWSID's of interest.")
 
 # Bring in echo so that we can compare FRS and avoid duplication
-echo = gpd.read_file(DATA_PATH + "/echo.csv")
-
-echo = echo[["pwsid", "fac_name", "fac_lat", "fac_long"]]
+echo = pd.read_csv(DATA_PATH + "/echo.csv", dtype="str",
+    usecols=["pwsid", "fac_name", "fac_lat", "fac_long"])
 
 print("Read ECHO (to avoid duplication)")
 
