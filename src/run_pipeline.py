@@ -102,7 +102,7 @@ run_task(
     "transformers/combine_transformed_wsb.R")
 
 #%%
-# Transform ECHO (30 mins due to geojson save...might need refactor)
+# Transform ECHO (3m30s)
 run_task(
     "Transforming ECHO data",
     "transformers/transform_echo.R")
@@ -162,22 +162,28 @@ run_task(
     "match/1-mappings.py")
 
 #%%
+# Clean the data (20 secs)
+run_task(
+    "Cleansing the data",
+    "match/2-cleansing.py")
+
+#%%
 # Matching Tiger and MHP (1 min)
 run_task(
     "Running match algorithms",
-    "match/2-matching.py")
+    "match/3-matching.py")
 
 #%%
 # Create masters (20 secs)
 run_task(
     "Creating Masters",
-    "match/3-create_masters.py")
+    "match/4-create_masters.py")
 
 #%%
 # Selecting best TIGER matches (20 secs)
 run_task(
     "Finding best boundary matches",
-    "match/4-find_best_boundary_matches.py")
+    "match/5-find_best_boundary_matches.py")
 
 
 #%% ###############################

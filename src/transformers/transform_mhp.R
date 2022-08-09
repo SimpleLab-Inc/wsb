@@ -20,7 +20,7 @@ mhp_sp <- st_read(dsn = path(data_path, "mhp/mhp.geojson")) %>%
 cat("Read MHP layer, cleaned names, & transformed to CRS:", epsg, "\n ")
 
 # Visualize points
-plot(st_geometry(mhp_sp), pch = 1, col = 'blue')
+#plot(st_geometry(mhp_sp), pch = 1, col = 'blue')
 
 
 # Clean attribute data ----------------------------------------------------
@@ -40,12 +40,6 @@ mhp_sp <- mhp_sp %>%
     rev_geo_flag = revgeoflag
   ) %>% 
   f_clean_whitespace_nas()
-
-# Clean invalid geometries. First, create path for invalid geom log file.
-path_log <- here::here("log", paste0(Sys.Date(), "-imposter-mhp.csv"))
-
-# Drop invalid geometries and sink a log file for review at the path above.
-mhp_sp <- f_drop_imposters(mhp_sp, path_log)
 
 # Write clean mobile home park centroids
 path_out <- path(staging_path, "mhp_clean.geojson")

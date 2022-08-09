@@ -17,11 +17,17 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 frs_layers <- st_layers(dsn = path(data_path, "frs/FRS_INTERESTS.gdb"))
 
 #  SQL query to target facilities with water focus
-get_water_frs <- 
-  "SELECT * FROM FACILITY_INTERESTS WHERE INTEREST_TYPE 
-   IN ('COMMUNITY WATER SYSTEM', 'NON-TRANSIENT NON-COMMUNITY WATER SYSTEM',
-   'TRANSIENT NON-COMMUNITY WATER SYSTEM', 'WATER TREATMENT PLANT', 
-   'DRINKING WATER PROGRAM', 'DRINKING WATER SYSTEM')"
+get_water_frs <- "
+  SELECT *
+  FROM FACILITY_INTERESTS
+  WHERE INTEREST_TYPE IN (
+    'COMMUNITY WATER SYSTEM',
+    'NON-TRANSIENT NON-COMMUNITY WATER SYSTEM',
+    'TRANSIENT NON-COMMUNITY WATER SYSTEM',
+    'WATER TREATMENT PLANT', 
+    'DRINKING WATER PROGRAM',
+    'DRINKING WATER SYSTEM'
+  )"
 
 # Read layer for FRS_INTERESTS with conditional query on `INTEREST_TYPE`.
 # Then, transform to standard epsg.
@@ -34,7 +40,7 @@ frs_water <- path(data_path, "frs/FRS_INTERESTS.gdb") %>%
 cat("Read labeled FRS layer and transformed to CRS:", epsg, "\n ")
 
 # Visualize points
-plot(st_geometry(frs_water), pch = 1, col = 'blue')
+#plot(st_geometry(frs_water), pch = 1, col = 'blue')
 
 
 # General cleaning --------------------------------------------------------
@@ -49,13 +55,6 @@ frs_water <- frs_water %>%
          state = substr(pwsid, 1, 2),
          facility_id = word(pgm_sys_id, 2),
          facility_id = ifelse(pwsid == facility_id, NA, facility_id)) 
-
-# Clean invalid geometries. First, create path for invalid geom log file.
-path_log <- here::here("log", paste0(Sys.Date(), "-imposter-frs.csv"))
-
-# Drop invalid geometries and sink a log file for review at the path above.
-frs_water <- f_drop_imposters(frs_water, path_log)
-
 
 # Write to geojson --------------------------------------------------------
 path_out <- path(staging_path, "frs.geojson")
