@@ -5,6 +5,7 @@ CREATE TABLE pws_contributors (
     source_system       TEXT NOT NULL,
     source_system_id    TEXT NOT NULL,
     master_key          TEXT NOT NULL,
+    tier                INT,
     pwsid               TEXT,
     name                TEXT,
     address_line_1      TEXT,

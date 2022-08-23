@@ -53,12 +53,6 @@ tiger_to_pws_match_counts = (matches
 
 tiger_to_pws_match_counts.name = "tiger_to_pws_match_count"
 
-# Augment matches with these TIGER match stats
-# We don't use these downstream; they're just useful for debugging
-# matches = (matches
-#     .join(pws_to_tiger_match_counts, on="master_key")
-#     .join(tiger_to_pws_match_counts, on="candidate_contributor_id"))
-
 # 1850 situations with > 1 match
 print(f"{(pws_to_tiger_match_counts > 1).sum()} PWS's matched to multiple TIGERs")
 
@@ -78,7 +72,7 @@ are most effective.
 """
 
 # Assign a "rank" to each match rule and combo of match rules
-match_ranks = (matches
+match_rule_ranks = (matches
     .join(scored_matches, on=["master_key", "candidate_contributor_id"])
     .groupby(["match_rule"])
     .agg(
@@ -86,19 +80,19 @@ match_ranks = (matches
         total = ("score", "size")
     )) #type:ignore
 
-match_ranks["score"] = match_ranks["points"] / match_ranks["total"]
-match_ranks = match_ranks.sort_values("score", ascending=False)
-match_ranks["match_rule_rank"] = np.arange(len(match_ranks))
+match_rule_ranks["score"] = match_rule_ranks["points"] / match_rule_ranks["total"]
+match_rule_ranks = match_rule_ranks.sort_values("score", ascending=False)
+match_rule_ranks["match_rule_rank"] = np.arange(len(match_rule_ranks))
 
 print("Identified best match rules based on labeled data.")
 
 #%% ###########################
-# Pick the best PWS->TIGER matches
+# Rank all PWS<->TIGER matches
 ###############################
 
-# Assign the rank back to the matches
+# Assign the match rule ranks back to the matches
 matches_ranked = matches.join(
-    match_ranks[["match_rule_rank"]], on="match_rule", how="left")
+    match_rule_ranks[["match_rule_rank"]], on="match_rule", how="left")
 
 # Flag any that have name matches
 matches_ranked["name_match"] = matches.apply(lambda x: x["tiger_name"] in x["sdwis_name"], axis=1)
@@ -107,30 +101,54 @@ matches_ranked["name_match"] = matches.apply(lambda x: x["tiger_name"] in x["sdw
 # (Note this should be done AFTER removing the best PWS->TIGER, if we're doing that)
 matches_ranked["pop_diff"] = abs(matches["tiger_pop"] - matches["sdwis_pop"])
 
-#%%
-
 # To get PWS<->TIGER to be 1:1, we'll rank on different metrics
 # and then select the top one. We need to do this twice:
 # Once to make PWS->Tiger N:1 and then to make Tiger->PWS 1:1
 
+#%%
 # Through experimentation, this seemed to be the best ranking:
 # name_match, match_rule_rank, pop_diff
 # and selecting within the candidate_contributor groups first,
 # master_key groups second.
 
-best_matches = (matches_ranked
+# Assign numeric ranks to every match
+matches_ranked = (matches_ranked
     .sort_values(
         ["name_match", "match_rule_rank", "pop_diff"],
         ascending=[False, True, True])
-    .drop_duplicates(subset="candidate_contributor_id", keep="first")
-    .drop_duplicates(subset="master_key", keep="first")
-    [["master_key", "candidate_contributor_id"]])
+    # Re-number and bring that index into the df
+    # This gives us a simple column to rank on
+    .reset_index(drop=True)
+    .reset_index(drop=False)
+    .rename(columns={"index": "overall_rank"}))
 
-print(f"Picked the 'best' PWS<->TIGER matches: {len(best_matches):,} rows.")
+# I guess this is technically unnecessary, cause it's equivalent to sorting on overall_rank...
+# but maybe it make things a little clearer?
+matches_ranked["master_group_ranking"] = \
+    (matches_ranked
+        .groupby("master_key")
+        ["overall_rank"]
+        .rank("dense")
+        .astype("int"))
+
+#%%
+# Identify the 1-1 matches using the overall_rank
+best_matches = (matches_ranked
+    .sort_values(["overall_rank"])
+    .drop_duplicates(subset="candidate_contributor_id", keep="first")
+    .drop_duplicates(subset="master_key", keep="first")).index
+
+matches_ranked["best_match"] = matches_ranked.index.isin(best_matches)
+
+#%%
+
+print("Scoring 1:1 matches...")
 
 # Score it. how'd we do?
 scored_best_matches = scorer.score_tiger_matches(
-    best_matches[["master_key", "candidate_contributor_id"]])
+    matches_ranked
+        .loc[matches_ranked["best_match"]]
+        [["master_key", "candidate_contributor_id"]])
 
 # ~ 96%
 score = scored_best_matches["score"].sum() * 100 / len(scored_best_matches)
@@ -138,5 +156,4 @@ score = scored_best_matches["score"].sum() * 100 / len(scored_best_matches)
 print(f"Boundary match score: {score:.2f}")
 
 #%%
-best_matches.to_sql("best_match", conn, if_exists="replace", index=False)
-
+matches_ranked.to_sql("matches_ranked", conn, if_exists="replace", index=False)

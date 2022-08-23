@@ -41,7 +41,7 @@ pws = dbGetQuery(conn,"
     owner_type_code, service_area_type_code, centroid_lat, centroid_lon,
     centroid_quality
   FROM pws_contributors
-  WHERE source_system = 'master';")
+  WHERE source_system = 'modeled';")
 
 # j stands for joined data, read and rm rownumber column, then drop
 # observations without a centroid or with nonsensical service connections

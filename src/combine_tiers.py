@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
+import match.helpers as helpers
 from dotenv import load_dotenv
+from shapely.geometry import Polygon
 
 load_dotenv()
 
@@ -32,7 +34,7 @@ t1 = gpd.GeoDataFrame.from_postgis("""
 
 print("Retrieved Tier 1: Labeled boundaries.")
 
-# Tier 2: MATCHED boundaries
+# Tier 2: MATCHED boundaries (only the best)
 t2 = gpd.GeoDataFrame.from_postgis("""
             SELECT
                 m.master_key        AS pwsid,
@@ -42,9 +44,11 @@ t2 = gpd.GeoDataFrame.from_postgis("""
                 t.centroid_lon,
                 t.centroid_quality,
                 t.geometry
-            FROM best_match m
+            FROM matches_ranked m
             JOIN pws_contributors t ON m.candidate_contributor_id = t.contributor_id
-            WHERE t.source_system = 'tiger'""",
+            WHERE
+                m.best_match AND
+                t.source_system = 'tiger'""",
         conn, geom_col="geometry")
 
 print("Retrieved Tier 2: Matched boundaries.")
@@ -64,40 +68,26 @@ print("Retrieved Tier 3: Modeled boundaries.")
 #%%
 
 # Assign tier labels
-tier2_dupe_mask = t2["matched_bound_geoid"].dropna().duplicated(keep=False)
-
-t1["tier"] = "Tier 1"
-t2["tier"] = np.where(tier2_dupe_mask, "Tier 2b", "Tier 2a")
-t3["tier"] = "Tier 3"
+t1["tier"] = 1
+t2["tier"] = 2
+t3["tier"] = 3
 
 #%%
-# Pull in base "master data" ----------------------------------
-
-# columns to keep in final df
-columns = [
-    "pwsid", "name", "primacy_agency_code", "state", "city_served", 
-    "county", "population_served_count", "service_connections_count", 
-    "service_area_type_code", "owner_type_code",
-    "is_wholesaler_ind", "primacy_type",
-    "primary_source_code"]
+# Pull in base attributes from SDWIS ----------------------------------
 
 # read and format matched output
-print("Reading masters...")
+print("Reading SDWIS for base attributes...")
 
 base = pd.read_sql(f"""
-    SELECT {','.join(columns)}
+    SELECT *
     FROM pws_contributors
-    WHERE source_system = 'master';""", conn)
+    WHERE source_system = 'sdwis';""", conn)
 
-# Backwards compatibility
-base = base.rename(columns={
-    "name": "pws_name",
-    "state": "state_code",
-    "county": "county_served"
-})
+base = base.drop(columns=["tier", "centroid_lat", "centroid_lon", "centroid_quality", "geometry"])
 
-print("done.\n")
-
+# Overwrite the contributor_id
+base["contributor_id"] = "master." + base["pwsid"]
+base["source_system"] = "master"
 
 #%%
 # combine tiers -----------------------------------------------------------
@@ -124,18 +114,46 @@ temm = gpd.GeoDataFrame(
     base.merge(combined, on="pwsid", how="left"),
     crs=f"epsg:{EPSG}")
 
-# Where we don't have data from any tier, mark as tier "none"
-# (lower case to differentiate from Python's None)
-temm.loc[temm["tier"].isna(), "tier"] = "none"
+# Allow NA when we have no geometry
+temm["tier"] = temm["tier"].astype(pd.Int64Dtype())
+
+# Replace empty geometries
+temm.loc[temm["geometry"].is_empty | temm["geometry"].isna(), "geometry"] = Polygon([]) #type:ignore
 
 # Verify - We should have the same number of rows in df and in temm
 assert len(temm) == len(base)
 
 print("Combined a spatial layer using best available tiered data.\n")
 
+#%%
+
+# Save to the database
+helpers.load_to_postgis("master",
+    temm.drop(columns=["matched_bound_geoid", "matched_bound_name", "pred_05", "pred_50", "pred_95"]))
 
 #%%
 # write to multiple output formats ----------------------------------------
+
+# The file outputs have a subset of columns
+columns = [
+    "pwsid", "name", "primacy_agency_code", "state", "city_served", 
+    "county", "population_served_count", "service_connections_count", 
+    "service_area_type_code", "owner_type_code",
+    "is_wholesaler_ind", "primacy_type",
+    "primary_source_code", "tier",
+    "centroid_lat", "centroid_lon", "centroid_quality",
+    "geometry", "pred_05", "pred_50", "pred_95"]
+
+# Backwards compatibility
+output = (temm[columns]
+    .rename(columns={
+        "name": "pws_name",
+        "state": "state_code",
+        "county": "county_served"
+    }))
+
+print("done.\n")
+
 
 # SHP files can only have 10 character column names
 renames = {
@@ -166,8 +184,8 @@ if not os.path.exists(os.path.join(OUTPUT_PATH, "temm_layer", "shp")):
     os.makedirs(os.path.join(OUTPUT_PATH, "temm_layer", "shp"))
 
 # write geojson, shp, and csv
-temm.to_file(path_geojson, driver="GeoJSON")
-temm.rename(columns=renames).to_file(path_shp, driver="ESRI Shapefile")
-temm.drop(columns="geometry").to_csv(path_csv)
+output.to_file(path_geojson, driver="GeoJSON")
+output.rename(columns=renames).to_file(path_shp, driver="ESRI Shapefile")
+output.drop(columns="geometry").to_csv(path_csv)
 
 print("Wrote data to geojson, shp, csv.\n\n\n")

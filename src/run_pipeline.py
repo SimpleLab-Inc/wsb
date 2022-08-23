@@ -174,16 +174,16 @@ run_task(
     "match/3-matching.py")
 
 #%%
-# Create masters (20 secs)
-run_task(
-    "Creating Masters",
-    "match/4-create_masters.py")
-
-#%%
 # Selecting best TIGER matches (20 secs)
 run_task(
     "Finding best boundary matches",
-    "match/5-find_best_boundary_matches.py")
+    "match/4-rank_boundary_matches.py")
+
+#%%
+# Find best centroids for "modeled" system (20 secs)
+run_task(
+    "Finding best centroids",
+    "match/5-select_modeled_centroids.py")
 
 
 #%% ###############################
