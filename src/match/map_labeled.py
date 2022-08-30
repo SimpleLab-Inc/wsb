@@ -47,6 +47,7 @@ df = gpd.GeoDataFrame().assign(
     master_key              = labeled["pwsid"],
     pwsid                   = labeled["pwsid"],
     state                   = labeled["state"],
+    primacy_agency_code     = labeled["pwsid"].str[0:2],
     name                    = labeled["pws_name"],
 #    address_line_1          = labeled["location_address"],
     city                    = labeled["city"],
@@ -58,6 +59,14 @@ df = gpd.GeoDataFrame().assign(
     geometry                = labeled["geometry"],
     centroid_quality        = "CALCULATED FROM GEOMETRY",
 )
+
+#%%
+
+print("Labeled record counts:")
+print(df
+    .groupby("primacy_agency_code")
+    .size()
+    .sort_index())
 
 # %%
 helpers.load_to_postgis("labeled", df)
