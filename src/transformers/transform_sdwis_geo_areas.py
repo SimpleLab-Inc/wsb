@@ -35,15 +35,7 @@ file = "GEOGRAPHIC_AREA.CSV"
 # area_type_code
 # tribal_code
 
-usecols = [
-    "SDWISDM_B.GEOGRAPHIC_AREA.PWSID",
-    "SDWISDM_B.GEOGRAPHIC_AREA.CITY_SERVED",
-    "SDWISDM_B.GEOGRAPHIC_AREA.COUNTY_SERVED"
-]
-
-geo_area = pd.read_csv(
-    os.path.join(sdwis_data_path, file),
-    usecols = usecols)
+geo_area = pd.read_csv(os.path.join(sdwis_data_path, file))
 
 # %% Basic cleaning
 
@@ -56,8 +48,8 @@ geo_area = trim_whitespace(geo_area)
 # Drop duplicates
 geo_area = geo_area.drop_duplicates()
 
-# Drop fully empty columns (cities_served, counties_served -- get from other tables)
-geo_area = geo_area.dropna(how='all', axis=1)
+# Narrow to columns of interest
+geo_area = geo_area[["pwsid", "city_served", "county_served"]]
 
 
 # %% Clean city_served column
