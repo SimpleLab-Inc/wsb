@@ -31,7 +31,7 @@ nc_wsb <- nc_wsb %>%
   bind_rows() %>%
   mutate(
     state          = "NC",
-    WASYID         = paste0("NC", WASYID),
+    wasyid         = paste0("NC", wasyid),
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
@@ -49,10 +49,10 @@ nc_wsb <- nc_wsb %>%
   # select columns and rename for staging
   select(
     # data source columns
-    pwsid          = WASYID,
-    pws_name       = WASYNAME,
+    pwsid          = wasyid,
+    pws_name       = wasyname,
     state,
-    county         = WAPCS,
+    county         = wapcs,
 #    city,
 #    owner,
     # geospatial columns
