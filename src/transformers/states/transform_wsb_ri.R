@@ -69,6 +69,12 @@ ri_wsb <- ri_wsb %>%
   # compute new centroids and note that when multipolygons are separated
   # by space, these are suspect and should not be used. Importantly, this
   # calculation occurs in the EPSG consistent with other staged data!
+
+
+  # Strangely, this step fails when run from run_pipeline in an ipykernel.
+  # The error is "Found 1 feature with invalid spherical geometry."
+  # But I thought st_make_valid should've solved this.
+  # The workaround is to run this step manually from R.
   mutate(
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_long  = st_coordinates(centroid)[, 1],
