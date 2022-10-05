@@ -107,6 +107,11 @@ run_task(
     f"Combine labeled states",
     "transformers/combine_transformed_wsb.R")
 
+# Transform contributed pws
+run_task(
+    "Transforming contribtued pws",
+    "transformers/transform_contributed_pws.R")
+
 #%%
 # Transform ECHO (3m30s)
 run_task(
