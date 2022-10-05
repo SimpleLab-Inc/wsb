@@ -6,19 +6,27 @@
 
 # Running the Matching
 
+To quickly run all these steps, simple use the combined `run_pipeline.py` file. Use the steps below for a more interactive, manual run.
+
 ## Run the mappings
 
 This step should occur after running the downloaders and transformers, found elsewhere in the repo. These mappings transform all the data sources into a single model and stack them up on top of each other so they can be easily matched together and compared. They are loaded into the table `pws_contributors` in PostGIS.
 
 Run this script to execute all of the mappings:
 
-`1 - mappings.py`
+`1-mappings.py`
+
+## Run the cleansing
+
+Run this script to execute SQL code that standardizes the mapped data:
+
+`2-cleansing.py`
 
 ## Run the matching
 
 Step through this script to match the data together:
 
-`2 - matching.py`
+`3-matching.py`
 
 Each match rule attempts to connect one or more of the systems with known PWS ID's (ECHO, FRS, SDWIS, UCMR) to one or more of the systems with unknown PWS ID's (TIGER, MHP). Since we don't know the PWS ID's, we rely on a variety of matches, such as state+name matches or spatial matches.
 
@@ -31,12 +39,17 @@ Step through this script to generate match reports:
 
 These reports allow you to browse the matches to develop an intuition of which match rules were successful and which ones weren't. It can be pretty hard to tell sometimes!
 
-## Run the Superjoin
+## Rank the Boundaries
 
-`3 - superjoin.py`
+`4-rank_boundary_matches.py`
 
-The "superjoin" takes all of these candidate matches and attempts to pick the best ones, yielding a single file where each PWS has a "best" lat/long (from ECHO, UCMR, or MHP), matches to exactly 0 or 1 TIGER, and exactly 0 or 1 MHP. 
+The matching process yields mutliple candidate matches per PWS. This script assigns a ranking to these candidates, so that later on we can select one "best" boundary candidate for each PWS.
 
+## Select Modeled Centroids
+
+`5-select_modeled_centroids.py`
+
+Similar to the previous step, this process chooses a "best" centroid from all of the contributors, including ECHO, FRS, UCMR, and the multiple TIGER candidates. This "best" centroid gets fed into the modeling step to produce the Tier 3 results.
 
 # Methodology
 
@@ -100,43 +113,10 @@ The **stacked match report** displays groupings of contributors so that you can 
 The **unmatched report** displays a long list of the records that did not successfully match to anything. You can manually sort and comb through this data to see if you can identify the correct matches, and develop intuitions as to why they did not match.
 
 
-## Superjoin
-Finally, the superjoin brings things all together, taking the best attributes from the different data sources.
-
-An important part of this is selecting the "best" match from our sources that do not have PWSID's. Our matching generated only have _candidate matches_, which may or may not be correct, and that allows for issues like one PWS matching to multiple TIGER's -- which cannot happen in the real world. As a result, we have to implement some logic to that chooses the "best" match. We take our best stab at this in the superjoin script by using the labeled data to "score" the various match rules and match rule combinations. We then rank _all_ the matches according to these scores and select the best one for each PWS. This logic should be studied for quality and refined over time.
-
-In total, the superjoin brings together the following data from various sources:
-
-Column                   | Data Source     | Description
--------------------------|-----------------|-----------------
-pwsid                    | SDWIS           |
-pws_name                 | SDWIS           |
-primacy_agency_code      | SDWIS           |
-state_code               | SDWIS           |
-city_served              | SDWIS           |
-county_served            | SDWIS           |
-population_served_count  | SDWIS           |
-service_connections_count| SDWIS           |
-service_area_type_code   | SDWIS           |
-owner_type_code          | SDWIS           |
-centroid_lat             | MHP, UCMR, ECHO | Lat / Long from the best system is available
-centroid_lon             | MHP, UCMR, ECHO | Lat / Long from the best system is available
-tiger_match_geoid        | TIGER           | ID of the best match in the TIGER system
-pws_to_tiger_match_count | Match Algorithm | Count of how many TIGER records this PWS matched to
-tiger_to_pws_match_count | Match Algorithm | Count of how many other PWS records this TIGER matched to
-mhp_id                   | MHP             | ID of the best match in the MHP system
-
-
+## Choosing the Best Data
+Scripts 4 and 5 determine which data "wins" out of all possible contributors. The matching generated only _candidate matches_, which may or may not be correct, and that allows for issues like one PWS matching to multiple TIGER's -- which cannot happen in the real world. As a result, we have to implement some logic to that chooses the "best" match. One method we implement is using the labeled data to "score" the various match rules and match rule combinations. We then rank _all_ the matches according to these scores and select the best one for each PWS. This logic should be studied for quality and refined over time.
 
 # Notes on Matching Challenges
-## Matching PWS to TIGER
-
-* 1 PWS matches to multiple tigers
-    * Solution: Rank the match rules by evaluating quality against labeled data, then use those ranks to select a "best match" TIGER
-
-* 1 TIGER matches to many PWS
-    * No solution explored yet.
-
 ## Match PWS to MHP
 * Many MHP entries have no name
 * Administrative addresses in SDWIS and (occasionally) MHP datasets make it difficult to rely on
