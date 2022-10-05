@@ -83,6 +83,12 @@ run_task(
     "Downloading UCMR occurrence data", 
     "downloaders/download_ucmr.R")
 
+#%%
+# Download Contributed PWS (10 secs)
+run_task(
+    "Downloading contributed pws boundaries",
+    "downloaders/download_contributed_pws.R")
+
 
 #%% #####################################
 # Transformers
