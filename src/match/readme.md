@@ -12,9 +12,7 @@ To quickly run all these steps, simple use the combined `run_pipeline.py` file. 
 
 This step should occur after running the downloaders and transformers, found elsewhere in the repo. These mappings transform all the data sources into a single model and stack them up on top of each other so they can be easily matched together and compared. They are loaded into the table `pws_contributors` in PostGIS.
 
-Run this script to execute all of the mappings:
-
-`1-mappings.py`
+Run each of the `map_*.py` scripts to execute the mappings.
 
 ## Run the cleansing
 

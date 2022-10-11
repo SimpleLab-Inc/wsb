@@ -167,10 +167,38 @@ run_task(
 # Match
 ###################################
 
-# Mappings (5 min)
+# Mappings (5 min total)
 run_task(
-    "Mapping data to postgres",
-    "match/1-mappings.py")
+    "Mapping sdwis data to postgres",
+    "match/map_sdwis.py")
+
+run_task(
+    "Mapping frs data to postgres",
+    "match/map_frs.py")
+
+run_task(
+    "Mapping echo data to postgres",
+    "match/map_echo.py")
+
+run_task(
+    "Mapping mhp data to postgres",
+    "match/map_mhp.py")
+
+run_task(
+    "Mapping tiger data to postgres",
+    "match/map_tiger.py")
+
+run_task(
+    "Mapping ucmr data to postgres",
+    "match/map_ucmr.py")
+
+run_task(
+    "Mapping labeled data to postgres",
+    "match/map_labeled.py")
+
+run_task(
+    "Mapping contributed data to postgres",
+    "match/map_contributed.py")
 
 #%%
 # Clean the data (20 secs)
