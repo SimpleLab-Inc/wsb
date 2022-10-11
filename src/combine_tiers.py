@@ -23,14 +23,23 @@ conn = sa.create_engine(os.environ["POSTGIS_CONN_STR"])
 
 print("Loading geometries for Tiers 1-3...") 
 
-# Tier 1: LABELED boundaries
+# Tier 1: LABELED (and CONTRIBUTED) boundaries
 t1 = gpd.GeoDataFrame.from_postgis("""
             SELECT pwsid, centroid_lat, centroid_lon, centroid_quality, geometry
             FROM pws_contributors
             WHERE
-                source_system = 'labeled' AND
-                NOT st_isempty(geometry);""",
+                source_system IN ('labeled', 'contributed') AND
+                NOT st_isempty(geometry)
+            ORDER BY source_system, pwsid;""",
         conn, geom_col="geometry")
+
+# If there are duplicates, it's likely because we have a contributed AND a labeled bound.
+# Take only the contributed.
+before_count = len(t1)
+t1 = t1.drop_duplicates(subset="pwsid", keep="first")
+
+if len(t1) < before_count:
+    print(f"Prioritized {before_count - len(t1)} contributed record over labeled in T1.")
 
 print("Retrieved Tier 1: Labeled boundaries.")
 
