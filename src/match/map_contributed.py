@@ -28,7 +28,9 @@ df = gpd.GeoDataFrame().assign(
     state                   = contrib["state"],
     name                    = contrib["pws_name"],
     geometry                = contrib["geometry"],
-    centroid_quality        = "Contributed",
+    centroid_lat            = contrib["centroid_lat"],
+    centroid_lon            = contrib["centroid_long"],
+    centroid_quality        = "CALCULATED FROM GEOMETRY",
 )
 
 #%%
