@@ -7,11 +7,11 @@ data_path <- Sys.getenv("WSB_DATA_PATH")
 # Allow for longer timeout for download file
 options(timeout = 10000)
 
-# Data Source: Current hydroshare managed by CGS/IOW, where final, accepted
+# Data Source: Current Github managed by CGS/IOW, where final, accepted
 # individual contributor public water systems are added to SL's base map layer
 
-contributed_pws_url <- paste0("https://www.hydroshare.org/resource/c9d8a6a6d87d4a39a4f05af8ef7675ad/data/contents/",
-                                "contributed_pws.gpkg")
+contributed_pws_url <- paste0("https://github.com/cgs-earth/ref_pws/raw/main/02_output/",
+                              "contributed_pws.gpkg")
 
 # create dir to store file, download, and un-zip
 dir_create(path(data_path, "contributed_pws"))

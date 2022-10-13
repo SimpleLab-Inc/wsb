@@ -41,14 +41,15 @@ pws_wsb <- pws_wsb %>%
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
+  # transform back to standard epsg for geojson write
+  st_transform(epsg) %>%
+  st_make_valid() %>%
   # compute centroid
   mutate (
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_long  = st_coordinates(centroid)[, 1],
-    centroid_lat   = st_coordinates(centroid)[, 2]
+    centroid_lat   = st_coordinates(centroid)[, 2],
   ) %>%
-  # transform back to standard epsg for geojson write
-  st_transform(epsg) %>%
   # select columns and rename for staging
   select(
     # data source columns
