@@ -14,6 +14,17 @@ DATA_PATH = os.environ["WSB_STAGING_PATH"]
 contrib = gpd.read_file(os.path.join(DATA_PATH, "contributed_pws.geojson"))
 
 #%%
+
+# Remove GeometryCollections -- they cause problems later.
+# (Polygons and MultiPolygons are OK)
+
+before = len(contrib)
+contrib = contrib[~(contrib.geom_type == "GeometryCollection")]
+
+if len(contrib) < before:
+    print(f"Removed {before - len(contrib)} GeometryCollection type geometries.")
+
+#%%
 # Check assumptions
 assert contrib["pwsid"].is_unique
 
