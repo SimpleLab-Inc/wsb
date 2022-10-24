@@ -1,7 +1,6 @@
 #%%
 
 import os
-import numpy as np
 import pandas as pd
 import geopandas as gpd
 import sqlalchemy as sa
@@ -141,7 +140,7 @@ helpers.load_to_postgis("master",
     temm.drop(columns=["matched_bound_geoid", "matched_bound_name", "pred_05", "pred_50", "pred_95"]))
 
 #%%
-# write to multiple output formats ----------------------------------------
+# Export
 
 # The file outputs have a subset of columns
 columns = [
@@ -161,8 +160,16 @@ output = (temm[columns]
         "county": "county_served"
     }))
 
-print("done.\n")
+#%%
+# paths to write
+path_geopkg   = os.path.join(OUTPUT_PATH, "temm_layer", "temm.gpkg")
+output.to_file(path_geopkg, driver="GPKG")
 
+print("Wrote data to geopackage.\n")
+
+
+#%%
+# Export to additional formats
 
 # SHP files can only have 10 character column names
 renames = {
@@ -183,12 +190,11 @@ renames = {
     "primary_source_code":       "prmry_src",
 }
 
-# paths to write
 path_geojson  = os.path.join(OUTPUT_PATH, "temm_layer", "temm.geojson")
 path_shp      = os.path.join(OUTPUT_PATH, "temm_layer", "shp", "temm.shp")
 path_csv      = os.path.join(OUTPUT_PATH, "temm_layer", "temm.csv")
 
-# create dirs
+# create shapefile dir
 if not os.path.exists(os.path.join(OUTPUT_PATH, "temm_layer", "shp")):
     os.makedirs(os.path.join(OUTPUT_PATH, "temm_layer", "shp"))
 

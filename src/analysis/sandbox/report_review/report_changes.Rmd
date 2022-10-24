@@ -99,9 +99,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 output_path <- Sys.getenv("WSB_OUTPUT_PATH")
 
 # read TEMM spatial output for key resul summary stats below
-temm <- dir_ls(path(output_path, "temm_layer/"), glob = "*geojson") %>% 
-  # get the most up to date temm spatial geojson layer if there are many
-  sort() %>% rev() %>% .[1] %>% 
+temm <- path(output_path, "temm_layer", "temm.gpkg") %>% 
   st_read(quiet = TRUE) %>% 
   # drop this column because it's read as a list and causes mapview trouble
   select(-service_area_type_code)
@@ -124,7 +122,7 @@ matched_input <- read_csv(path(staging_path, "model_input_clean.csv")) %>%
 d <- matched_input %>%
   left_join(temm %>%
               select(pwsid, tier), on = "pwsid") %>%
-  select(-geometry)
+  select(-geom)
 
 # population served by all water systems
 # Note there are systems with missing population, ignore
