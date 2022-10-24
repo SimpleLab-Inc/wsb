@@ -11,7 +11,7 @@ DATA_PATH = os.environ["WSB_STAGING_PATH"]
 
 #%%
 
-contrib = gpd.read_file(os.path.join(DATA_PATH, "contributed_pws.geojson"))
+contrib = gpd.read_file(os.path.join(DATA_PATH, "contributed_pws.gpkg"))
 
 #%%
 

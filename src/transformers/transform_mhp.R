@@ -42,7 +42,7 @@ mhp_sp <- mhp_sp %>%
   f_clean_whitespace_nas()
 
 # Write clean mobile home park centroids
-path_out <- path(staging_path, "mhp_clean.geojson")
+path_out <- path(staging_path, "mhp_clean.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(mhp_sp, path_out)

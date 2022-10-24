@@ -38,7 +38,7 @@ nc_wsb <- nc_wsb %>%
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
-  # transform back to standard epsg for geojson write
+  # transform back to standard epsg
   st_transform(epsg) %>%
   # compute centroids
   mutate(
@@ -65,12 +65,10 @@ nc_wsb <- nc_wsb %>%
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer; added geospatial columns.\n")
 
-# create state dir in staging
-dir_create(path(staging_path, "nc"))
 
-# delete layer if it exists, then write to geojson
-path_out <- path(staging_path, "nc/nc_wsb_labeled.geojson")
+# delete layer if it exists, then write to geopackage
+path_out <- path(staging_path, "wsb_labeled_nc.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(nc_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n\n\n")
+cat("Wrote clean, labeled data to file.\n\n\n")

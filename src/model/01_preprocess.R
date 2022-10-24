@@ -106,7 +106,7 @@ cat("Mean imputed service connection count.\n")
 # read labeled data with recalculated area, centroid for multipolygon pwsids --
 
 # read wsb_labeled_clean
-wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.geojson") %>% 
+wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.gpkg") %>% 
   st_read(quiet = TRUE) 
 
 # rm geometry and other unnecessary (for model) cols from clean wsb labels

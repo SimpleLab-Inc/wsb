@@ -26,7 +26,7 @@ After downloading a dataset, its corresponding transformer must be run to clean 
 ### State water service boundary transformers
 _________________
 
-Each state water system boundary transformer includes basic steps of cleaning excess white space, generating geospatial information about the area and radius of a service area, and creating a standard schema. The output of each state WSB transformer is a geojson file in a folder labeled with the two-letter state abbreviation in lowercase, and the folder is in the staging directory specified by the environment variable `WSB_STAGING_PATH`. This geojson filename has the format `%_wsb_labeled.geojson`, where % is the state's two-letter abbreviation in lowercase. 
+Each state water system boundary transformer includes basic steps of cleaning excess white space, generating geospatial information about the area and radius of a service area, and creating a standard schema. The output of each state WSB transformer is a geopackage file in the staging directory specified by the environment variable `WSB_STAGING_PATH`. This file has the format `wsb_labeled_{state}.gpkg`, where {state} is the state's two-letter abbreviation in lowercase. 
 
 #### Schema
 
@@ -59,7 +59,7 @@ _________________
 
 The ECHO transformer run with `src/transformers/transform_echo.R` includes basic steps of cleaning excess white space, filtering to relevant columns and rows for water systems, and some geospatial processing. The geospatial processing on the ECHO data largely focuses on rendering latitude and longitude values into point geometries and dropping water system facility locations (centroids) that are not in the state served by the water system using [f_drop_imposters()](https://github.com/SimpleLab-Inc/wsb/blob/develop/src/functions/f_drop_imposters.R).
 
-The output of the ECHO transformer is a cleaned geojson of water system facilities nationwide.
+The output of the ECHO transformer is a cleaned csv of water system facilities nationwide.
 
 
 ### TIGER/Line transformer
@@ -67,7 +67,7 @@ _________________
 
 TIGER/Line shapefiles are boundaries for Census Places, or incorporated and census designated places. Because these boundaries overlap with ocean areas in some cases,  `src/transformers/transform_tigris_ne.R` intersects Census Places with Natural Earth ocean geometry to remove ocean areas from Census places.
 
-The output of the TIGER/Line transformer is a cleaned geojson of TIGER/Line shapefiles without ocean overlap.
+The output of the TIGER/Line transformer is a cleaned geopackage of TIGER/Line shapefiles without ocean overlap.
 
 
 ### SDWIS transformers
@@ -87,7 +87,7 @@ _________________
 
 UCMR includes information about zipcodes served for each water system participating in UCMR. The UCMR transformer, `src/transformer/transform_ucmr.R`, includes basic cleaning steps of cleaning white space and removing invalid zip codes. The transformer combines zipcode information across two phases of UCMR (UCMR3 and UCMR4) for maximal data coverage. Finally, zipcode areas from the Census are joined to water systems and similar geoprocessing to the labeled water service boundary transformers is conducted: convex hull area, radius, and centroids are calculated.
 
-The UCMR transformer output is a cleaned geojson file linking `pwsid` with zipcodes served and the zipcode centroids.
+The UCMR transformer output is a cleaned csv file linking `pwsid` with zipcodes served and the zipcode centroids.
 
 
 ### MHP transformer
@@ -95,7 +95,7 @@ _________________
 
 The mobile home park transformer run with `src/transformers/transform_mhp.R` includes basic steps of cleaning excess white space, standardizing colum names, and some geospatial processing. The geospatial processing on the MHP data largely focuses on rendering latitude and longitude values into point geometries and dropping locations (centroids) that are not in the same state of the MHP [f_drop_imposters()](https://github.com/SimpleLab-Inc/wsb/blob/develop/src/functions/f_drop_imposters.R).
 
-The output of the MHP transformer is a cleaned geojson of mobile home park locations nationwide.
+The output of the MHP transformer is a cleaned geopackage of mobile home park locations nationwide.
 
 
 ### FRS transformer

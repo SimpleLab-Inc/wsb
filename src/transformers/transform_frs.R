@@ -56,9 +56,9 @@ frs_water <- frs_water %>%
          facility_id = word(pgm_sys_id, 2),
          facility_id = ifelse(pwsid == facility_id, NA, facility_id)) 
 
-# Write to geojson --------------------------------------------------------
-path_out <- path(staging_path, "frs.geojson")
+# Write to geopackage ----------------------------------------------------
+path_out <- path(staging_path, "frs.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(frs_water, path_out)
-cat("Wrote FRS data to geojson. \n")
+cat("Wrote FRS data to geopackage. \n")

@@ -126,12 +126,6 @@ stacked_match["match_rule"] = stacked_match["match_rule"].astype(str)
     .to_excel(OUTPUT_PATH + "/stacked_match_report.xlsx", index=False))
 
 #%% ###########################
-# This geojson file supports the R Shiny app
-###############################
-
-stacked_match.to_file(OUTPUT_PATH + "/stacked_match_report.geojson", index=False)
-
-#%% ###########################
 # The "unmatched" report helps ID why records didn't match
 ###############################
 

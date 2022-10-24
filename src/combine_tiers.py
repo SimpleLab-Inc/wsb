@@ -64,7 +64,7 @@ print("Retrieved Tier 2: Matched boundaries.")
 
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 = (gpd
-    .read_file(os.path.join(STAGING_PATH, "tier3_median.geojson"))
+    .read_file(os.path.join(STAGING_PATH, "tier3_median.gpkg"))
     [["pwsid", ".pred_lower", ".pred", ".pred_upper",
     "centroid_lat", "centroid_lon", "centroid_quality", "geometry"]]
     .rename(columns={

@@ -100,12 +100,9 @@ n <- il_wsb %>%
   nrow()
 cat(n, "duplicate pwsids in labeled data following fix.\n")
 
-# create state dir in staging
-dir_create(path(staging_path, "il"))
-
-# delete layer if it exists, then write to geojson
-path_out <- path(staging_path, "il/il_wsb_labeled.geojson")
+# delete layer if it exists, then write to geopackage
+path_out <- path(staging_path, "wsb_labeled_il.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(il_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n\n\n") 
+cat("Wrote clean, labeled data to file.\n\n\n") 

@@ -33,7 +33,6 @@ output:
   h5{
     font-size: 14pt;
   }
-}
 
 </style>
 ```
@@ -111,7 +110,7 @@ temm <- dir_ls(path(output_path, "temm_layer/"), glob = "*geojson") %>%
 nrow_d <- temm %>% drop_na(tier) %>% nrow()
 
 # Tier 1 labeled data
-wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.geojson") %>% 
+wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.gpkg") %>% 
   st_read(quiet = TRUE)
 
 # read the clean matched output and perform minor transforms for plots.

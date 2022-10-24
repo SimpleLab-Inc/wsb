@@ -14,6 +14,7 @@ import geopandas as gpd
 import pandas as pd
 import os
 from dotenv import load_dotenv
+import re
 
 
 # File path and data import
@@ -27,11 +28,8 @@ def get_pc(num, denom):
     return round((num/denom)*100, 1)
 
 #%% get list of paths/filenames for staged state wsb data
-staging_geojson_list = []
-for dirpath, dirnames, filenames in os.walk(staging_path):
-    for filename in [f for f in filenames if f.endswith("_wsb_labeled.geojson")]:
-        staging_geojson_list.append(os.path.join(filename[:2], filename))
-num_states = len(staging_geojson_list)
+staging_file_list = [file for file in os.listdir(staging_path) if re.search(r"wsb_labeled_\w\w.gpkg", file)]
+num_states = len(staging_file_list)
 
 #%% read in sdwis data
 sdwis = pd.read_csv(os.path.join(staging_path, 'sdwis_water_system.csv'))
@@ -43,7 +41,7 @@ sdwis = sdwis[(sdwis['pws_activity_code'] == 'A') &
 #%% compare wsb staging data with sdwis
 nested_list = []
 
-for i, staging_file in enumerate(staging_geojson_list):
+for i, staging_file in enumerate(staging_file_list):
     print(f'\rComparing WSB and SDWIS data for state {i+1}/{num_states}...', end='')
         
     # read in staged state wsb data

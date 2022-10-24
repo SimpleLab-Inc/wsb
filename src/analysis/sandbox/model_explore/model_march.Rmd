@@ -152,7 +152,7 @@ temm <- dir_ls(path(output_path, "temm_layer/"), glob = "*geojson") %>%
   select(-service_area_type_code)
 
 # Tier 1 labeled data
-wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.geojson") %>% 
+wsb_labeled_clean <- path(staging_path, "wsb_labeled_clean.gpkg") %>% 
   st_read(quiet = TRUE)
 
 # read the clean matched output and perform minor transforms for plots.
@@ -636,7 +636,7 @@ $$ where $A_T \cap A_E$ is the intersection of the TIGER Place area ($A_T$) and 
 
 ```{r modified-jacard-similarity-on-tiger-place-match-and-labeled-wsb}
 # Tier 2 TIGER geometries for explicit boundaries
-tiger <- path(staging_path, "tigris_places_clean.geojson") %>% 
+tiger <- path(staging_path, "tiger_places_clean.gpkg") %>% 
   st_read(quiet = TRUE) %>% 
   select(matched_bound_geoid = geoid) %>%
   mutate(matched_bound_geoid = as.integer(matched_bound_geoid))
@@ -1201,7 +1201,7 @@ We examine model residuals across space (i.e., Tier 3 predictions - Tier 1 expli
 
 ```{r lm spatial-autocorrelation-residuals, fig.cap="Spatial residuals (Tier 1 states)"}
 # Tier 3: Modeled boundaries: read and construct geometry
-t3 <- path(staging_path, "tier3_median.geojson") %>% st_read(quiet = TRUE)
+t3 <- path(staging_path, "tier3_median.gpkg") %>% st_read(quiet = TRUE)
 
 # examine residuals
 t3 <- t3 %>% 
@@ -1249,9 +1249,9 @@ Below is an example of one Tier 3 with a typical CI range (around 0.6 mi). Toggl
 
 ```{r tier-3-cis}
 # lm CI layers
-t3m_med <- st_read(path(staging_path, "tier3_median.geojson"), quiet = TRUE)
-t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.geojson"), quiet = TRUE)
-t3m_ciu <- st_read(path(staging_path, "tier3_ci_lower_05.geojson"), quiet = TRUE)
+t3m_med <- st_read(path(staging_path, "tier3_median.gpkg"), quiet = TRUE)
+t3m_cil <- st_read(path(staging_path, "tier3_ci_upper_95.gpkg"), quiet = TRUE)
+t3m_ciu <- st_read(path(staging_path, "tier3_ci_lower_05.gpkg"), quiet = TRUE)
 
 # plot examples
 pwsid_select <- "IN5289012" # ~1km CI range

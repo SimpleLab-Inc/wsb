@@ -18,7 +18,7 @@ state_cw = (pd
 
 #%%
 
-tiger = gpd.read_file(os.path.join(DATA_PATH, "tigris_places_clean.geojson"))
+tiger = gpd.read_file(os.path.join(DATA_PATH, "tiger_places_clean.gpkg"))
 
 # Ensure strings with leading zeros
 tiger["statefp"] = tiger["statefp"].astype("int").astype("str").str.zfill(2)

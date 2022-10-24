@@ -229,13 +229,13 @@ run_task(
 # Model
 ###################################
 
-# Preprocessing (45 secs)
+# Preprocessing (10 secs)
 run_task(
     "Preprocessing data for model",
     "model/01_preprocess.R")
 
 #%%
-# Linear model (2 mins)
+# Linear model (40 secs)
 run_task(
     "Running linear model for wsb estimation",
     "model/02_linear.R")

@@ -33,7 +33,7 @@ sdwis <- path(staging_path, "sdwis_water_system.csv") %>%
   read_csv(col_select = all_of(cols_keep))
 
 # clean labeled wsb
-wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.geojson"))
+wsb_labeled_clean <- st_read(path(staging_path, "wsb_labeled_clean.gpkg"))
 
 # plot
 wsb_labeled_clean %>% 

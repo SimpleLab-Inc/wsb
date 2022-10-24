@@ -12,9 +12,9 @@ epsg         <- as.numeric(Sys.getenv("WSB_EPSG"))
 
 # list, read, and combine all staged state wsb files
 wsb_labeled <- dir_ls(staging_path, 
-                      regex = "_wsb_labeled.geojson$", 
-                      recurse = TRUE) %>% 
+                      regex = "wsb_labeled_[a-z][a-z].gpkg$") %>% 
   map_df(~st_read(., quiet = TRUE)) %>% 
+  rename(geometry = geom) %>% 
   # remove NA pwsid
   filter(!is.na(pwsid)) %>%
   suppressMessages() 
@@ -102,9 +102,9 @@ n <- wsb_labeled_clean %>%
   nrow()
 cat(n, "duplicate pwsids in labeled data following fix.\n")
 
-# delete layer if it exists, then write to geojson
-path_out <- path(staging_path, "wsb_labeled_clean.geojson")
+# delete layer if it exists, then write to geopackage
+path_out <- path(staging_path, "wsb_labeled_clean.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(wsb_labeled_clean, path_out)
-cat("Wrote clean, labeled data to geojson.\n")
+cat("Wrote clean, labeled data to file.\n")

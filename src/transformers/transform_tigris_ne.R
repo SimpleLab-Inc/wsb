@@ -1,4 +1,4 @@
-# transform TIGRIS places and crop to oceans polyline ---------------------
+# transform TIGER places and crop to oceans polyline ---------------------
 
 library(fs)
 library(sf)
@@ -42,9 +42,9 @@ pop <- read_csv(path(data_path, "tigris/tigris_pop.csv")) %>%
 places_clean <- places_clean %>%
   left_join(pop, by = "geoid")
 
-# write clean TIGRIS places
-path_out <- path(staging_path, "tigris_places_clean.geojson")
+# write clean TIGER places
+path_out <- path(staging_path, "tiger_places_clean.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(places_clean, path_out)
-cat("Wrote clean TIGRIS places.\n")
+cat("Wrote clean TIGER places.\n")

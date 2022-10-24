@@ -106,9 +106,9 @@ t3m_cil <- st_buffer(t3m, t3m$.pred_lower) %>% st_transform(epsg)
 t3m_ciu <- st_buffer(t3m, t3m$.pred_upper) %>% st_transform(epsg)
 
 # paths to write modeled data
-path_t3m_med <- path(staging_path, "tier3_median.geojson")
-path_t3m_cil <- path(staging_path, "tier3_ci_upper_95.geojson")
-path_t3m_ciu <- path(staging_path, "tier3_ci_lower_05.geojson")
+path_t3m_med <- path(staging_path, "tier3_median.gpkg")
+path_t3m_cil <- path(staging_path, "tier3_ci_upper_95.gpkg")
+path_t3m_ciu <- path(staging_path, "tier3_ci_lower_05.gpkg")
 
 # write and delete layer if it already exists
 st_write(t3m_med, path_t3m_med, delete_dsn = TRUE)

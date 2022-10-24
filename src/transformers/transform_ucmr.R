@@ -115,7 +115,7 @@ n <- ucmr %>%
 cat(n, "duplicate pwsids in labeled data following fix.\n")
 
 
-# Write clean ucmr data to geojson
+# Write clean ucmr data to CSV
 path_out <- path(staging_path, "ucmr.csv")
 if(file_exists(path_out)) file_delete(path_out)
 

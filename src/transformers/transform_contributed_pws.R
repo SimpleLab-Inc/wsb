@@ -41,7 +41,7 @@ pws_wsb <- pws_wsb %>%
     area_hull      = st_area(convex_hull),
     radius         = sqrt(area_hull/pi)
   ) %>%
-  # transform back to standard epsg for geojson write
+  # transform back to standard epsg
   st_transform(epsg) %>%
   st_make_valid() %>%
   # compute centroid
@@ -69,10 +69,10 @@ pws_wsb <- pws_wsb %>%
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer; added geospatial columns.\n")
 
-# delete layer if it exists, then write to geojson
-path_out <- path(staging_path, "contributed_pws.geojson")
+# delete layer if it exists, then write to geopackage
+path_out <- path(staging_path, "contributed_pws.gpkg")
 if(file_exists(path_out)) file_delete(path_out)
 
 st_write(pws_wsb, path_out)
-cat("Wrote clean, labeled data to geojson.\n\n\n") 
+cat("Wrote clean, labeled data to geopackage.\n\n\n") 
 
