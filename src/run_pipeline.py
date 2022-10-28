@@ -96,11 +96,19 @@ run_task(
 
 # Transform Labeled States (~3 min total)
 files = os.listdir("transformers/states")
-files = [f for f in files if f.lower().endswith(".r")]
+failures = []
 for f in files:
-    run_task(
-        f"Transforming {f[14:16].upper()}",
-        "transformers/states/" + f)
+    try:
+        run_task(
+            f"Transforming {f[14:16].upper()}",
+            "transformers/states/" + f)
+    except Exception as e:
+        failures.append(f)
+
+print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!")
+print("Warning: Some state transformers failed to run!")
+print("Failed: " + ", ".join(failures))
+print("!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 # Combine labeled states
 run_task(
