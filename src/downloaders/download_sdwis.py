@@ -80,25 +80,3 @@ if not os.path.exists(os.path.join(sdwis_data_path, f'{filename}.csv')):
 
 else:
     print(f'{filename}.csv already exists and will not re-stitch.')
-
-#%% Download WATER_SYSTEM_FACILITY
-filename = 'WATER_SYSTEM_FACILITY'
-
-if os.path.exists(os.path.join(sdwis_data_path, filename + "/")): 
-    pass
-    print(f"{filename} folder exists, skipping download.")
-        
-else:   
-    download_with_aria(sdwis_data_path,filename, count_end=200)
- 
-
-# Stitch and count row
-if not os.path.exists(os.path.join(sdwis_data_path, f'{filename}.csv')):
-    stitch_files(filename, sdwis_data_path)   
-    directory = os.path.join(sdwis_data_path, f'{filename}/')
-    row_count = get_row_count(sdwis_data_path, f'{filename}.csv')
-    print(f'Row count of {filename}.csv: {row_count}')
-
-else:
-    print(f'{filename}.csv already exists and will not re-stitch.')
-

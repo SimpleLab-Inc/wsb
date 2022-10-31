@@ -152,11 +152,6 @@ run_task(
     "Transforming SDWIS Geographic Areas",
     "transformers/transform_sdwis_geo_areas.py")
 
-# We didn't end up using this data
-# run_task(
-#     "Transforming SDWIS Water System Facilities",
-#     "transformers/transform_sdwis_wsf.py")
-
 
 #%%
 # Transform TIGER (1 min)

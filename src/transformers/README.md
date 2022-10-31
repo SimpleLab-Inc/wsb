@@ -73,10 +73,9 @@ The output of the TIGER/Line transformer is a cleaned geopackage of TIGER/Line s
 ### SDWIS transformers
 _________________
 
-SDWIS data provide a relevant data on community water systems nationwide. There are four transformer scripts:
+SDWIS data provide a relevant data on community water systems nationwide. There are three transformer scripts:
 
 -`src/transformer/transform_sdwis_ws.py`: Transforms the water system table
--`src/transformer/transform_sdwis_wsf.py`: Transforms the water system facilities table
 -`src/transformer/transform_sdwis_geo_areas.py`: Transforms the geographic area table
 -`src/transformer/transform_sdwis_service.py`: Transforms the service area table
 
