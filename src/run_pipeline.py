@@ -94,7 +94,7 @@ run_task(
 # Transformers
 #########################################
 
-# Transform Labeled States (~3 min total)
+# Transform Labeled States (~5 min total)
 files = os.listdir("transformers/states")
 failures = []
 for f in files:
@@ -113,11 +113,13 @@ print("!!!!!!!!!!!!!!!!!!!!!!!!!!")
 # Combine labeled states
 run_task(
     f"Combine labeled states",
-    "transformers/combine_transformed_wsb.R")
+    "transformers/transform_labeled.R")
 
-# Transform contributed pws
+#%%
+
+# Transform contributed pws (3s)
 run_task(
-    "Transforming contribtued pws",
+    "Transforming contributed pws",
     "transformers/transform_contributed_pws.R")
 
 #%%

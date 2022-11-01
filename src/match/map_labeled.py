@@ -56,8 +56,9 @@ df = gpd.GeoDataFrame().assign(
     # Need to convert these to EPSG:4326 before we can save them
     centroid_lat            = labeled["centroid_lat"],
     centroid_lon            = labeled["centroid_long"],
-    geometry                = labeled["geometry"],
     centroid_quality        = "CALCULATED FROM GEOMETRY",
+    geometry                = labeled["geometry"],
+    geometry_source_detail  = labeled["geometry_source_detail"]
 )
 
 #%%

@@ -81,8 +81,7 @@ df = gpd.GeoDataFrame().assign(
     centroid_lat            = frs["latitude83"],
     centroid_lon            = frs["longitude83"],
     geometry                = frs["geometry"],
-    centroid_quality        = frs["ref_point_desc"],
-    data_source             = frs["collect_mth_desc"]
+    centroid_quality        = frs["collect_mth_desc"]
 )
 
 # Some light cleansing

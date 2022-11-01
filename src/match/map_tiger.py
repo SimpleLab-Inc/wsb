@@ -44,7 +44,8 @@ df = gpd.GeoDataFrame().assign(
     geometry            = tiger["geometry"],
     centroid_lat        = tiger["intptlat"],
     centroid_lon        = tiger["intptlon"],
-    centroid_quality    = "CALCULATED FROM GEOMETRY"
+    centroid_quality    = "CALCULATED FROM GEOMETRY",
+    geometry_source_detail = "2020 Census"
 )
 
 #%%

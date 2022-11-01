@@ -150,7 +150,8 @@ output = (sdwis
         source_system              = "modeled",
         source_system_id           = sdwis["pwsid"],
         master_key                 = sdwis["pwsid"],
-        tier                       = 3
+        tier                       = 3,
+        geometry_source_detail     = "Modeled"
     ))
 
 

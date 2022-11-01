@@ -32,6 +32,7 @@ tx_wsb <- tx_wsb %>%
   bind_rows() %>%
   mutate(
     state          = "TX",
+    geometry_source_detail = Source,
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
@@ -60,7 +61,8 @@ tx_wsb <- tx_wsb %>%
     centroid_long,
     centroid_lat,
     radius,
-    geometry
+    geometry,
+    geometry_source_detail
   )
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer; added geospatial columns.\n")

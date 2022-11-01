@@ -2,6 +2,8 @@
 
 # 2.5.0 (in progress)
 * Adding manually-contributed systems from the Internet of Water's [Hydroshare resource](https://www.hydroshare.org/resource/c9d8a6a6d87d4a39a4f05af8ef7675ad/)
+* Refactored to use geopackage through most of pipeline instead of geojson
+* Added `geometry_source_detail` column, to document where the data provider got the geometries from
 
 # 2.4.0 (2022-09-27)
 * Added Arkansas labeled boundaries. The original data source did not have water system ids, but a match on names was pretty comprehensive. We supplemented with ~40 manually looked-up water system ids based on the remaining non-matches. There are still 12 systems with shapefiles from the underlying data that did not actually have any water system id that I could match.

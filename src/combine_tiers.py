@@ -24,7 +24,7 @@ print("Loading geometries for Tiers 1-3...")
 
 # Tier 1: LABELED (and CONTRIBUTED) boundaries
 t1 = gpd.GeoDataFrame.from_postgis("""
-            SELECT pwsid, centroid_lat, centroid_lon, centroid_quality, geometry
+            SELECT pwsid, centroid_lat, centroid_lon, centroid_quality, geometry, geometry_source_detail
             FROM pws_contributors
             WHERE
                 source_system IN ('labeled', 'contributed') AND
@@ -38,7 +38,7 @@ before_count = len(t1)
 t1 = t1.drop_duplicates(subset="pwsid", keep="first")
 
 if len(t1) < before_count:
-    print(f"Prioritized {before_count - len(t1)} contributed record over labeled in T1.")
+    print(f"Prioritized {before_count - len(t1)} contributed records over labeled in T1.")
 
 print("Retrieved Tier 1: Labeled boundaries.")
 
@@ -51,7 +51,8 @@ t2 = gpd.GeoDataFrame.from_postgis("""
                 t.centroid_lat,
                 t.centroid_lon,
                 t.centroid_quality,
-                t.geometry
+                t.geometry,
+                t.geometry_source_detail
             FROM matches_ranked m
             JOIN pws_contributors t ON m.candidate_contributor_id = t.contributor_id
             WHERE
@@ -64,12 +65,16 @@ print("Retrieved Tier 2: Matched boundaries.")
 # Tier 3: MODELED boundaries - use median result geometry but bring in CIs
 t3 = (gpd
     .read_file(os.path.join(STAGING_PATH, "tier3_median.gpkg"))
-    [["pwsid", ".pred_lower", ".pred", ".pred_upper",
-    "centroid_lat", "centroid_lon", "centroid_quality", "geometry"]]
+    [[
+        "pwsid", ".pred_lower", ".pred", ".pred_upper",
+        "centroid_lat", "centroid_lon", "centroid_quality",
+        "geometry", "geometry_source_detail"
+    ]]
     .rename(columns={
         ".pred_lower": "pred_05",
         ".pred":       "pred_50",
-        ".pred_upper": "pred_95"}))
+        ".pred_upper": "pred_95"
+    })) #type:ignore
 
 print("Retrieved Tier 3: Modeled boundaries.")
 
@@ -91,7 +96,9 @@ base = pd.read_sql(f"""
     FROM pws_contributors
     WHERE source_system = 'sdwis';""", conn)
 
-base = base.drop(columns=["tier", "centroid_lat", "centroid_lon", "centroid_quality", "geometry"])
+base = base.drop(columns=[
+    "tier", "centroid_lat", "centroid_lon", "centroid_quality",
+    "geometry", "geometry_source_detail"])
 
 # Overwrite the contributor_id
 base["contributor_id"] = "master." + base["pwsid"]
@@ -107,7 +114,7 @@ combined = gpd.GeoDataFrame(pd
     .sort_values(by="tier") #type:ignore
     .drop_duplicates(subset="pwsid", keep="first")
     [["pwsid", "tier", "centroid_lat", "centroid_lon", "centroid_quality",
-    "geometry", "pred_05", "pred_50", "pred_95"]])
+    "geometry", "geometry_source_detail", "pred_05", "pred_50", "pred_95"]])
 
 # Join again to get matched boundary info
 # we do this to get boundary info for ALL tiers
@@ -150,7 +157,7 @@ columns = [
     "is_wholesaler_ind", "primacy_type",
     "primary_source_code", "tier",
     "centroid_lat", "centroid_lon", "centroid_quality",
-    "geometry", "pred_05", "pred_50", "pred_95"]
+    "geometry", "geometry_source_detail", "pred_05", "pred_50", "pred_95"]
 
 # Backwards compatibility
 output = (temm[columns]

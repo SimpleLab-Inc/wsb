@@ -39,7 +39,7 @@ pws = dbGetQuery(conn,"
     pwsid, is_wholesaler_ind, primacy_type, primary_source_code,
     service_connections_count, population_served_count, primacy_agency_code,
     owner_type_code, service_area_type_code, centroid_lat, centroid_lon,
-    centroid_quality
+    centroid_quality, geometry_source_detail
   FROM pws_contributors
   WHERE source_system = 'modeled';")
 
