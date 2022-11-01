@@ -1,7 +1,7 @@
 # Water Service Boundaries - Change Log
 
-# 2.5.0 (in progress)
-* Adding manually-contributed systems from the Internet of Water's [Hydroshare resource](https://www.hydroshare.org/resource/c9d8a6a6d87d4a39a4f05af8ef7675ad/)
+# 3.0.0 (2022-10-31)
+* Adding manually-contributed systems from the Internet of Water's [Github](https://github.com/cgs-earth/ref_pws/raw/main/02_output/contributed_pws.gpkg)
 * Refactored to use geopackage through most of pipeline instead of geojson
 * Added `geometry_source_detail` column, to document where the data provider got the geometries from
 
