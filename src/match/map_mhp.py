@@ -33,7 +33,8 @@ df = gpd.GeoDataFrame().assign(
     centroid_lat        = mhp["latitude"],
     centroid_lon        = mhp["longitude"],
     geometry            = mhp["geometry"],
-    centroid_quality    = mhp["val_method"]
+    centroid_quality    = mhp["val_method"],
+    geometry_source_detail = mhp["source"]
 )
 
 #%%

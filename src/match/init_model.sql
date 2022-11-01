@@ -27,6 +27,7 @@ CREATE TABLE pws_contributors (
     centroid_lat        DECIMAL(10, 8),
     centroid_lon        DECIMAL(11, 8),
     centroid_quality    TEXT,
+    geometry_source_detail TEXT,
     geometry            GEOMETRY(GEOMETRY, 4326)
 );
 

@@ -35,6 +35,7 @@ cat("Read individual pws shapefiles; cleaned whitespace; corrected geometries.\n
 pws_wsb <- pws_wsb %>%
   mutate(
     state          = substr(pwsid, 1, 2),
+    geometry_source_detail = data_source,
     # importantly, area calculations occur in area weighted epsg
     st_areashape   = st_area(geometry),
     convex_hull    = st_geometry(st_convex_hull(geometry)),
@@ -49,6 +50,7 @@ pws_wsb <- pws_wsb %>%
     centroid       = st_geometry(st_centroid(geometry)),
     centroid_long  = st_coordinates(centroid)[, 1],
     centroid_lat   = st_coordinates(centroid)[, 2],
+    
   ) %>%
   # select columns and rename for staging
   select(
@@ -64,7 +66,8 @@ pws_wsb <- pws_wsb %>%
     centroid_long,
     centroid_lat,
     radius,
-    geometry
+    geometry,
+    geometry_source_detail
   )
 cat("Computed area, centroids, and radii from convex hulls.\n")
 cat("Combined into one layer; added geospatial columns.\n")

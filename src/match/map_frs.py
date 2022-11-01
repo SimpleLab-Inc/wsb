@@ -39,7 +39,8 @@ frs = frs[
 keep_columns = [
     "registry_id", "pwsid", "state_code", "primary_name", "location_address",
     "city_name", "postal_code", "county_name",
-    "latitude83", "longitude83", "geometry", "ref_point_desc"]
+    "latitude83", "longitude83", "geometry", "ref_point_desc",
+    "collect_mth_desc"]
 
 frs = frs[keep_columns]
 
@@ -81,6 +82,7 @@ df = gpd.GeoDataFrame().assign(
     centroid_lon            = frs["longitude83"],
     geometry                = frs["geometry"],
     centroid_quality        = frs["ref_point_desc"],
+    data_source             = frs["collect_mth_desc"]
 )
 
 # Some light cleansing

@@ -42,6 +42,7 @@ df = gpd.GeoDataFrame().assign(
     centroid_lat            = contrib["centroid_lat"],
     centroid_lon            = contrib["centroid_long"],
     centroid_quality        = "CALCULATED FROM GEOMETRY",
+    geometry_source_detail  = contrib["geometry_source_detail"]
 )
 
 #%%
