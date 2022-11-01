@@ -124,19 +124,6 @@ d <- matched_input %>%
               select(pwsid, tier), on = "pwsid") %>%
   select(-geom)
 
-# population served by all water systems
-# Note there are systems with missing population, ignore
-pop_total <- sum(d$population_served_count, na.rm = TRUE)
-
-# calculate count and proportion of people served by each tier
-pop <- d %>% 
-  filter(!is.na(population_served_count)) %>%
-  group_by(tier) %>% 
-  summarize(
-    count = format_bign(sum(population_served_count)),
-    prop  = round((sum(population_served_count)/pop_total)*100, 2)
-  )
-
 # read in sdwis original set of water systems for comparisons
 acws <- read_csv(path(staging_path, "sdwis_water_system.csv")) %>%
   filter(pws_activity_code == "A" &
@@ -147,6 +134,19 @@ n_acws <- acws %>% nrow()
 
 # population served by active, community water systems in SDWIS
 pop_acws <- sum(acws$population_served_count)
+
+# population served by all water systems
+# Note there are systems with missing population, ignore
+pop_total <- sum(d$population_served_count, na.rm = TRUE)
+
+# calculate count and proportion of people served by each tier
+pop <- d %>% 
+  filter(!is.na(population_served_count)) %>%
+  group_by(tier) %>% 
+  summarize(
+    count = format_bign(sum(population_served_count)),
+    prop  = round((sum(population_served_count)/pop_acws)*100, 2)
+  )
 
 # get full list of temm systems (incl those without population), "a" for all
 a <- temm
