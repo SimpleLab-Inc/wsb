@@ -99,7 +99,7 @@ staging_path <- Sys.getenv("WSB_STAGING_PATH")
 output_path <- Sys.getenv("WSB_OUTPUT_PATH")
 
 # read TEMM spatial output for key resul summary stats below
-temm <- path(output_path, "temm_layer", "temm.gpkg") %>% 
+temm <- path(output_path, "temm.gpkg") %>% 
   st_read(quiet = TRUE) %>% 
   # drop this column because it's read as a list and causes mapview trouble
   select(-service_area_type_code)

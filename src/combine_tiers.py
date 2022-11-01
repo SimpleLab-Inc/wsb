@@ -169,45 +169,7 @@ output = (temm[columns]
 
 #%%
 # paths to write
-path_geopkg   = os.path.join(OUTPUT_PATH, "temm_layer", "temm.gpkg")
+path_geopkg   = os.path.join(OUTPUT_PATH, "temm.gpkg")
 output.to_file(path_geopkg, driver="GPKG")
 
 print("Wrote data to geopackage.\n")
-
-
-#%%
-# Export to additional formats
-
-# SHP files can only have 10 character column names
-renames = {
-    "primacy_agency_code":       "primacy_ag",
-    "city_served":               "city_serve",
-    "county_served":             "cnty_serve",
-    "population_served_count":   "ppln_serve",
-    "service_connections_count": "srvc_conn",
-    "service_area_type_code":    "srvc_area",
-    "owner_type_code":           "owner_type",
-    "centroid_lat":              "cntrd_lat",
-    "centroid_lon":              "cntrd_lon",
-    "centroid_quality":          "cntrd_qual",
-    "matched_bound_geoid":       "bnd_geoid",
-    "matched_bound_name":        "bnd_name",
-    "is_wholesaler_ind":         "is_whlslr",
-    "primacy_type":              "prmcy_type",
-    "primary_source_code":       "prmry_src",
-}
-
-path_geojson  = os.path.join(OUTPUT_PATH, "temm_layer", "temm.geojson")
-path_shp      = os.path.join(OUTPUT_PATH, "temm_layer", "shp", "temm.shp")
-path_csv      = os.path.join(OUTPUT_PATH, "temm_layer", "temm.csv")
-
-# create shapefile dir
-if not os.path.exists(os.path.join(OUTPUT_PATH, "temm_layer", "shp")):
-    os.makedirs(os.path.join(OUTPUT_PATH, "temm_layer", "shp"))
-
-# write geojson, shp, and csv
-output.to_file(path_geojson, driver="GeoJSON")
-output.rename(columns=renames).to_file(path_shp, driver="ESRI Shapefile")
-output.drop(columns="geometry").to_csv(path_csv)
-
-print("Wrote data to geojson, shp, csv.\n\n\n")
