@@ -8,6 +8,9 @@ Water service boundaries (spatial polygons) delineate areas over which water is 
 
 In this work, we build a reproducible pipeline to assimilate existing wsb data in the USA (labeled data). We then match water system names, cities served, and facility centroids with spatial boundaries for Census places. We also engineer features that predict the approximate spatial extent of these boundaries and train statistical and machine learning models on these features to produce proxy water system boundaries for states without centralized wsb data. The result is a dataset of all potential geographic boundaries or features associated with each water system. We then apply a hierarchical selection, assigning the highest integrity spatial boundary (labeled water service area shapefile being the highest integrity; modeled boundary being the lowest integrity) to each water system. The result is a provisional water system boundary layer for active, community water systems across the US.
 
+## How to access the final map
+While this repository allows you to reproduce the data yourself, you may be here because you just want the end-data. To access the water service boundary map and data, please visit the SimpleLab [Hydroshare](https://www.hydroshare.org/resource/9ebc0a0b43b843b9835830ffffdd971e/) and check for the latest version of the data, available for download.
+
 ## Project Organization
 
 The main function of the project is an ETM (extract-transform-model) **pipeline** that chains a set of modular programs which can be flexibly modified over time to accommodate changes in input data and required output results. The main output in `{WSB_OUTPUT_PATH}` is a filesystem of various spatial formats (e.g., shp, geojson, csv, rds) that are uploaded to Hydroshare for distribution.
